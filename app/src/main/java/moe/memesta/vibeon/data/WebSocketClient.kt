@@ -29,6 +29,9 @@ class WebSocketClient {
     
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    private var baseUrl: String = ""
+
     
     private val _messages = MutableStateFlow<String>("")
     val messages: StateFlow<String> = _messages.asStateFlow()
@@ -56,8 +59,13 @@ class WebSocketClient {
     
     private val _isMobilePlayback = MutableStateFlow(false)
     val isMobilePlayback: StateFlow<Boolean> = _isMobilePlayback.asStateFlow()
+
+    private val _library = MutableStateFlow<List<TrackInfo>>(emptyList())
+    val library: StateFlow<List<TrackInfo>> = _library.asStateFlow()
     
     fun connect(host: String, port: Int, clientName: String = "Android") {
+        baseUrl = "http://$host:$port"
+
         val wsUrl = "ws://$host:$port/control"
         Log.d("WebSocket", "Connecting to $wsUrl")
         
@@ -138,6 +146,14 @@ class WebSocketClient {
         }
         sendMessage(message)
     }
+
+    fun sendGetLibrary() {
+        val message = JSONObject().apply {
+            put("type", "getLibrary")
+        }
+        sendMessage(message)
+    }
+
     
     fun sendPlayTrack(path: String) {
         val message = JSONObject().apply {
@@ -209,12 +225,18 @@ class WebSocketClient {
                         val duration = json.optDouble("duration", 0.0)
                         val isPlaying = json.optBoolean("isPlaying", false)
                         val position = json.optDouble("position", 0.0)
+                        var coverUrl = json.optString("cover_url", null) ?: json.optString("coverUrl", null)
+
+                        if (coverUrl != null && !coverUrl.startsWith("http")) {
+                            coverUrl = "${client.baseUrl}$coverUrl"
+                        }
                         
                         client._currentTrack.value = MediaSessionData(
                             title = title,
                             artist = artist,
                             album = album,
-                            duration = duration
+                            duration = duration,
+                            coverUrl = coverUrl
                         )
                         client._isPlaying.value = isPlaying
                         client._duration.value = duration
@@ -279,6 +301,29 @@ class WebSocketClient {
                         client._isMobilePlayback.value = false
                         client._streamUrl.value = null
                         Log.i("WebSocket", "🛑 Mobile streaming stopped")
+                    }
+                    "library" -> {
+                        val tracksArray = json.optJSONArray("tracks") ?: return
+                        val tracks = mutableListOf<TrackInfo>()
+                        val base = client.baseUrl
+                        for (i in 0 until tracksArray.length()) {
+                            val t = tracksArray.getJSONObject(i)
+                            val path = t.getString("path")
+                            var cover = t.optString("coverUrl", null)
+                            if (cover != null && !cover.startsWith("http")) {
+                                cover = "$base$cover"
+                            }
+                            tracks.add(TrackInfo(
+                                path = path,
+                                title = t.getString("title"),
+                                artist = t.getString("artist"),
+                                album = t.getString("album"),
+                                duration = t.getDouble("durationSecs"),
+                                coverUrl = cover
+                            ))
+                        }
+                        client._library.value = tracks
+                        Log.i("WebSocket", "📚 Received library with ${tracks.size} tracks")
                     }
                 }
             } catch (e: Exception) {

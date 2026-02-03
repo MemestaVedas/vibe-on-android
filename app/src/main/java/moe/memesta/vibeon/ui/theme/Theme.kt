@@ -10,17 +10,24 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = VibePurple,
-    secondary = VibeBlue,
+    primary = VibePrimary,
+    onPrimary = VibeOnPrimary,
+    secondary = VibeSecondary,
+    onSecondary = VibeOnSecondary,
     tertiary = Pink80,
     background = DarkBackground,
-    surface = DarkSurface
+    surface = DarkSurface,
+    surfaceVariant = VibeSurfaceContainer,
+    onSurface = Color(0xFFE6E1E5),
+    onSurfaceVariant = Color(0xFFCAC4D0),
+    outline = VibeOutline
 )
 
 private val LightColorScheme = lightColorScheme(

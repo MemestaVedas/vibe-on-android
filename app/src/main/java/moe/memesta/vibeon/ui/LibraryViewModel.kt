@@ -25,6 +25,10 @@ class LibraryViewModel(
     private val _tracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     val tracks: StateFlow<List<TrackInfo>> = _tracks
     
+    // Expose player state for MiniPlayer
+    val currentTrack = wsClient.currentTrack
+    val isPlaying = wsClient.isPlaying
+    
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
     
@@ -42,36 +46,49 @@ class LibraryViewModel(
     
     init {
         Log.i("LibraryViewModel", "🔌 Initializing for server: $host:$port")
-        Log.i("LibraryViewModel", "📡 Will connect to: http://$host:$port/api/library")
         
-        // First, test server connectivity
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                Log.i("LibraryViewModel", "🔍 Testing server connection...")
-                val serverInfo = streamClient.getServerInfo()
-                if (serverInfo != null) {
-                    Log.i("LibraryViewModel", "✅ Server connected: ${serverInfo.name} with ${serverInfo.librarySize} tracks")
+        // Observe WebSocket library updates
+        viewModelScope.launch {
+            wsClient.library.collect { tracks ->
+                if (tracks.isNotEmpty()) {
+                    Log.i("LibraryViewModel", "📚 Received ${tracks.size} tracks from WebSocket")
                     withContext(Dispatchers.Main) {
-                        loadLibrary()
-                    }
-                } else {
-                    Log.e("LibraryViewModel", "❌ Server info returned null")
-                    withContext(Dispatchers.Main) {
-                        _error.value = "❌ Cannot reach server at $host:$port\n\nThe desktop app may not be running or is on a different network."
+                        _tracks.value = tracks
+                        totalTracks = tracks.size
                         _isLoading.value = false
+                        _error.value = null
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("LibraryViewModel", "❌ Server check failed: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    _error.value = "❌ Connection test failed\n\nServer: $host:$port\nError: ${e.javaClass.simpleName}\n\n${e.message}"
-                    _isLoading.value = false
-                }
+            }
+        }
+        
+        // Request library via WebSocket on init
+        viewModelScope.launch(Dispatchers.IO) {
+            // Wait for connection
+            var retries = 0
+            while (!wsClient.isConnected.value && retries < 5) {
+                kotlinx.coroutines.delay(500)
+                retries++
+            }
+            
+            if (wsClient.isConnected.value) {
+                Log.i("LibraryViewModel", "📡 Requesting library via WebSocket...")
+                wsClient.sendGetLibrary()
+            } else {
+                Log.w("LibraryViewModel", "⚠️ WebSocket not connected, falling back to HTTP...")
+                loadLibrary() // Fallback to HTTP
             }
         }
     }
     
     fun loadLibrary(offset: Int = 0) {
+        // Prefer WebSocket if connected
+        if (wsClient.isConnected.value) {
+            wsClient.sendGetLibrary()
+            _isLoading.value = true
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
                 _isLoading.value = true
@@ -88,17 +105,12 @@ class LibraryViewModel(
                         totalTracks = response.total
                         Log.i("LibraryViewModel", "✅ Loaded ${response.tracks.size} tracks (total: ${response.total})")
                     } else {
-                        _error.value = "❌ Failed to load library\n\nConnecting to: $host:$port\n\nMake sure:\n• Desktop app is running\n• Same WiFi network\n• Firewall allows connections"
-                        Log.e("LibraryViewModel", "❌ Failed to load library - browseLibrary returned null")
+                        _error.value = "❌ Failed to load library\n\nConnecting to: $host:$port"
                     }
                 }
             } catch (e: Exception) {
-                val errorMsg = "❌ Connection Failed\n\nServer: $host:$port\nError: ${e.javaClass.simpleName}\n\nChecklist:\n✓ Desktop app running?\n✓ Same WiFi network?\n✓ Correct IP address?\n✓ Firewall disabled?"
-                withContext(Dispatchers.Main) {
-                    _error.value = errorMsg
-                }
-                Log.e("LibraryViewModel", "❌ Error loading library from $host:$port: ${e.message}", e)
-                e.printStackTrace()
+                // Error handling...
+                withContext(Dispatchers.Main) { _isLoading.value = false }
             } finally {
                 withContext(Dispatchers.Main) {
                     _isLoading.value = false
@@ -150,6 +162,14 @@ class LibraryViewModel(
     fun playTrack(track: TrackInfo) {
         wsClient.sendPlayTrack(track.path)
         Log.i("LibraryViewModel", "▶️ Playing: ${track.title} by ${track.artist}")
+    }
+    
+    fun sendPlay() {
+        wsClient.sendPlay()
+    }
+
+    fun sendPause() {
+        wsClient.sendPause()
     }
     
     fun loadNextPage() {

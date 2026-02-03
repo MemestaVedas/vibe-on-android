@@ -44,6 +44,10 @@ class MainActivity : ComponentActivity() {
         
         discoveryRepository = DiscoveryRepository(this)
         connectionViewModel = ConnectionViewModel(discoveryRepository)
+        // Initialize playbackViewModel immediately so it's ready for UI
+        playbackViewModel = PlaybackViewModel(
+            webSocketClient = connectionViewModel.wsClient
+        )
         
         // Try to initialize StreamRepository but don't crash if it fails
         try {
@@ -65,18 +69,33 @@ class MainActivity : ComponentActivity() {
                 var selectedDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
                 var libraryViewModel by remember { mutableStateOf<LibraryViewModel?>(null) }
                 val currentTrack by connectionViewModel.currentTrack.collectAsState()
-                val isPlaying by connectionViewModel.isPlaying.collectAsState()
+                val wsIsPlaying by connectionViewModel.isPlaying.collectAsState()
+                val playbackState by playbackViewModel.playbackState.collectAsState()
                 val progress by connectionViewModel.wsClient.progress.collectAsState()
                 val duration by connectionViewModel.wsClient.duration.collectAsState()
                 val isMobilePlayback by connectionViewModel.wsClient.isMobilePlayback.collectAsState()
                 
-                // Initialize playbackViewModel with WebSocket and player references
-                LaunchedEffect(Unit) {
-                    playbackViewModel = PlaybackViewModel(
-                        webSocketClient = connectionViewModel.wsClient,
-                        player = mediaController
-                    )
-                }
+                // Determine effective playback state for UI
+                val isPlaying = if (isMobilePlayback) playbackState.isPlaying else wsIsPlaying
+                
+                // Effective duration (in seconds)
+                val activeDuration = if (isMobilePlayback) playbackState.duration else duration.toLong()
+                
+                // Calculate progress (0.0 - 1.0)
+                val currentProgress = if (activeDuration > 0) {
+                    if (isMobilePlayback) {
+                        // playbackState.currentPosition is ms, duration is seconds (from Header/Track)
+                        // Wait, check units below. Assuming duration is seconds.
+                        (playbackState.currentPosition / 1000f) / activeDuration.toFloat()
+                    } else {
+                        // progress is seconds, duration is seconds
+                        (progress / duration).toFloat()
+                    }
+                } else 0f
+                
+                
+                // Initialize playbackViewModel with WebSocket
+                /* Removed LaunchedEffect as it causes crash due to race condition */
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -104,6 +123,9 @@ class MainActivity : ComponentActivity() {
                                     onTrackSelected = { track ->
                                         libraryViewModel!!.playTrack(track)
                                         currentScreen = "now_playing"
+                                    },
+                                    onNavigateToPlayer = {
+                                        currentScreen = "now_playing"
                                     }
                                 )
                             }
@@ -112,24 +134,32 @@ class MainActivity : ComponentActivity() {
                             title = currentTrack.title,
                             artist = currentTrack.artist,
                             isPlaying = isPlaying,
-                            progress = if (duration > 0) (progress / duration).toFloat() else 0f,
+                            progress = currentProgress,
+                            duration = activeDuration, 
                             coverUrl = connectionViewModel.currentTrack.value.coverUrl,
-                            baseUrl = libraryViewModel?.baseUrl ?: "http://${selectedDevice?.host ?: "192.168.1.34"}:${selectedDevice?.port ?: 5000}",
+                            // baseUrl removed as coverUrl is now absolute
                             isMobilePlayback = isMobilePlayback,
                             onBackToLibrary = {
                                 currentScreen = "library"
                             },
                             onPlayPauseToggle = { 
-                                if (isPlaying) {
-                                    connectionViewModel.pause()
+                                if (isMobilePlayback) {
+                                    if (isPlaying) playbackViewModel.setPlayerPlayWhenReady(false)
+                                    else playbackViewModel.setPlayerPlayWhenReady(true)
                                 } else {
-                                    connectionViewModel.play()
+                                    if (isPlaying) connectionViewModel.pause() 
+                                    else connectionViewModel.play()
                                 }
                             },
                             onSkipNext = { connectionViewModel.next() },
                             onSkipPrevious = { connectionViewModel.previous() },
                             onSeek = { progressRatio ->
-                                connectionViewModel.wsClient.sendSeek(progressRatio * duration)
+                                if (isMobilePlayback) {
+                                    val newPosMs = (progressRatio * playbackState.duration * 1000).toLong()
+                                    playbackViewModel.seekTo(newPosMs)
+                                } else {
+                                    connectionViewModel.wsClient.sendSeek(progressRatio * duration)
+                                }
                             },
                             onTogglePlaybackLocation = {
                                 if (isMobilePlayback) {
@@ -163,6 +193,8 @@ class MainActivity : ComponentActivity() {
                     playbackViewModel.updateProgress(newPosition.positionMs)
                 }
             })
+            // Attach player to ViewModel
+            playbackViewModel.setPlayer(mediaController!!)
         }, ContextCompat.getMainExecutor(this))
     }
 

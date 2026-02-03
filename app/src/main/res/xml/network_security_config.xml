@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!-- Allow cleartext for localhost and specific server IP -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">localhost</domain>
-        <domain includeSubdomains="true">192.168.1.34</domain>
-    </domain-config>
+    <!-- Allow cleartext for all local connections -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

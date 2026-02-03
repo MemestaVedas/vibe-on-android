@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.activity.compose.BackHandler
 import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,8 +29,8 @@ fun NowPlayingScreen(
     artist: String,
     isPlaying: Boolean,
     progress: Float,
+    duration: Long = 0,
     coverUrl: String? = null,
-    baseUrl: String = "http://192.168.1.34:5000",
     isMobilePlayback: Boolean = false,
     onPlayPauseToggle: () -> Unit,
     onSkipNext: () -> Unit,
@@ -41,6 +42,8 @@ fun NowPlayingScreen(
     var sliderValue by remember { mutableStateOf(progress) }
     var isDragging by remember { mutableStateOf(false) }
     
+    BackHandler(onBack = { onBackToLibrary() })
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -82,7 +85,7 @@ fun NowPlayingScreen(
         ) {
             if (!coverUrl.isNullOrEmpty()) {
                 AsyncImage(
-                    model = "$baseUrl$coverUrl",
+                    model = coverUrl, 
                     contentDescription = "Album Art",
                     modifier = Modifier
                         .size(280.dp)
@@ -144,14 +147,16 @@ fun NowPlayingScreen(
                     .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Calculate current time based on progress * duration
+                val currentSeconds = (if (isDragging) sliderValue else progress) * duration
                 Text(
-                    text = formatTime(sliderValue.toDouble()),
+                    text = formatTime(currentSeconds.toDouble()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
-                // Total duration placeholder
+                // Total duration
                 Text(
-                    text = "--:--",
+                    text = formatTime(duration.toDouble()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )

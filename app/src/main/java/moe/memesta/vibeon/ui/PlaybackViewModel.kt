@@ -14,8 +14,13 @@ import uniffi.vibe_on_core.StreamHeader
 
 class PlaybackViewModel(
     private val webSocketClient: WebSocketClient,
-    private val player: Player? = null
+    private var player: Player? = null
 ) : ViewModel() {
+    
+    fun setPlayer(player: Player) {
+        this.player = player
+        Log.i("PlaybackViewModel", "🎧 Player attached")
+    }
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
     
@@ -57,6 +62,15 @@ class PlaybackViewModel(
                 _playbackState.value = _playbackState.value.copy(
                     isPlaying = isPlaying
                 )
+                
+                // Sync local player if streaming
+                if (_isMobilePlayback.value) {
+                    if (isPlaying) {
+                        if (player?.isPlaying == false) player?.play()
+                    } else {
+                        if (player?.isPlaying == true) player?.pause()
+                    }
+                }
             }
         }
         
@@ -80,6 +94,9 @@ class PlaybackViewModel(
             it.prepare()
             it.play()
             
+            // Start polling for progress
+            startProgressPolling()
+            
             // Add listener to sync position
             it.addListener(object : Player.Listener {
                 override fun onPositionDiscontinuity(
@@ -89,12 +106,43 @@ class PlaybackViewModel(
                 ) {
                     val positionSecs = it.currentPosition / 1000.0
                     webSocketClient.sendMobilePositionUpdate(positionSecs)
+                    updateProgress(it.currentPosition)
+                }
+                
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) {
+                        startProgressPolling()
+                    }
+                }
+                
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    Log.e("PlaybackViewModel", "❌ ExoPlayer Error: ${error.message}", error)
+                    Log.e("PlaybackViewModel", "❌ Error Code: ${error.errorCodeName}")
+                    if (error.cause != null) {
+                        Log.e("PlaybackViewModel", "❌ Cause: ${error.cause?.message}", error.cause)
+                    }
                 }
             })
         }
     }
     
+    private var progressJob: kotlinx.coroutines.Job? = null
+    
+    private fun startProgressPolling() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (_isMobilePlayback.value && player?.isPlaying == true) {
+                player?.let {
+                    val currentPos = it.currentPosition
+                    updateProgress(currentPos)
+                }
+                kotlinx.coroutines.delay(1000)
+            }
+        }
+    }
+    
     private fun stopMobileStreaming() {
+        progressJob?.cancel()
         player?.let {
             Log.i("PlaybackViewModel", "⏹️ Stopping mobile streaming")
             it.stop()
@@ -131,6 +179,14 @@ class PlaybackViewModel(
 
     fun updateIsPlaying(isPlaying: Boolean) {
         _playbackState.value = _playbackState.value.copy(isPlaying = isPlaying)
+    }
+
+    fun setPlayerPlayWhenReady(playWhenReady: Boolean) {
+        player?.playWhenReady = playWhenReady
+    }
+    
+    fun seekTo(positionMs: Long) {
+        player?.seekTo(positionMs)
     }
 }
 
