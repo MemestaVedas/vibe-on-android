@@ -1,34 +1,69 @@
 package moe.memesta.vibeon.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
+import kotlin.math.pow
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Vibe-On Design System Colors (Static)
+val VibeBackground = Color(0xFF121113) // Night Owl Deep Charcoal - always consistent
+val VibeSurface = Color(0xFF1E1C20)    // Tonal Surface
+val VibeSurfaceContainer = Color(0xFF252329) // Slightly lighter surface
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Dynamic colors removed - will be generated from album art or wallpaper
+// VibePrimary, VibeSecondary, etc. are now generated dynamically
 
-// Vibe-on specific colors
-// Vibe-On Dynamic Color System (Dark Mode Tonal Mapping)
-// Primary: T80
-val VibePrimary = Color(0xFFD0BCFF) // Pastel Purple
-val VibeOnPrimary = Color(0xFF381E72) // T20
+// Utility: Generate tonal palette from seed color
+fun generateTonalPalette(seedColor: Color): Map<Int, Color> {
+    val hsl = seedColor.toHsl()
+    return (0..100 step 10).associateWith { tone ->
+        Color.hsl(hsl[0], hsl[1], tone / 100f, hsl[3])
+    }
+}
 
-// Secondary: T80
-val VibeSecondary = Color(0xFFCCC2DC)
-val VibeOnSecondary = Color(0xFF332D41)
+// Utility: Convert Color to HSL
+fun Color.toHsl(): FloatArray {
+    val r = red
+    val g = green
+    val b = blue
+    val max = maxOf(r, g, b)
+    val min = minOf(r, g, b)
+    val delta = max - min
+    
+    var h = when {
+        delta == 0f -> 0f
+        max == r -> 60 * (((g - b) / delta) % 6)
+        max == g -> 60 * (((b - r) / delta) + 2)
+        else -> 60 * (((r - g) / delta) + 4)
+    }
+    if (h < 0) h += 360
+    
+    val l = (max + min) / 2
+    val s = if (delta == 0f) 0f else delta / (1 - kotlin.math.abs(2 * l - 1))
+    
+    return floatArrayOf(h, s, l, alpha)
+}
 
-// Surface: T6 (Dark tinted neutral)
-val DarkSurface = Color(0xFF0F0F0F) // Very dark
-val DarkBackground = Color(0xFF0F0F0F) // Added back for Theme compatibility
-val VibeSurfaceContainer = Color(0xFF1E1E1E) // T12 - slightly lighter for cards
+// Utility: Ensure minimum luminance for text contrast
+fun Color.ensureLuminance(minLuminance: Float): Color {
+    return if (luminance() < minLuminance) {
+        copy(
+            red = (red * 1.2f).coerceAtMost(1f),
+            green = (green * 1.2f).coerceAtMost(1f),
+            blue = (blue * 1.2f).coerceAtMost(1f)
+        )
+    } else this
+}
 
-// Outline: T60
-val VibeOutline = Color(0xFF938F99)
+// Fallback colors for error states only
+val ErrorColor = Color(0xFFB3261E)
+val OnErrorColor = Color(0xFFFFFFFF)
 
-// Helper for Vibe-On specific accents if needed
-val VibeBlue = Color(0xFF00BFFF)
-val VibePurple = Color(0xFF9146FF)
+data class NowPlayingColors(
+    val surfaceColor: Color,
+    val onSurfaceColor: Color,
+    val primaryAccent: Color,
+    val secondaryAccent: Color,
+    val containerColor: Color
+)
 

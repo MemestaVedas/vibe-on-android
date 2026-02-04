@@ -24,12 +24,14 @@ import moe.memesta.vibeon.data.StreamRepository
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.theme.VibeonTheme
+import moe.memesta.vibeon.ui.navigation.AppNavHost
 import android.content.ComponentName
 import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.common.Player
 import com.google.common.util.concurrent.ListenableFuture
+import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
     private lateinit var discoveryRepository: DiscoveryRepository
@@ -41,6 +43,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         
         discoveryRepository = DiscoveryRepository(this)
         connectionViewModel = ConnectionViewModel(discoveryRepository)
@@ -64,112 +69,19 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            VibeonTheme {
-                var currentScreen by remember { mutableStateOf("discovery") }
-                var selectedDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
-                var libraryViewModel by remember { mutableStateOf<LibraryViewModel?>(null) }
-                val currentTrack by connectionViewModel.currentTrack.collectAsState()
-                val wsIsPlaying by connectionViewModel.isPlaying.collectAsState()
-                val playbackState by playbackViewModel.playbackState.collectAsState()
-                val progress by connectionViewModel.wsClient.progress.collectAsState()
-                val duration by connectionViewModel.wsClient.duration.collectAsState()
-                val isMobilePlayback by connectionViewModel.wsClient.isMobilePlayback.collectAsState()
+            // Observe current track cover for dynamic theming
+            val currentTrack by connectionViewModel.currentTrack.collectAsState()
+            val coverBitmap = moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl(currentTrack.coverUrl)
+            
+            moe.memesta.vibeon.ui.theme.DynamicTheme(seedBitmap = coverBitmap) {
+                // Initialize ViewModels or generic state if needed for global context
+                // But for now, AppNavHost handles navigation
                 
-                // Determine effective playback state for UI
-                val isPlaying = if (isMobilePlayback) playbackState.isPlaying else wsIsPlaying
-                
-                // Effective duration (in seconds)
-                val activeDuration = if (isMobilePlayback) playbackState.duration else duration.toLong()
-                
-                // Calculate progress (0.0 - 1.0)
-                val currentProgress = if (activeDuration > 0) {
-                    if (isMobilePlayback) {
-                        // playbackState.currentPosition is ms, duration is seconds (from Header/Track)
-                        // Wait, check units below. Assuming duration is seconds.
-                        (playbackState.currentPosition / 1000f) / activeDuration.toFloat()
-                    } else {
-                        // progress is seconds, duration is seconds
-                        (progress / duration).toFloat()
-                    }
-                } else 0f
-                
-                
-                // Initialize playbackViewModel with WebSocket
-                /* Removed LaunchedEffect as it causes crash due to race condition */
-
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    when (currentScreen) {
-                        "discovery" -> DiscoveryScreen(
-                            viewModel = connectionViewModel,
-                            onDeviceSelected = { device ->
-                                selectedDevice = device
-                                connectionViewModel.connectToDevice(device)
-                                // Switch to library browsing
-                                libraryViewModel = LibraryViewModel(device.host, device.port, connectionViewModel.wsClient)
-                                currentScreen = "library"
-                            }
-                        )
-                        "library" -> {
-                            if (libraryViewModel != null && selectedDevice != null) {
-                                LibraryScreen(
-                                    viewModel = libraryViewModel!!,
-                                    onBackClick = {
-                                        currentScreen = "discovery"
-                                        connectionViewModel.disconnect()
-                                    },
-                                    onTrackSelected = { track ->
-                                        libraryViewModel!!.playTrack(track)
-                                        currentScreen = "now_playing"
-                                    },
-                                    onNavigateToPlayer = {
-                                        currentScreen = "now_playing"
-                                    }
-                                )
-                            }
-                        }
-                        "now_playing" -> NowPlayingScreen(
-                            title = currentTrack.title,
-                            artist = currentTrack.artist,
-                            isPlaying = isPlaying,
-                            progress = currentProgress,
-                            duration = activeDuration, 
-                            coverUrl = connectionViewModel.currentTrack.value.coverUrl,
-                            // baseUrl removed as coverUrl is now absolute
-                            isMobilePlayback = isMobilePlayback,
-                            onBackToLibrary = {
-                                currentScreen = "library"
-                            },
-                            onPlayPauseToggle = { 
-                                if (isMobilePlayback) {
-                                    if (isPlaying) playbackViewModel.setPlayerPlayWhenReady(false)
-                                    else playbackViewModel.setPlayerPlayWhenReady(true)
-                                } else {
-                                    if (isPlaying) connectionViewModel.pause() 
-                                    else connectionViewModel.play()
-                                }
-                            },
-                            onSkipNext = { connectionViewModel.next() },
-                            onSkipPrevious = { connectionViewModel.previous() },
-                            onSeek = { progressRatio ->
-                                if (isMobilePlayback) {
-                                    val newPosMs = (progressRatio * playbackState.duration * 1000).toLong()
-                                    playbackViewModel.seekTo(newPosMs)
-                                } else {
-                                    connectionViewModel.wsClient.sendSeek(progressRatio * duration)
-                                }
-                            },
-                            onTogglePlaybackLocation = {
-                                if (isMobilePlayback) {
-                                    playbackViewModel.stopMobilePlayback()
-                                } else {
-                                    playbackViewModel.requestMobilePlayback()
-                                }
-                            }
-                        )
-                    }
+                    AppNavHost(connectionViewModel, playbackViewModel)
                 }
             }
         }

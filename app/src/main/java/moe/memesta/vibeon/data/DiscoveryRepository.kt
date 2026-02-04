@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class DiscoveryRepository(context: Context) {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
+    private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+    private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
+    
     private val serviceType = "_vibe-on._tcp."
     private var isDiscoveryStarted = false
     
@@ -93,6 +96,11 @@ class DiscoveryRepository(context: Context) {
     fun startDiscovery() {
         if (!isDiscoveryStarted) {
             try {
+                multicastLock = wifiManager.createMulticastLock("vibeon:discovery")
+                multicastLock?.setReferenceCounted(true)
+                multicastLock?.acquire()
+                Log.d("Discovery", "Multicast lock acquired")
+                
                 nsdManager.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
                 isDiscoveryStarted = true
             } catch (e: Exception) {
@@ -102,6 +110,16 @@ class DiscoveryRepository(context: Context) {
     }
 
     fun stopDiscovery() {
+        // Always try to release lock even if isDiscoveryStarted is false, just to be safe
+        try {
+            if (multicastLock?.isHeld == true) {
+                multicastLock?.release()
+                Log.d("Discovery", "Multicast lock released")
+            }
+        } catch (e: Exception) {
+             Log.e("Discovery", "Error releasing multicast lock: ${e.message}")
+        }
+        
         if (isDiscoveryStarted) {
             try {
                 nsdManager.stopServiceDiscovery(discoveryListener)

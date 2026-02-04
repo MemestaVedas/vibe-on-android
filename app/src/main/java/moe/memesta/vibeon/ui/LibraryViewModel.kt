@@ -24,6 +24,13 @@ class LibraryViewModel(
     
     private val _tracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     val tracks: StateFlow<List<TrackInfo>> = _tracks
+
+    // Derived lists
+    private val _albums = MutableStateFlow<List<String>>(emptyList())
+    val albums: StateFlow<List<String>> = _albums
+
+    private val _artists = MutableStateFlow<List<String>>(emptyList())
+    val artists: StateFlow<List<String>> = _artists
     
     // Expose player state for MiniPlayer
     val currentTrack = wsClient.currentTrack
@@ -54,6 +61,10 @@ class LibraryViewModel(
                     Log.i("LibraryViewModel", "📚 Received ${tracks.size} tracks from WebSocket")
                     withContext(Dispatchers.Main) {
                         _tracks.value = tracks
+                        // Calculate derived data
+                        _albums.value = tracks.map { it.album }.distinct().sorted()
+                        _artists.value = tracks.map { it.artist }.distinct().sorted()
+                        
                         totalTracks = tracks.size
                         _isLoading.value = false
                         _error.value = null
@@ -63,20 +74,26 @@ class LibraryViewModel(
         }
         
         // Request library via WebSocket on init
-        viewModelScope.launch(Dispatchers.IO) {
-            // Wait for connection
-            var retries = 0
-            while (!wsClient.isConnected.value && retries < 5) {
-                kotlinx.coroutines.delay(500)
-                retries++
+        viewModelScope.launch { // Use Main dispatcher for state collection
+            wsClient.isConnected.collect { connected ->
+                if (connected) {
+                    Log.i("LibraryViewModel", "📡 WebSocket connected, requesting library...")
+                    wsClient.sendGetLibrary()
+                    _isLoading.value = true
+                } else {
+                     Log.w("LibraryViewModel", "⚠️ WebSocket disconnected")
+                     // Optionally handle disconnect UI state
+                }
             }
-            
-            if (wsClient.isConnected.value) {
-                Log.i("LibraryViewModel", "📡 Requesting library via WebSocket...")
-                wsClient.sendGetLibrary()
-            } else {
-                Log.w("LibraryViewModel", "⚠️ WebSocket not connected, falling back to HTTP...")
-                loadLibrary() // Fallback to HTTP
+        }
+        
+        // Initial fallback check
+        viewModelScope.launch(Dispatchers.IO) {
+            // Give WS a moment to connect
+            kotlinx.coroutines.delay(1000)
+            if (!wsClient.isConnected.value && _tracks.value.isEmpty()) {
+                 Log.w("LibraryViewModel", "⚠️ WebSocket not connected after timeout, falling back to HTTP...")
+                 loadLibrary()
             }
         }
     }
@@ -102,6 +119,10 @@ class LibraryViewModel(
                 withContext(Dispatchers.Main) {
                     if (response != null) {
                         _tracks.value = response.tracks
+                        // Calculate derived data
+                        _albums.value = response.tracks.map { it.album }.distinct().sorted()
+                        _artists.value = response.tracks.map { it.artist }.distinct().sorted()
+                        
                         totalTracks = response.total
                         Log.i("LibraryViewModel", "✅ Loaded ${response.tracks.size} tracks (total: ${response.total})")
                     } else {
@@ -161,7 +182,14 @@ class LibraryViewModel(
     
     fun playTrack(track: TrackInfo) {
         wsClient.sendPlayTrack(track.path)
-        Log.i("LibraryViewModel", "▶️ Playing: ${track.title} by ${track.artist}")
+        
+        val isMobile = wsClient.isMobilePlayback.value
+        Log.i("LibraryViewModel", "▶️ Playing: ${track.title} (Mobile Mode: $isMobile)")
+        
+        if (isMobile) {
+            // Force server to acknowledge mobile mode (pausing PC playback that PlayTrack started)
+            wsClient.sendStartMobilePlayback()
+        }
     }
     
     fun sendPlay() {
@@ -170,6 +198,22 @@ class LibraryViewModel(
 
     fun sendPause() {
         wsClient.sendPause()
+    }
+    
+    fun playAlbum(albumName: String) {
+        val albumTracks = _tracks.value.filter { it.album == albumName }
+        if (albumTracks.isNotEmpty()) {
+            playTrack(albumTracks.first())
+            Log.i("LibraryViewModel", "▶️ Playing album: $albumName (${albumTracks.size} tracks)")
+        }
+    }
+    
+    fun playArtist(artistName: String) {
+        val artistTracks = _tracks.value.filter { it.artist == artistName }
+        if (artistTracks.isNotEmpty()) {
+            playTrack(artistTracks.first())
+            Log.i("LibraryViewModel", "▶️ Playing artist: $artistName (${artistTracks.size} tracks)")
+        }
     }
     
     fun loadNextPage() {

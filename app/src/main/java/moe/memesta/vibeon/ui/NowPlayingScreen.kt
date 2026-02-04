@@ -1,30 +1,168 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 package moe.memesta.vibeon.ui
 
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
-import androidx.activity.compose.BackHandler
-import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import moe.memesta.vibeon.ui.theme.VibeBlue
-import moe.memesta.vibeon.ui.theme.VibePurple
+import androidx.palette.graphics.Palette
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.launch
+import moe.memesta.vibeon.ui.theme.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import kotlin.math.abs
 
 @Composable
 fun NowPlayingScreen(
+    playbackViewModel: PlaybackViewModel,
+    connectionViewModel: ConnectionViewModel,
+    onBackPressed: () -> Unit
+) {
+    val playbackState by playbackViewModel.playbackState.collectAsState()
+    val currentTrack by connectionViewModel.currentTrack.collectAsState()
+    val isPlaying by connectionViewModel.isPlaying.collectAsState()
+    val isMobilePlayback by playbackViewModel.isMobilePlayback.collectAsState()
+
+    // 3 Pages: 0=Queue, 1=NowPlaying, 2=Lyrics
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
+    val scope = rememberCoroutineScope()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(VibeBackground)
+    ) {
+        // Pager handles horizontal swipes for Queue/Lyrics
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> QueueScreen(connectionViewModel)
+                1 -> {
+                    // Main Player with Vertical Swipe Detection
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures { change, dragAmount ->
+                                    val threshold = 50.dp.toPx()
+                                    // Only trigger if purely vertical drag (avoid conflicting with Seek Bar etc if touched there, but Box covers all)
+                                    // Ideally check touch region, but global swipe is fine for "Pachinko" feel
+                                    if (abs(dragAmount) > threshold) {
+                                        change.consume()
+                                        if (dragAmount < 0) {
+                                            // Swipe Up -> Next
+                                            connectionViewModel.next()
+                                        } else {
+                                            // Swipe Down -> Previous
+                                            connectionViewModel.previous()
+                                        }
+                                    }
+                                }
+                            }
+                    ) {
+                        NowPlayingView(
+                            title = currentTrack.title,
+                            artist = currentTrack.artist,
+                            isPlaying = isPlaying,
+                            progress = playbackState.progress,
+                            duration = playbackState.duration,
+                            coverUrl = currentTrack.coverUrl,
+                            isMobilePlayback = isMobilePlayback,
+                            onPlayPauseToggle = {
+                                if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                            },
+                            onSkipNext = { connectionViewModel.next() },
+                            onSkipPrevious = { connectionViewModel.previous() },
+                            onSeek = { progress -> 
+                                val positionSecs = progress * playbackState.duration
+                                connectionViewModel.seek(positionSecs.toDouble())
+                            },
+                            onBackToLibrary = onBackPressed,
+                            onTogglePlaybackLocation = {
+                                if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
+                                else playbackViewModel.requestMobilePlayback()
+                            },
+                            onLyricsClick = {
+                                scope.launch { pagerState.animateScrollToPage(2) }
+                            },
+                            onQueueClick = {
+                                scope.launch { pagerState.animateScrollToPage(0) }
+                            }
+                        )
+                    }
+                }
+                2 -> LyricsScreen(connectionViewModel)
+            }
+        }
+        
+        // Page Indicator
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(3) { iteration ->
+                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.2f)
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(if (pagerState.currentPage == iteration) 8.dp else 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun NowPlayingView(
     title: String,
     artist: String,
     isPlaying: Boolean,
@@ -36,219 +174,513 @@ fun NowPlayingScreen(
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
     onSeek: (Float) -> Unit,
-    onBackToLibrary: () -> Unit = {},
-    onTogglePlaybackLocation: () -> Unit = {}
+    onBackToLibrary: () -> Unit,
+    onTogglePlaybackLocation: () -> Unit,
+    onLyricsClick: () -> Unit,
+    onQueueClick: () -> Unit
 ) {
-    var sliderValue by remember { mutableStateOf(progress) }
-    var isDragging by remember { mutableStateOf(false) }
     
-    BackHandler(onBack = { onBackToLibrary() })
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+    // Derived Colors from MaterialTheme (set by DynamicTheme in MainActivity)
+    val vibrantColor = MaterialTheme.colorScheme.primary
+    val bgGradientStart = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+    val primaryControlColor = vibrantColor
+    val onPrimaryControlColor = MaterialTheme.colorScheme.onPrimary
+    
+    // Main Container with Background
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Header with back button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBackToLibrary) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = "Back to Library",
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            Text(
-                text = "Now Playing",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+        // blurred background
+        if (!coverUrl.isNullOrEmpty()) {
+             AsyncImage(
+                model = coverUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(radius = 80.dp)
+                    .scale(1.2f)
+                    .alpha(0.5f), // Reduced alpha for better text contrast
+                contentScale = ContentScale.Crop
             )
-            Box(modifier = Modifier.size(24.dp)) // Spacer for alignment
+            // Gradient overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.4f),
+                                bgGradientStart,
+                                VibeBackground
+                            )
+                        )
+                    )
+            )
         }
 
-        // Album Art
-        Box(
-            modifier = Modifier
-                .size(280.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!coverUrl.isNullOrEmpty()) {
-                AsyncImage(
-                    model = coverUrl, 
-                    contentDescription = "Album Art",
-                    modifier = Modifier
-                        .size(280.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    modifier = Modifier.size(100.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                )
-            }
-        }
-
-        // Track Info
+        // Content
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 80.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = title.ifEmpty { "No Track" },
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1
-            )
-            Text(
-                text = artist.ifEmpty { "Unknown Artist" },
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                maxLines = 1
-            )
-        }
-
-        // Progress Bar and Time
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Slider(
-                value = if (isDragging) sliderValue else progress,
-                onValueChange = { 
-                    isDragging = true
-                    sliderValue = it 
-                },
-                onValueChangeFinished = { 
-                    isDragging = false
-                    onSeek(sliderValue) 
-                },
+            // Header
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = VibePurple,
-                    activeTrackColor = VibePurple,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            )
-            
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Calculate current time based on progress * duration
-                val currentSeconds = (if (isDragging) sliderValue else progress) * duration
-                Text(
-                    text = formatTime(currentSeconds.toDouble()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-                // Total duration
-                Text(
-                    text = formatTime(duration.toDouble()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-        }
-
-        // Controls
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Playback location indicator & toggle
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedButton(
-                    onClick = onTogglePlaybackLocation,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (isMobilePlayback) VibePurple.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
-                        contentColor = if (isMobilePlayback) VibePurple else MaterialTheme.colorScheme.onSurface
-                    ),
-                    modifier = Modifier.fillMaxWidth(0.6f)
+                IconButton(onClick = onBackToLibrary) {
+                    Icon(
+                        Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = "Dismiss",
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "PLAYING FROM LIBRARY",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.7f),
+                        letterSpacing = 1.sp
+                    )
+                }
+                
+                IconButton(onClick = { /* More options */ }) {
+                    Icon(
+                        Icons.Rounded.MoreVert,
+                        contentDescription = "More",
+                        tint = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(0.5f))
+
+                // Album Art (Bigger)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(1f) // Max width
+                    .aspectRatio(1f)
+                    .graphicsLayer {
+                        shadowElevation = 24.dp.toPx()
+                        shape = RoundedCornerShape(32.dp) // Slightly tighter corners for bigger art
+                        clip = true
+                    }
+                    .background(Color.Transparent),
+                contentAlignment = Alignment.Center
+            ) {
+                 // Glow effect behind
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset(y = 12.dp)
+                        .blur(32.dp)
+                        .background(vibrantColor.copy(alpha = 0.3f))
+                )
+                
+                if (!coverUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = coverUrl,
+                        contentDescription = "Album Art",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(32.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(32.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(VibeSurfaceContainer)
+                            .clip(RoundedCornerShape(32.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.MusicNote,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.2f),
+                            modifier = Modifier.size(80.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(0.5f))
+
+            // Track Info
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = title.ifEmpty { "No Track" },
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = artist.ifEmpty { "Unknown Artist" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Badges
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // FLAC Badge should use prominent color but ensure it's visible
+                    Badge(text = "FLAC", color = vibrantColor)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "44.1 kHz • 16 bit",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    // Lyrics Button
+                    Surface(
+                        color = Color.White.copy(alpha = 0.1f),
+                        shape = CircleShape,
+                        modifier = Modifier.clickable { onLyricsClick() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Rounded.Lyrics,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Lyrics",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Squiggly Progress Bar
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SquigglyProgressBar(
+                    progress = progress,
+                    thumbColor = vibrantColor,
+                    trackColor = Color.White.copy(alpha = 0.2f),
+                    activeTrackColor = vibrantColor,
+                     onSeek = onSeek
+                )
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatTime((progress * duration).toLong()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = formatTime(duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp)) // Reduced spacing to bring controls closer
+
+            // Main Controls
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                IconButton(onClick = { /* Shuffle */ }) {
+                    Icon(Icons.Rounded.Shuffle, null, tint = Color.White.copy(alpha = 0.6f))
+                }
+                
+                // Previous
+                 Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .clickable { onSkipPrevious() },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isMobilePlayback) Icons.Default.PhoneAndroid else Icons.Default.Computer,
+                        Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                // Play/Pause
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(primaryControlColor)
+                        .clickable { onPlayPauseToggle() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        tint = onPrimaryControlColor,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+
+                // Next
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .clickable { onSkipNext() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.SkipNext,
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                
+                IconButton(onClick = { /* Repeat */ }) {
+                    Icon(Icons.Rounded.Repeat, null, tint = Color.White.copy(alpha = 0.6f))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp)) // Fixed spacing after controls
+
+            // Bottom Controls (Volume / Output)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                 Row(
+                   modifier = Modifier
+                       .clip(RoundedCornerShape(16.dp))
+                       .background(Color.White.copy(alpha = 0.1f))
+                       .padding(horizontal = 16.dp, vertical = 12.dp)
+                       .clickable { onTogglePlaybackLocation() },
+                   verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (isMobilePlayback) Icons.Rounded.Smartphone else Icons.Rounded.SpeakerGroup,
                         contentDescription = null,
+                        tint = vibrantColor,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isMobilePlayback) "Playing on Mobile" else "Playing on Desktop",
-                        style = MaterialTheme.typography.labelLarge
+                        text = if (isMobilePlayback) "Mobile" else "PC",
+                        color = vibrantColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                Row(
+                   modifier = Modifier
+                       .clip(RoundedCornerShape(16.dp))
+                       .background(Color.White.copy(alpha = 0.1f))
+                       .padding(horizontal = 16.dp, vertical = 12.dp)
+                       .clickable { onQueueClick() },
+                   verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.QueueMusic,
+                        contentDescription = null,
+                        tint = vibrantColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Queue",
+                        color = vibrantColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onSkipPrevious,
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.SkipPrevious,
-                        contentDescription = "Previous",
-                        modifier = Modifier.size(32.dp),
-                        tint = VibeBlue
-                    )
-                }
-
-                FloatingActionButton(
-                    onClick = onPlayPauseToggle,
-                    shape = RoundedCornerShape(50),
-                    containerColor = VibePurple,
-                    contentColor = Color.White,
-                    modifier = Modifier.size(72.dp)
-                ) {
-                    Icon(
-                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = onSkipNext,
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.SkipNext,
-                        contentDescription = "Next",
-                        modifier = Modifier.size(32.dp),
-                        tint = VibeBlue
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
-private fun formatTime(seconds: Double): String {
-    val totalSeconds = seconds.toInt()
+// Custom Waveform-like Progress Bar
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SquigglyProgressBar(
+    progress: Float,
+    thumbColor: Color,
+    trackColor: Color,
+    activeTrackColor: Color,
+    onSeek: (Float) -> Unit
+) {
+    val density = LocalDensity.current
+    var width by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    var dragProgress by remember { mutableFloatStateOf(progress) }
+
+    // Use dragProgress while dragging, otherwise use the external progress
+    val currentProgress = (if (isDragging) dragProgress else progress).let { if (it.isNaN()) 0f else it.coerceIn(0f, 1f) }
+
+    val barHeight = 30.dp
+    val amplitude = with(density) { 4.dp.toPx() } // Height of the wave
+    val frequency = 0.06f // Slightly increased squiggles (was 0.04f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(barHeight)
+            // Gesture handling for seek
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    val newProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                    onSeek(newProgress)
+                }
+            }
+            .pointerInput(Unit) {
+               detectHorizontalDragGestures(
+                   onDragStart = { isDragging = true },
+                   onDragEnd = { 
+                       isDragging = false 
+                       onSeek(dragProgress)
+                   },
+                   onDragCancel = { isDragging = false }
+               ) { change, _ ->
+                   change.consume()
+                   val newProgress = (change.position.x / width).coerceIn(0f, 1f)
+                   dragProgress = newProgress
+                   onSeek(newProgress) // Optional: Live seek
+               }
+            }
+            .onSizeChanged { width = it.width.toFloat() }
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val centerY = size.height / 2
+            val path = androidx.compose.ui.graphics.Path()
+            
+            // Draw the full sine wave (inactive track)
+            path.moveTo(0f, centerY)
+            for (x in 0..size.width.toInt() step 2) {
+                val xPos = x.toFloat()
+                // Minimize value at start to join smoothly? 
+                // Just standard sine: y = A * sin(wx)
+                val yPos = centerY + amplitude * kotlin.math.sin(xPos * frequency)
+                path.lineTo(xPos, yPos.toFloat())
+            }
+            
+            // Draw Inactive Track
+            drawPath(
+                path = path,
+                color = trackColor,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 4.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                )
+            )
+
+            // Draw Active Track (Clipped sine wave)
+            clipRect(right = width * currentProgress) {
+                 drawPath(
+                    path = path,
+                    color = activeTrackColor,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = 4.dp.toPx(),
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                )
+            }
+            
+            // Draw Thumb (Circle at the end of the progress)
+            val thumbX = width * currentProgress
+            val thumbY = centerY + amplitude * kotlin.math.sin(thumbX * frequency)
+            
+            drawCircle(
+                color = thumbColor,
+                radius = 8.dp.toPx(),
+                center = androidx.compose.ui.geometry.Offset(thumbX, thumbY.toFloat())
+            )
+        }
+    }
+}
+
+
+@Composable
+fun Badge(text: String, color: Color) {
+    Surface(
+        color = Color.Transparent,
+        shape = RoundedCornerShape(6.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 1f)), // Full opacity for visibility
+        modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp) // Ensure not collapsed
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = color.copy(alpha = 1f), // Full opacity
+            fontWeight = FontWeight.Bold,
+            fontSize = 10.sp
+        )
+    }
+}
+
+// Utility extension for alpha
+fun Modifier.alpha(alpha: Float) = this.then(Modifier.graphicsLayer(alpha = alpha))
+
+// Utility to enforce luminance
+fun Color.ensureLuminance(minLuminance: Float): Color {
+    if (this.luminance() >= minLuminance) return this
+    
+    // Simple brightening strategy
+    var adjusted = this
+    var safety = 0
+    while (adjusted.luminance() < minLuminance && safety < 10) {
+        adjusted = adjusted.lighter()
+        safety++
+    }
+    return adjusted
+}
+
+fun Color.lighter(factor: Float = 1.1f): Color {
+    val argb = this.toArgb()
+    val r = (Color(argb).red * factor).coerceAtMost(1f)
+    val g = (Color(argb).green * factor).coerceAtMost(1f)
+    val b = (Color(argb).blue * factor).coerceAtMost(1f)
+    return Color(red = r, green = g, blue = b, alpha = this.alpha)
+}
+
+// Helper to format time
+private fun formatTime(milliseconds: Long): String {
+    val totalSeconds = milliseconds / 1000
     val minutes = totalSeconds / 60
     val secs = totalSeconds % 60
     return String.format("%d:%02d", minutes, secs)

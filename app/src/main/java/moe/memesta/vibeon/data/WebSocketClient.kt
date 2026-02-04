@@ -30,6 +30,10 @@ class WebSocketClient {
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
+    var host: String = "localhost"
+        private set
+    var port: Int = 5000
+        private set
     private var baseUrl: String = ""
 
     
@@ -64,6 +68,8 @@ class WebSocketClient {
     val library: StateFlow<List<TrackInfo>> = _library.asStateFlow()
     
     fun connect(host: String, port: Int, clientName: String = "Android") {
+        this.host = host
+        this.port = port
         baseUrl = "http://$host:$port"
 
         val wsUrl = "ws://$host:$port/control"

@@ -51,6 +51,10 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
         wsClient.sendPrevious()
     }
     
+    fun seek(positionSecs: Double) {
+        wsClient.sendSeek(positionSecs)
+    }
+    
     override fun onCleared() {
         super.onCleared()
         wsClient.disconnect()

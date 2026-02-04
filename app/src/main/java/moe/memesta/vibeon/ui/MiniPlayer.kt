@@ -20,8 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.data.MediaSessionData
-import moe.memesta.vibeon.ui.theme.VibeBlue
-import moe.memesta.vibeon.ui.theme.VibePurple
+
 import moe.memesta.vibeon.ui.theme.VibeSurfaceContainer
 
 @Composable
@@ -41,7 +40,7 @@ fun MiniPlayer(
             .clickable { onClick() },
         shape = RoundedCornerShape(36.dp), // Full pill shape
         colors = CardDefaults.cardColors(
-            containerColor = VibeSurfaceContainer
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
@@ -67,7 +66,7 @@ fun MiniPlayer(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(VibePurple.copy(alpha = 0.2f)),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("🎵", style = MaterialTheme.typography.titleMedium)
@@ -103,7 +102,7 @@ fun MiniPlayer(
                 onClick = onPlayPauseClick,
                 modifier = Modifier
                     .size(48.dp)
-                    .background(VibePurple, CircleShape)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,

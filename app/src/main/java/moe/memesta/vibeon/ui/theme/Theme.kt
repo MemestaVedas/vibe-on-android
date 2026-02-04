@@ -16,25 +16,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = VibePrimary,
-    onPrimary = VibeOnPrimary,
-    secondary = VibeSecondary,
-    onSecondary = VibeOnSecondary,
-    tertiary = Pink80,
-    background = DarkBackground,
-    surface = DarkSurface,
-    surfaceVariant = VibeSurfaceContainer,
-    onSurface = Color(0xFFE6E1E5),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    outline = VibeOutline
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-)
+/**
+ * NOTE: This theme file is kept for backward compatibility.
+ * For dynamic album art theming, use DynamicTheme composable instead.
+ */
 
 @Composable
 fun VibeonTheme(
@@ -47,21 +32,31 @@ fun VibeonTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> darkColorScheme(
+            background = VibeBackground,
+            surface = VibeSurface,
+            surfaceVariant = VibeSurfaceContainer,
+            onSurface = Color(0xFFE6E1E5),
+            onSurfaceVariant = Color(0xFFCAC4D0),
+            error = ErrorColor,
+            onError = OnErrorColor
+        )
+        else -> lightColorScheme()
     }
+    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = Color.Transparent.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }

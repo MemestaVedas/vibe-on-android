@@ -51,7 +51,7 @@ class PlaybackViewModel(
                 _playbackState.value = _playbackState.value.copy(
                     title = track.title,
                     artist = track.artist,
-                    duration = track.duration.toLong()
+                    duration = track.duration.toLong() * 1000 // Convert seconds to ms
                 )
             }
         }
@@ -164,7 +164,7 @@ class PlaybackViewModel(
         _playbackState.value = _playbackState.value.copy(
             title = header.title,
             artist = header.artist,
-            duration = header.durationSecs.toLong()
+            duration = header.durationSecs.toLong() * 1000
         )
     }
 
@@ -198,5 +198,5 @@ data class PlaybackState(
     val duration: Long = 1, // Avoid division by zero
 ) {
     val progress: Float
-        get() = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+        get() = if (duration > 0) (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
 }
