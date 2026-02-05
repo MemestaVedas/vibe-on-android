@@ -31,6 +31,7 @@ fun ArtistDetailScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
+                modifier = Modifier.padding(top = 12.dp), // Extra uniform spacing
                 title = { Text(artistName, maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {

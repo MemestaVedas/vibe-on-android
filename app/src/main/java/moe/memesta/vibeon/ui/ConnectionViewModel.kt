@@ -55,6 +55,10 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
         wsClient.sendSeek(positionSecs)
     }
     
+    fun getLyrics() {
+        wsClient.sendGetLyrics()
+    }
+    
     override fun onCleared() {
         super.onCleared()
         wsClient.disconnect()

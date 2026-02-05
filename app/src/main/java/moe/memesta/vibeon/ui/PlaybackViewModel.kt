@@ -115,6 +115,13 @@ class PlaybackViewModel(
                     }
                 }
                 
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_ENDED) {
+                        Log.i("PlaybackViewModel", "🎵 Track ended, auto-skipping to next")
+                        webSocketClient.sendNext()
+                    }
+                }
+                
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     Log.e("PlaybackViewModel", "❌ ExoPlayer Error: ${error.message}", error)
                     Log.e("PlaybackViewModel", "❌ Error Code: ${error.errorCodeName}")

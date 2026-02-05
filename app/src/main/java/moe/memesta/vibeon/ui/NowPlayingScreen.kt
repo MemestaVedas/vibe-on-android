@@ -78,6 +78,7 @@ fun NowPlayingScreen(
         // Pager handles horizontal swipes for Queue/Lyrics
         HorizontalPager(
             state = pagerState,
+            userScrollEnabled = true, // Explicitly enable swipe gestures
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
@@ -95,11 +96,11 @@ fun NowPlayingScreen(
                                     if (abs(dragAmount) > threshold) {
                                         change.consume()
                                         if (dragAmount < 0) {
-                                            // Swipe Up -> Next
-                                            connectionViewModel.next()
+                                            // Swipe Up -> Open Queue (Page 0)
+                                            scope.launch { pagerState.animateScrollToPage(0) }
                                         } else {
-                                            // Swipe Down -> Previous
-                                            connectionViewModel.previous()
+                                            // Swipe Down -> Minimize / Back
+                                            onBackPressed()
                                         }
                                     }
                                 }
@@ -273,6 +274,20 @@ fun NowPlayingView(
                         clip = true
                     }
                     .background(Color.Transparent),
+                    // Custom Horizontal Swipe for Track Skipping on Art
+                   /* .pointerInput(Unit) {
+                        detectHorizontalDragGestures { change, dragAmount ->
+                            val threshold = 20.dp.toPx()
+                            if (abs(dragAmount) > threshold) {
+                                change.consume()
+                                if (dragAmount < 0) {
+                                     onSkipNext()
+                                } else {
+                                     onSkipPrevious()
+                                }
+                            }
+                        }
+                    }, */
                 contentAlignment = Alignment.Center
             ) {
                  // Glow effect behind

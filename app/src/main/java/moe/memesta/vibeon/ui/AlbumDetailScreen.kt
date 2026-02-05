@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.TrackInfo
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,14 +28,25 @@ fun AlbumDetailScreen(
     contentPadding: PaddingValues
 ) {
     val tracks by viewModel.tracks.collectAsState()
-    val albumTracks = remember(tracks, albumName) {
-        tracks.filter { it.album == albumName }
+    
+    // Decode URL-encoded album name (fixes "Dark+Side+of+the+Moon" -> "Dark Side of the Moon")
+    val decodedAlbumName = remember(albumName) {
+        try {
+            URLDecoder.decode(albumName, StandardCharsets.UTF_8.toString())
+        } catch (e: Exception) {
+            albumName // Fallback to original if decoding fails
+        }
+    }
+    
+    val albumTracks = remember(tracks, decodedAlbumName) {
+        tracks.filter { it.album == decodedAlbumName }
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(albumName, maxLines = 1) },
+                modifier = Modifier.padding(top = 12.dp), // Extra uniform spacing (on top of default inset)
+                title = { Text(decodedAlbumName, maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")

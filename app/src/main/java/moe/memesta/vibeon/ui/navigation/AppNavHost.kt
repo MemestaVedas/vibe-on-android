@@ -54,13 +54,26 @@ fun AppNavHost(
             modifier = Modifier.fillMaxSize().padding(bottom = if(showBottomBar) 0.dp else 0.dp) // Let content go behind nav bar
         ) {
             composable("discovery") {
-                DiscoveryScreen(
-                    viewModel = connectionViewModel,
+                DisposableEffect(Unit) {
+                    connectionViewModel.startScanning()
+                    onDispose { connectionViewModel.stopScanning() }
+                }
+                val devices by connectionViewModel.discoveredDevices.collectAsState()
+                
+                moe.memesta.vibeon.ui.pairing.PairingScreen(
+                    devices = devices,
+                    onConnect = { ip, port -> 
+                        val device = DiscoveredDevice(name = "Manual: $ip", host = ip, port = port)
+                        currentDevice = device
+                        connectionViewModel.connectToDevice(device)
+                        navController.navigate("library")
+                    },
                     onDeviceSelected = { device ->
                         currentDevice = device
                         connectionViewModel.connectToDevice(device)
                         navController.navigate("library")
-                    }
+                    },
+                    onNavigateToScan = { /* TODO: Implement QR Scan */ }
                 )
             }
             

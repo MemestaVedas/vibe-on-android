@@ -22,7 +22,9 @@ fun SearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp)
+            .statusBarsPadding() // Handle notch
+            .padding(horizontal = 24.dp)
+            .padding(top = 12.dp, bottom = 24.dp) // Uniform spacing match
     ) {
         Text(
             text = "Search",
