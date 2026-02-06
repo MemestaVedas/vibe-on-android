@@ -44,8 +44,7 @@ fun AlbumDetailScreen(
                 )
             )
         },
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0,0,0,0) // Handled by padding
+        containerColor = Color.Transparent
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding),

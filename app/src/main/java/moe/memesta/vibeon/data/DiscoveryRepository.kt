@@ -7,11 +7,13 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import moe.memesta.vibeon.data.local.FavoritesManager
 
 class DiscoveryRepository(context: Context) {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
     private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
+    private val favoritesManager = FavoritesManager(context)
     
     private val serviceType = "_vibe-on._tcp."
     private var isDiscoveryStarted = false
@@ -80,13 +82,21 @@ class DiscoveryRepository(context: Context) {
             
             // Add the device ONLY if we have a valid IPv4 address
             if (resolvedHost != null) {
+                val isFavorite = favoritesManager.isFavorite(serviceName)
+                val favoriteData = favoritesManager.getFavorite(serviceName)
                 val device = DiscoveredDevice(
                     name = serviceName,
                     host = resolvedHost,
-                    port = serviceInfo.port
+                    port = serviceInfo.port,
+                    isFavorite = isFavorite,
+                    nickname = favoriteData?.nickname
                 )
                 _discoveredDevices.value = (_discoveredDevices.value + device).distinctBy { it.name }
-                Log.i("Discovery", "✅ Added device: ${device.name} at ${device.host}:${device.port}")
+                if (isFavorite) {
+                    Log.i("Discovery", "⭐ Found favorite device: ${favoriteData?.nickname ?: device.name} at ${device.host}:${device.port}")
+                } else {
+                    Log.i("Discovery", "✅ Added device: ${device.name} at ${device.host}:${device.port}")
+                }
             } else {
                 Log.w("Discovery", "❌ Could not resolve IPv4 address for: $serviceName (got: $allAddresses)")
             }
@@ -135,5 +145,7 @@ class DiscoveryRepository(context: Context) {
 data class DiscoveredDevice(
     val name: String,
     val host: String,
-    val port: Int
+    val port: Int,
+    val isFavorite: Boolean = false,
+    val nickname: String? = null
 )

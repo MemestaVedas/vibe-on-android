@@ -3,6 +3,9 @@ package moe.memesta.vibeon.ui
 
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,7 +44,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.palette.graphics.Palette
 import coil.ImageLoader
@@ -55,11 +57,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlin.math.abs
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingScreen(
     playbackViewModel: PlaybackViewModel,
     connectionViewModel: ConnectionViewModel,
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val playbackState by playbackViewModel.playbackState.collectAsState()
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
@@ -98,8 +103,8 @@ fun NowPlayingScreen(
                                             // Swipe Up -> Next
                                             connectionViewModel.next()
                                         } else {
-                                            // Swipe Down -> Previous
-                                            connectionViewModel.previous()
+                                            // Swipe Down -> Dismiss (Back)
+                                            onBackPressed()
                                         }
                                     }
                                 }
@@ -132,11 +137,17 @@ fun NowPlayingScreen(
                             },
                             onQueueClick = {
                                 scope.launch { pagerState.animateScrollToPage(0) }
-                            }
+                            },
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
-                2 -> LyricsScreen(connectionViewModel)
+                2 -> LyricsScreen(
+                    connectionViewModel, 
+                    playbackViewModel,
+                    onBack = { scope.launch { pagerState.animateScrollToPage(1) } }
+                )
             }
         }
         
@@ -161,6 +172,7 @@ fun NowPlayingScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingView(
     title: String,
@@ -177,7 +189,9 @@ fun NowPlayingView(
     onBackToLibrary: () -> Unit,
     onTogglePlaybackLocation: () -> Unit,
     onLyricsClick: () -> Unit,
-    onQueueClick: () -> Unit
+    onQueueClick: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     
     // Derived Colors from MaterialTheme (set by DynamicTheme in MainActivity)
@@ -263,51 +277,60 @@ fun NowPlayingView(
             Spacer(modifier = Modifier.weight(0.5f))
 
                 // Album Art (Bigger)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(1f) // Max width
-                    .aspectRatio(1f)
-                    .graphicsLayer {
-                        shadowElevation = 24.dp.toPx()
-                        shape = RoundedCornerShape(32.dp) // Slightly tighter corners for bigger art
-                        clip = true
-                    }
-                    .background(Color.Transparent),
-                contentAlignment = Alignment.Center
-            ) {
-                 // Glow effect behind
+            with(sharedTransitionScope) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .offset(y = 12.dp)
-                        .blur(32.dp)
-                        .background(vibrantColor.copy(alpha = 0.3f))
-                )
-                
-                if (!coverUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = coverUrl,
-                        contentDescription = "Album Art",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(32.dp))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(32.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
+                        .fillMaxWidth(1f) // Max width
+                        .aspectRatio(1f)
+                        .sharedElement(
+                            state = rememberSharedContentState(key = "album_art_shared"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            boundsTransform = { _, _ ->
+                                androidx.compose.animation.core.tween(durationMillis = 500)
+                            }
+                        )
+                        .graphicsLayer {
+                            shadowElevation = 24.dp.toPx()
+                            shape = RoundedCornerShape(32.dp) // Slightly tighter corners for bigger art
+                            clip = true
+                        }
+                        .background(Color.Transparent),
+                    contentAlignment = Alignment.Center
+                ) {
+                     // Glow effect behind
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(VibeSurfaceContainer)
-                            .clip(RoundedCornerShape(32.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.MusicNote,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.2f),
-                            modifier = Modifier.size(80.dp)
+                            .offset(y = 12.dp)
+                            .blur(32.dp)
+                            .background(vibrantColor.copy(alpha = 0.3f))
+                    )
+                    
+                    if (!coverUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = coverUrl,
+                            contentDescription = "Album Art",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(32.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(32.dp)),
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(VibeSurfaceContainer)
+                                .clip(RoundedCornerShape(32.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.MusicNote,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.2f),
+                                modifier = Modifier.size(80.dp)
+                            )
+                        }
                     }
                 }
             }

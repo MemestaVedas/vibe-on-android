@@ -10,10 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,11 +30,13 @@ fun HomeScreen(
     onTrackSelected: (TrackInfo) -> Unit,
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    connectionViewModel: ConnectionViewModel
 ) {
-    val tracks by viewModel.tracks.collectAsState()
+    val tracks: List<TrackInfo> by viewModel.tracks.collectAsState()
+    val connectionState by connectionViewModel.connectionState.collectAsState()
     
-    val albums = remember(tracks) {
+    val albums: List<AlbumInfo> = remember(tracks) {
         tracks.groupBy { it.album }
             .map { (album, albumTracks) ->
                 AlbumInfo(
@@ -46,7 +48,7 @@ fun HomeScreen(
             .sortedBy { it.name }
     }
     
-    val artists = remember(tracks) {
+    val artists: List<ArtistItemData> = remember(tracks) {
         tracks.groupBy { it.artist }
             .map { (artist, artistTracks) ->
                 ArtistItemData(
@@ -57,69 +59,79 @@ fun HomeScreen(
             }
             .sortedBy { it.name }
     }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            top = 24.dp, 
-            bottom = contentPadding.calculateBottomPadding() + 24.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        // Section: Recently Added / Tracks (Horizontal)
-        item {
-            SectionHeader("Recently Added")
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(tracks.take(10)) { track ->
-                    moe.memesta.vibeon.ui.components.SquareTrackCard(
-                        track = track,
-                        onClick = { 
-                            viewModel.playTrack(track) // Play directly
-                            onTrackSelected(track) 
-                        }
-                    )
+    
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding() + 24.dp, 
+                bottom = contentPadding.calculateBottomPadding() + 24.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // Section: Recently Added / Tracks (Horizontal)
+            item {
+                SectionHeader("Recently Added")
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(tracks.take(10)) { track ->
+                        moe.memesta.vibeon.ui.components.SquareTrackCard(
+                            track = track,
+                            onClick = { 
+                                viewModel.playTrack(track) // Play directly
+                                onTrackSelected(track) 
+                            }
+                        )
+                    }
                 }
             }
-        }
 
-        // Section: Albums (Horizontal for now)
-        item {
-            SectionHeader("Albums")
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(albums) { album ->
-                     moe.memesta.vibeon.ui.components.AlbumCard(
-                        albumName = album.name,
-                        coverUrl = album.coverUrl,
-                        onClick = { onAlbumSelected(album.name) }
-                    )
+            // Section: Albums (Horizontal for now)
+            item {
+                SectionHeader("Albums")
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(albums) { album ->
+                         moe.memesta.vibeon.ui.components.AlbumCard(
+                            albumName = album.name,
+                            coverUrl = album.coverUrl,
+                            onClick = { onAlbumSelected(album.name) }
+                        )
+                    }
                 }
             }
-        }
 
-        // Section: Artists (Vertical simplified or Horizontal)
-        item {
-            SectionHeader("Artists")
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(artists) { artist ->
-                    moe.memesta.vibeon.ui.components.ArtistPill(
-                        artistName = artist.name,
-                        photoUrl = artist.photoUrl,
-                        onClick = { onArtistSelected(artist.name) }
-                    )
+            // Section: Artists (Vertical simplified or Horizontal)
+            item {
+                SectionHeader("Artists")
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(artists) { artist ->
+                        moe.memesta.vibeon.ui.components.ArtistPill(
+                            artistName = artist.name,
+                            photoUrl = artist.photoUrl,
+                            onClick = { onArtistSelected(artist.name) }
+                        )
+                    }
                 }
             }
+            
+            // Fallback list of all tracks if needed, or just keep it clean
         }
         
-        // Fallback list of all tracks if needed, or just keep it clean
+        // Connection Status Indicator (Top-Right)
+        moe.memesta.vibeon.ui.components.ConnectionStatusIndicator(
+            connectionState = connectionState,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = contentPadding.calculateTopPadding() + 16.dp, end = 24.dp)
+        )
     }
 }
 

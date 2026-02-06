@@ -1,15 +1,21 @@
 package moe.memesta.vibeon.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -17,13 +23,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,13 +41,18 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.ConnectionViewModel
 import moe.memesta.vibeon.ui.PlaybackViewModel
+import moe.memesta.vibeon.ui.theme.VibeAnimations
+import kotlin.math.abs
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun BottomPlayerBar(
     navController: NavController,
     connectionViewModel: ConnectionViewModel,
     playbackViewModel: PlaybackViewModel,
     onNavigateToPlayer: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -66,7 +79,17 @@ fun BottomPlayerBar(
         Column {
             // --- Mini Player Section ---
             AnimatedVisibility(visible = currentTrack.title != "No Track") {
-                Column {
+                Column(
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectVerticalDragGestures { change, dragAmount ->
+                            val threshold = 20.dp.toPx()
+                            if (dragAmount < -threshold) { // Swipe Up
+                                change.consume()
+                                onNavigateToPlayer()
+                            }
+                        }
+                    }
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -81,19 +104,28 @@ fun BottomPlayerBar(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.DarkGray)
-                            ) {
-                                if (currentTrack.coverUrl != null) {
-                                    AsyncImage(
-                                        model = currentTrack.coverUrl,
-                                        contentDescription = null,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
+                            with(sharedTransitionScope) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .sharedElement(
+                                            state = rememberSharedContentState(key = "album_art_shared"),
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                            boundsTransform = { _, _ ->
+                                                androidx.compose.animation.core.tween(durationMillis = 500)
+                                            }
+                                        )
+                                        .clip(CircleShape)
+                                        .background(Color.DarkGray)
+                                ) {
+                                    if (currentTrack.coverUrl != null) {
+                                        AsyncImage(
+                                            model = currentTrack.coverUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
                                 }
                             }
                             
@@ -142,8 +174,15 @@ fun BottomPlayerBar(
                         }
                     }
                     
+                    // Smooth animated progress
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = progress,
+                        animationSpec = VibeAnimations.SpringStandard,
+                        label = "progressAnimation"
+                    )
+                    
                     LinearProgressIndicator(
-                        progress = progress,
+                        progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.dp),
@@ -174,13 +213,33 @@ fun BottomPlayerBar(
                     val isSelected = currentRoute == item.route || 
                                      (item.route == "library" && currentRoute == "discovery")
                     
+                    // Press animation with organic spring
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) VibeAnimations.PressScale else 1f,
+                        animationSpec = VibeAnimations.SpringExpressive,
+                        label = "navItemScale"
+                    )
+                    
+                    // Smooth color transition
+                    val iconColor by animateColorAsState(
+                        targetValue = if (isSelected) accentColor else Color.Gray,
+                        animationSpec = VibeAnimations.springStandardGeneric(),
+                        label = "navItemColor"
+                    )
+                    
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .clickable {
+                            .scale(scale)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null  // Remove ripple for cleaner press effect
+                            ) {
                                 if (currentRoute != item.route) {
+                                    // Proper back navigation: removed popUpTo so back respects history
                                     navController.navigate(item.route) {
-                                        popUpTo("library") { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -199,7 +258,7 @@ fun BottomPlayerBar(
                             Icon(
                                 imageVector = item.icon,
                                 contentDescription = item.label,
-                                tint = if (isSelected) accentColor else Color.Gray,
+                                tint = iconColor,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -209,7 +268,7 @@ fun BottomPlayerBar(
                         Text(
                             text = item.label,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) accentColor else Color.Gray,
+                            color = iconColor,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
                     }

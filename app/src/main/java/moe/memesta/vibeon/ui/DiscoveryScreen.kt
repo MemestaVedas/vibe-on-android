@@ -15,7 +15,8 @@ import moe.memesta.vibeon.data.DiscoveredDevice
 @Composable
 fun DiscoveryScreen(
     viewModel: ConnectionViewModel,
-    onDeviceSelected: (DiscoveredDevice) -> Unit
+    onDeviceSelected: (DiscoveredDevice) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val devices by viewModel.discoveredDevices.collectAsState()
     val wsIsConnected by viewModel.wsIsConnected.collectAsState()
@@ -31,7 +32,7 @@ fun DiscoveryScreen(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {

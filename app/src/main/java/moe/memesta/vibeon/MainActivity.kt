@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var discoveryRepository: DiscoveryRepository
     private lateinit var connectionViewModel: ConnectionViewModel
     private lateinit var playbackViewModel: PlaybackViewModel
+    private lateinit var favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
     private var streamRepository: StreamRepository? = null
@@ -48,11 +49,15 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
         
         discoveryRepository = DiscoveryRepository(this)
+        favoritesManager = moe.memesta.vibeon.data.local.FavoritesManager(this)
         connectionViewModel = ConnectionViewModel(discoveryRepository)
         // Initialize playbackViewModel immediately so it's ready for UI
         playbackViewModel = PlaybackViewModel(
             webSocketClient = connectionViewModel.wsClient
         )
+        
+        // Auto-start discovery for favorite device detection
+        connectionViewModel.startScanning()
         
         // Try to initialize StreamRepository but don't crash if it fails
         try {
@@ -81,7 +86,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavHost(connectionViewModel, playbackViewModel)
+                    AppNavHost(connectionViewModel, playbackViewModel, favoritesManager)
                 }
             }
         }

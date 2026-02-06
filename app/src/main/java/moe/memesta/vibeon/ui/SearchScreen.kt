@@ -14,12 +14,13 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun SearchScreen(
-    viewModel: LibraryViewModel
+    viewModel: LibraryViewModel,
+    modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(24.dp)

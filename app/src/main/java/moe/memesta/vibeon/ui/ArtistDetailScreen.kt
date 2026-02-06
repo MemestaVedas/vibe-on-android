@@ -42,8 +42,7 @@ fun ArtistDetailScreen(
                 )
             )
         },
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0,0,0,0)
+        containerColor = Color.Transparent
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
