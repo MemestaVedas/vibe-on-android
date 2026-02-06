@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
@@ -18,11 +18,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.ui.LibraryViewModel
+import moe.memesta.vibeon.ui.components.SectionHeader
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun HomeScreen(
@@ -121,8 +129,6 @@ fun HomeScreen(
                     }
                 }
             }
-            
-            // Fallback list of all tracks if needed, or just keep it clean
         }
         
         // Connection Status Indicator (Top-Right)
@@ -131,29 +137,6 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = contentPadding.calculateTopPadding() + 16.dp, end = 24.dp)
-        )
-    }
-}
-
-@Composable
-fun SectionHeader(title: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Icon(
-            Icons.Default.ChevronRight,
-            contentDescription = "See All",
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
         )
     }
 }

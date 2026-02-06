@@ -52,7 +52,9 @@ fun ArtistsListScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

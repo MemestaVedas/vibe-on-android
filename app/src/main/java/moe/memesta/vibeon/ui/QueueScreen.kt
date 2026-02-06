@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,8 +33,9 @@ fun QueueScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(horizontal = 24.dp),
-            contentPadding = PaddingValues(vertical = 24.dp),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -59,17 +61,30 @@ fun QueueItemRow(item: QueueItem, isCurrent: Boolean) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
+         if (isCurrent) {
+             androidx.compose.material3.Icon(
+                 androidx.compose.material.icons.Icons.Rounded.GraphicEq, // Active indicator
+                 contentDescription = "Playing",
+                 tint = MaterialTheme.colorScheme.primary,
+                 modifier = Modifier.size(20.dp).padding(end = 8.dp)
+             )
+         } else {
+             Spacer(modifier = Modifier.width(28.dp)) // Indent non-active tracks to align titles
+         }
+         
          Column(modifier = Modifier.weight(1f)) {
              Text(
                  text = item.title,
                  color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White,
                  fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                 style = MaterialTheme.typography.bodyLarge
+                 style = MaterialTheme.typography.bodyLarge,
+                 maxLines = 1
              )
              Text(
                  text = item.artist,
                  color = Color.White.copy(alpha = 0.6f),
-                 style = MaterialTheme.typography.bodyMedium
+                 style = MaterialTheme.typography.bodyMedium,
+                 maxLines = 1
              )
          }
     }

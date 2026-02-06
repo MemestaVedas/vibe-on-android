@@ -76,6 +76,7 @@ fun AppNavHost(
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute in listOf("library", "albums", "search", "artists", "settings")
 
+
     SharedTransitionLayout {
         Scaffold(
             modifier = Modifier.fillMaxSize(),

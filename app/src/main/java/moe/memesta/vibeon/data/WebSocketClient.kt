@@ -12,7 +12,8 @@ data class MediaSessionData(
     val artist: String = "Unknown Artist",
     val album: String = "",
     val duration: Double = 0.0,
-    val coverUrl: String? = null
+    val coverUrl: String? = null,
+    val lyrics: String = ""
 )
 
 data class QueueItem(
@@ -177,6 +178,13 @@ class WebSocketClient {
         sendMessage(message)
     }
 
+    fun sendGetLyrics() {
+        val message = JSONObject().apply {
+            put("type", "getLyrics")
+        }
+        sendMessage(message)
+    }
+
     fun sendGetLibrary() {
         val message = JSONObject().apply {
             put("type", "getLibrary")
@@ -273,12 +281,24 @@ class WebSocketClient {
                             coverUrl = "${client.baseUrl}$coverUrl"
                         }
                         
+                        val hasLyrics = json.has("lyrics")
+                        val lyricsLen = json.optString("lyrics", "").length
+                        Log.i("WebSocket", "📀 MediaSession Update - Lyrics Present: $hasLyrics, Length: $lyricsLen")
+
+                        // Preserve existing lyrics if this update doesn't include them
+                        val newLyrics = if (hasLyrics && lyricsLen > 0) {
+                            json.optString("lyrics", "")
+                        } else {
+                            client._currentTrack.value.lyrics
+                        }
+
                         client._currentTrack.value = MediaSessionData(
                             title = title,
                             artist = artist,
                             album = album,
                             duration = duration,
-                            coverUrl = coverUrl
+                            coverUrl = coverUrl,
+                            lyrics = newLyrics
                         )
                         client._isPlaying.value = isPlaying
                         client._duration.value = duration
@@ -309,8 +329,15 @@ class WebSocketClient {
                         // Handle queue updates
                         val queueArray = json.optJSONArray("queue") ?: return
                         val queueItems = mutableListOf<QueueItem>()
+                        val base = client.baseUrl
+
                         for (i in 0 until queueArray.length()) {
                             val item = queueArray.getJSONObject(i)
+                             var cover = item.optString("coverUrl", null)
+                             if (cover != null && !cover.startsWith("http")) {
+                                 cover = "$base$cover"
+                             }
+                             
                             queueItems.add(
                                 QueueItem(
                                     path = item.getString("path"),
@@ -385,6 +412,27 @@ class WebSocketClient {
                         }
                         client._library.value = tracks
                         Log.i("WebSocket", "📚 Received library with ${tracks.size} tracks")
+                    }
+                    "lyrics" -> {
+                        // Handle separate Lyrics message
+                        Log.i("WebSocket", "📝 Raw Lyrics JSON: $json")
+                        
+                        // Try camelCase first (what serde should send), then snake_case as fallback
+                        val plainLyrics = json.optString("plainLyrics", "").ifEmpty {
+                            json.optString("plain_lyrics", "")
+                        }
+                        val syncedLyrics = json.optString("syncedLyrics", "").ifEmpty {
+                            json.optString("synced_lyrics", "")
+                        }
+                        val finalLyrics = if (syncedLyrics.isNotEmpty()) syncedLyrics else plainLyrics
+                        
+                        Log.i("WebSocket", "📝 Lyrics received - Plain: ${plainLyrics.take(50)}, Synced: ${syncedLyrics.take(50)}")
+                        Log.i("WebSocket", "📝 Final lyrics length: ${finalLyrics.length}")
+                        
+                        // Update current track with lyrics
+                        val current = client._currentTrack.value
+                        client._currentTrack.value = current.copy(lyrics = finalLyrics)
+                        Log.i("WebSocket", "📝 Updated currentTrack with lyrics, new value: ${client._currentTrack.value.lyrics.take(50)}")
                     }
                 }
             } catch (e: Exception) {

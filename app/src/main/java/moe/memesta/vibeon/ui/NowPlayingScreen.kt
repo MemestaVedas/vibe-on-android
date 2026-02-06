@@ -83,6 +83,7 @@ fun NowPlayingScreen(
         // Pager handles horizontal swipes for Queue/Lyrics
         HorizontalPager(
             state = pagerState,
+            userScrollEnabled = true, // Explicitly enable swipe gestures
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
@@ -100,8 +101,8 @@ fun NowPlayingScreen(
                                     if (abs(dragAmount) > threshold) {
                                         change.consume()
                                         if (dragAmount < 0) {
-                                            // Swipe Up -> Next
-                                            connectionViewModel.next()
+                                            // Swipe Up -> Open Queue (Page 0)
+                                            scope.launch { pagerState.animateScrollToPage(0) }
                                         } else {
                                             // Swipe Down -> Dismiss (Back)
                                             onBackPressed()
@@ -278,6 +279,7 @@ fun NowPlayingView(
 
                 // Album Art (Bigger)
             with(sharedTransitionScope) {
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(1f) // Max width
