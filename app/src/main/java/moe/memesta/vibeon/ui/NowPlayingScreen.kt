@@ -80,69 +80,59 @@ fun NowPlayingScreen(
             .fillMaxSize()
             .background(VibeBackground)
     ) {
+        // State for drag interaction
+        var isDraggingSeek by remember { mutableStateOf(false) }
+
         // Pager handles horizontal swipes for Queue/Lyrics
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = true, // Explicitly enable swipe gestures
+            userScrollEnabled = !isDraggingSeek, // Disable swipe gestures when dragging seek bar
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
                 0 -> QueueScreen(connectionViewModel)
                 1 -> {
-                    // Main Player with Vertical Swipe Detection
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures { change, dragAmount ->
-                                    val threshold = 50.dp.toPx()
-                                    // Only trigger if purely vertical drag (avoid conflicting with Seek Bar etc if touched there, but Box covers all)
-                                    // Ideally check touch region, but global swipe is fine for "Pachinko" feel
-                                    if (abs(dragAmount) > threshold) {
-                                        change.consume()
-                                        if (dragAmount < 0) {
-                                            // Swipe Up -> Open Queue (Page 0)
-                                            scope.launch { pagerState.animateScrollToPage(0) }
-                                        } else {
-                                            // Swipe Down -> Dismiss (Back)
-                                            onBackPressed()
-                                        }
-                                    }
-                                }
-                            }
-                    ) {
-                        NowPlayingView(
-                            title = currentTrack.title,
-                            artist = currentTrack.artist,
-                            isPlaying = isPlaying,
-                            progress = playbackState.progress,
-                            duration = playbackState.duration,
-                            coverUrl = currentTrack.coverUrl,
-                            isMobilePlayback = isMobilePlayback,
-                            onPlayPauseToggle = {
-                                if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
-                            },
-                            onSkipNext = { connectionViewModel.next() },
-                            onSkipPrevious = { connectionViewModel.previous() },
-                            onSeek = { progress -> 
-                                val positionSecs = progress * playbackState.duration
-                                connectionViewModel.seek(positionSecs.toDouble())
-                            },
-                            onBackToLibrary = onBackPressed,
-                            onTogglePlaybackLocation = {
-                                if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
-                                else playbackViewModel.requestMobilePlayback()
-                            },
-                            onLyricsClick = {
-                                scope.launch { pagerState.animateScrollToPage(2) }
-                            },
-                            onQueueClick = {
-                                scope.launch { pagerState.animateScrollToPage(0) }
-                            },
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                    }
+                    // Main Player - No gesture wrapper that would block buttons
+                    NowPlayingView(
+                        title = currentTrack.title,
+                        artist = currentTrack.artist,
+                        isPlaying = isPlaying,
+                        progress = playbackState.progress,
+                        duration = playbackState.duration,
+                        coverUrl = currentTrack.coverUrl,
+                        isMobilePlayback = isMobilePlayback,
+                        onPlayPauseToggle = {
+                            if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                        },
+                        onSkipNext = { 
+                            android.util.Log.i("NowPlayingScreen", "⏭️ Skip Next button pressed")
+                            connectionViewModel.next() 
+                        },
+                        onSkipPrevious = { 
+                            android.util.Log.i("NowPlayingScreen", "⏮️ Skip Previous button pressed")
+                            connectionViewModel.previous() 
+                        },
+                        onSeek = { progress -> 
+                            // Duration is in MS, seek expects S
+                            val positionSecs = (progress * playbackState.duration) / 1000.0
+                            connectionViewModel.seek(positionSecs)
+                        },
+                        onBackToLibrary = onBackPressed,
+                        onTogglePlaybackLocation = {
+                            if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
+                            else playbackViewModel.requestMobilePlayback()
+                        },
+                        onLyricsClick = {
+                            scope.launch { pagerState.animateScrollToPage(2) }
+                        },
+                        onQueueClick = {
+                            scope.launch { pagerState.animateScrollToPage(0) }
+                        },
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        onSeekDragStart = { isDraggingSeek = true },
+                        onSeekDragEnd = { isDraggingSeek = false }
+                    )
                 }
                 2 -> LyricsScreen(
                     connectionViewModel, 
@@ -192,7 +182,9 @@ fun NowPlayingView(
     onLyricsClick: () -> Unit,
     onQueueClick: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onSeekDragStart: () -> Unit = {},
+    onSeekDragEnd: () -> Unit = {}
 ) {
     
     // Derived Colors from MaterialTheme (set by DynamicTheme in MainActivity)
@@ -411,7 +403,9 @@ fun NowPlayingView(
                     thumbColor = vibrantColor,
                     trackColor = Color.White.copy(alpha = 0.2f),
                     activeTrackColor = vibrantColor,
-                     onSeek = onSeek
+                    onSeek = onSeek,
+                    onDragStart = onSeekDragStart,
+                    onDragEnd = onSeekDragEnd
                 )
                 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -446,54 +440,54 @@ fun NowPlayingView(
                 }
                 
                 // Previous
-                 Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(alpha = 0.1f))
-                        .clickable { onSkipPrevious() },
-                    contentAlignment = Alignment.Center
+                Surface(
+                    onClick = onSkipPrevious,
+                    modifier = Modifier.size(64.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.White.copy(alpha = 0.1f)
                 ) {
-                    Icon(
-                        Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
 
                 // Play/Pause
-                Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(primaryControlColor)
-                        .clickable { onPlayPauseToggle() },
-                    contentAlignment = Alignment.Center
+                Surface(
+                    onClick = onPlayPauseToggle,
+                    modifier = Modifier.size(88.dp),
+                    shape = RoundedCornerShape(32.dp),
+                    color = primaryControlColor
                 ) {
-                    Icon(
-                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        tint = onPrimaryControlColor,
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = onPrimaryControlColor,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
                 }
 
                 // Next
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(alpha = 0.1f))
-                        .clickable { onSkipNext() },
-                    contentAlignment = Alignment.Center
+                Surface(
+                    onClick = onSkipNext,
+                    modifier = Modifier.size(64.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.White.copy(alpha = 0.1f)
                 ) {
-                    Icon(
-                        Icons.Rounded.SkipNext,
-                        contentDescription = "Next",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.SkipNext,
+                            contentDescription = "Next",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 }
                 
                 IconButton(onClick = { /* Repeat */ }) {
@@ -567,7 +561,9 @@ fun SquigglyProgressBar(
     thumbColor: Color,
     trackColor: Color,
     activeTrackColor: Color,
-    onSeek: (Float) -> Unit
+    onSeek: (Float) -> Unit,
+    onDragStart: () -> Unit = {},
+    onDragEnd: () -> Unit = {}
 ) {
     val density = LocalDensity.current
     var width by remember { mutableFloatStateOf(0f) }
@@ -594,12 +590,19 @@ fun SquigglyProgressBar(
             }
             .pointerInput(Unit) {
                detectHorizontalDragGestures(
-                   onDragStart = { isDragging = true },
+                   onDragStart = { 
+                       isDragging = true 
+                       onDragStart()
+                   },
                    onDragEnd = { 
                        isDragging = false 
                        onSeek(dragProgress)
+                       onDragEnd()
                    },
-                   onDragCancel = { isDragging = false }
+                   onDragCancel = { 
+                       isDragging = false 
+                       onDragEnd()
+                   }
                ) { change, _ ->
                    change.consume()
                    val newProgress = (change.position.x / width).coerceIn(0f, 1f)

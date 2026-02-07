@@ -11,3 +11,10 @@ data class ArtistItemData(
     val followerCount: String,
     val photoUrl: String?
 )
+
+data class LibraryStats(
+    val totalSongs: Int,
+    val totalAlbums: Int,
+    val totalArtists: Int,
+    val totalDurationHours: Double
+)

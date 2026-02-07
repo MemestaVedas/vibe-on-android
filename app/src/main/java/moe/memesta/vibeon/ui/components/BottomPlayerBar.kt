@@ -183,28 +183,11 @@ fun BottomPlayerBar(
                         }
                     }
                     
-                    // Smooth animated progress with shimmer
+                    // Smooth animated progress (no shimmer - was causing perpetual animation)
                     val animatedProgress by animateFloatAsState(
                         targetValue = progress,
                         animationSpec = VibeAnimations.SpringStandard,
                         label = "progressAnimation"
-                    )
-                    
-                    val shimmerTransition = rememberInfiniteTransition(label = "progressShimmer")
-                    val shimmerTranslate by shimmerTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 1000f,
-                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                            animation = tween(2000, easing = androidx.compose.animation.core.LinearEasing)
-                        ),
-                        label = "shimmerTranslate"
-                    )
-                    
-                    val progressBrush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                         colors = listOf(accentColor, Color(0xFFFFCDD2), accentColor),
-                         startX = shimmerTranslate - 200f,
-                         endX = shimmerTranslate + 200f,
-                         tileMode = androidx.compose.ui.graphics.TileMode.Mirror 
                     )
 
                     Canvas(
@@ -214,9 +197,9 @@ fun BottomPlayerBar(
                     ) {
                         // Track
                         drawRect(Color.White.copy(alpha = 0.1f))
-                        // Progress
+                        // Progress - solid accent color
                         drawRect(
-                            brush = progressBrush,
+                            color = accentColor,
                             size = androidx.compose.ui.geometry.Size(
                                 width = size.width * animatedProgress,
                                 height = size.height

@@ -200,11 +200,30 @@ class WebSocketClient {
         }
         sendMessage(message)
     }
+
+    fun sendSetQueue(paths: List<String>) {
+        val pathsArray = org.json.JSONArray()
+        paths.forEach { pathsArray.put(it) }
+        
+        val message = JSONObject().apply {
+            put("type", "setQueue")
+            put("paths", pathsArray)
+        }
+        sendMessage(message)
+    }
     
     fun sendPlayAlbum(albumName: String, artist: String) {
         val message = JSONObject().apply {
             put("type", "playAlbum")
             put("album", albumName)
+            put("artist", artist)
+        }
+        sendMessage(message)
+    }
+    
+    fun sendPlayArtist(artist: String) {
+        val message = JSONObject().apply {
+            put("type", "playArtist")
             put("artist", artist)
         }
         sendMessage(message)
@@ -229,7 +248,7 @@ class WebSocketClient {
     fun sendMobilePositionUpdate(positionSecs: Double) {
         val message = JSONObject().apply {
             put("type", "mobilePositionUpdate")
-            put("positionSecs", positionSecs)
+            put("positionSecs", positionSecs) // Server expects camelCase
         }
         sendMessage(message)
     }

@@ -82,12 +82,16 @@ class MainActivity : ComponentActivity() {
                 // Initialize ViewModels or generic state if needed for global context
                 // But for now, AppNavHost handles navigation
                 
+                val libraryDatabase = moe.memesta.vibeon.data.local.LibraryDatabase.getInstance(applicationContext)
+                val trackDao = libraryDatabase.trackDao()
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavHost(connectionViewModel, playbackViewModel, favoritesManager)
+                    AppNavHost(connectionViewModel, playbackViewModel, favoritesManager, trackDao)
                 }
+
             }
         }
     }

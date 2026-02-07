@@ -93,10 +93,12 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     }
     
     fun next() {
+        Log.i("ConnectionViewModel", "⏭️ User clicked Next")
         wsClient.sendNext()
     }
     
     fun previous() {
+        Log.i("ConnectionViewModel", "⏮️ User clicked Previous")
         wsClient.sendPrevious()
     }
     

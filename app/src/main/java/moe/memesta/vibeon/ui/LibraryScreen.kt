@@ -106,7 +106,7 @@ fun LibraryScreen(
                         TrackListItem(
                             track = track,
                             onTrackClick = {
-                                viewModel.playTrack(track)
+                                viewModel.playTrack(track, displayedTracks)
                                 onTrackSelected(track)
                             }
                         )

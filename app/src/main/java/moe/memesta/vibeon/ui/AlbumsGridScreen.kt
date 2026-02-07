@@ -25,25 +25,7 @@ fun AlbumsGridScreen(
     onPlayAlbum: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tracks by viewModel.tracks.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    
-    val albums = remember(tracks, searchQuery) {
-        tracks.groupBy { it.album }
-            .map { (album, tracks) ->
-                AlbumInfo(
-                    name = album,
-                    artist = tracks.firstOrNull()?.artist ?: "",
-                    coverUrl = tracks.firstOrNull()?.coverUrl
-                )
-            }
-            .filter {
-                searchQuery.isEmpty() || 
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                it.artist.contains(searchQuery, ignoreCase = true)
-            }
-            .sortedBy { it.name }
-    }
+    val albums by viewModel.filteredAlbums.collectAsState()
     
     Column(
         modifier = modifier
@@ -85,7 +67,10 @@ fun AlbumsGridScreen(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            items(albums) { album ->
+            items(
+                items = albums,
+                key = { it.name }
+            ) { album ->
                 AlbumGridItem(
                     albumName = album.name,
                     artistName = album.artist,

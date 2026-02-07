@@ -244,6 +244,33 @@ class MusicStreamClient(
     }
     
     /**
+     * Get library statistics
+     */
+    suspend fun getStats(): LibraryStats? = try {
+        val url = "$baseUrl/api/stats"
+        val request = Request.Builder()
+            .url(url)
+            .build()
+        
+        val response = okHttpClient.newCall(request).execute()
+        if (response.isSuccessful) {
+            val json = JSONObject(response.body?.string() ?: "{}")
+            LibraryStats(
+                totalSongs = json.getInt("totalSongs"),
+                totalAlbums = json.getInt("totalAlbums"),
+                totalArtists = json.getInt("totalArtists"),
+                totalDurationHours = json.getDouble("totalDurationHours")
+            )
+        } else {
+            Log.e("MusicStreamClient", "❌ Failed to get stats: ${response.code}")
+            null
+        }
+    } catch (e: Exception) {
+        Log.e("MusicStreamClient", "Error getting stats: ${e.message}", e)
+        null
+    }
+    
+    /**
      * Get cover URL for a track
      */
     fun getCoverUrl(trackPath: String): String {

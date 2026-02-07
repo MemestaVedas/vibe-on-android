@@ -8,21 +8,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.util.Log
-import moe.memesta.vibeon.data.MusicStreamClient
+import moe.memesta.vibeon.data.LibraryRepository
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.WebSocketClient
 
 class LibraryViewModel(
-    private val host: String,
-    private val port: Int = 5000,
+    private val repository: LibraryRepository,
     private val wsClient: WebSocketClient
 ) : ViewModel() {
-    private val streamClient = MusicStreamClient(host, port)
     
     // Expose baseUrl for cover art loading
-    val baseUrl: String = streamClient.getBaseUrl()
+    val baseUrl: String = repository.baseUrl
     
     private val _tracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     val tracks: StateFlow<List<TrackInfo>> = _tracks
@@ -33,6 +31,16 @@ class LibraryViewModel(
 
     private val _artists = MutableStateFlow<List<String>>(emptyList())
     val artists: StateFlow<List<String>> = _artists
+
+    // UI-ready derived data for HomeScreen
+    private val _homeAlbums = MutableStateFlow<List<AlbumInfo>>(emptyList())
+    val homeAlbums: StateFlow<List<AlbumInfo>> = _homeAlbums
+
+    private val _homeArtists = MutableStateFlow<List<ArtistItemData>>(emptyList())
+    val homeArtists: StateFlow<List<ArtistItemData>> = _homeArtists
+
+    private val _featuredAlbums = MutableStateFlow<List<AlbumInfo>>(emptyList())
+    val featuredAlbums: StateFlow<List<AlbumInfo>> = _featuredAlbums
     
     // Expose player state for MiniPlayer
     val currentTrack = wsClient.currentTrack
@@ -57,6 +65,13 @@ class LibraryViewModel(
     private val _artistResults = MutableStateFlow<List<ArtistItemData>>(emptyList())
     val artistResults: StateFlow<List<ArtistItemData>> = _artistResults
     
+    // Optimized List for AlbumsGridScreen
+    private val _filteredAlbums = MutableStateFlow<List<AlbumInfo>>(emptyList())
+    val filteredAlbums: StateFlow<List<AlbumInfo>> = _filteredAlbums
+    
+    private val _stats = MutableStateFlow<moe.memesta.vibeon.data.LibraryStats?>(null)
+    val stats: StateFlow<moe.memesta.vibeon.data.LibraryStats?> = _stats
+    
     private val _currentOffset = MutableStateFlow(0)
     val currentOffset: StateFlow<Int> = _currentOffset
     
@@ -64,183 +79,143 @@ class LibraryViewModel(
     private val pageSize = 50
     
     init {
-        Log.i("LibraryViewModel", "🔌 Initializing for server: $host:$port")
+        Log.i("LibraryViewModel", "🔌 Initializing LibraryViewModel")
         
-        // Observe WebSocket library updates
+        // 1. Observe Database (Single Source of Truth)
+        viewModelScope.launch {
+            repository.tracks.collect { tracks ->
+                Log.i("LibraryViewModel", "💾 Database updated: ${tracks.size} tracks")
+                updateLocalState(tracks)
+            }
+        }
+        
+        // 2. Observe WebSocket for library data arriving from server
         viewModelScope.launch {
             wsClient.library.collect { tracks ->
                 if (tracks.isNotEmpty()) {
-                    Log.i("LibraryViewModel", "📚 Received ${tracks.size} tracks from WebSocket")
-                    withContext(Dispatchers.Main) {
-                        _tracks.value = tracks
-                        // Calculate derived data
-                        _albums.value = tracks.map { it.album }.distinct().sorted()
-                        _artists.value = tracks.map { it.artist }.distinct().sorted()
-                        
-                        totalTracks = tracks.size
-                        _isLoading.value = false
-                        _error.value = null
-                    }
+                    Log.i("LibraryViewModel", "📡 Received ${tracks.size} tracks from WebSocket -> Saving to DB")
+                    repository.saveTracks(tracks)
                 }
             }
         }
         
-        // Request library via WebSocket on init
-        viewModelScope.launch { // Use Main dispatcher for state collection
+        // 3. Trigger initial refresh
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.refreshLibrary()
+            fetchStats()
+            _isLoading.value = false
+        }
+        
+        // 4. Listen for connection to retry
+        viewModelScope.launch {
             wsClient.isConnected.collect { connected ->
                 if (connected) {
-                    Log.i("LibraryViewModel", "📡 WebSocket connected, requesting library...")
-                    wsClient.sendGetLibrary()
-                    _isLoading.value = true
-                } else {
-                     Log.w("LibraryViewModel", "⚠️ WebSocket disconnected")
-                     // Optionally handle disconnect UI state
+                    repository.refreshLibrary()
+                    fetchStats()
                 }
-            }
-        }
-        
-        // Initial fallback check
-        viewModelScope.launch(Dispatchers.IO) {
-            // Give WS a moment to connect
-            kotlinx.coroutines.delay(1000)
-            if (!wsClient.isConnected.value && _tracks.value.isEmpty()) {
-                 Log.w("LibraryViewModel", "⚠️ WebSocket not connected after timeout, falling back to HTTP...")
-                 loadLibrary()
             }
         }
     }
     
-    fun loadLibrary(offset: Int = 0) {
-        // Prefer WebSocket if connected
-        if (wsClient.isConnected.value) {
-            wsClient.sendGetLibrary()
-            _isLoading.value = true
-            return
-        }
+    private suspend fun updateLocalState(tracks: List<TrackInfo>) {
+        withContext(Dispatchers.Default) {
+            val albumModels = tracks.groupBy { it.album }
+                .map { (album, albumTracks) ->
+                    AlbumInfo(
+                        name = album,
+                        artist = albumTracks.firstOrNull()?.artist ?: "",
+                        coverUrl = albumTracks.firstOrNull()?.coverUrl
+                    )
+                }
+                .sortedBy { it.name }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _isLoading.value = true
-                _error.value = null
-                _currentOffset.value = offset
-            }
+            val artistModels = tracks.groupBy { it.artist }
+                .map { (artist, artistTracks) ->
+                    ArtistItemData(
+                        name = artist,
+                        followerCount = "${artistTracks.size} Tracks",
+                        photoUrl = artistTracks.firstOrNull()?.coverUrl
+                    )
+                }
+                .sortedBy { it.name }
             
-            try {
-                Log.i("LibraryViewModel", "📚 Loading library from http://$host:$port/api/library...")
-                val response = streamClient.browseLibrary(offset, pageSize)
-                withContext(Dispatchers.Main) {
-                    if (response != null) {
-                        _tracks.value = response.tracks
-                        // Calculate derived data
-                        _albums.value = response.tracks.map { it.album }.distinct().sorted()
-                        _artists.value = response.tracks.map { it.artist }.distinct().sorted()
-                        
-                        totalTracks = response.total
-                        Log.i("LibraryViewModel", "✅ Loaded ${response.tracks.size} tracks (total: ${response.total})")
-                    } else {
-                        _error.value = "❌ Failed to load library\n\nConnecting to: $host:$port"
-                    }
-                }
-            } catch (e: Exception) {
-                // Error handling...
-                withContext(Dispatchers.Main) { _isLoading.value = false }
-            } finally {
-                withContext(Dispatchers.Main) {
-                    _isLoading.value = false
-                }
+            val featured = albumModels.shuffled().take(5)
+
+            withContext(Dispatchers.Main) {
+                _tracks.value = tracks
+                _albums.value = albumModels.map { it.name }
+                _artists.value = artistModels.map { it.name }
+                _homeAlbums.value = albumModels
+                _homeArtists.value = artistModels
+                _featuredAlbums.value = featured
+
+                // Initial population of filtered albums
+                updateFilteredAlbums(tracks, _searchQuery.value)
+                
+                totalTracks = tracks.size
+                _error.value = null
             }
         }
     }
-    
+
     fun searchLibrary(query: String) {
         _searchQuery.value = query
         
         if (query.isEmpty()) {
-            // Clear search results when query is empty
             _songResults.value = emptyList()
             _albumResults.value = emptyList()
             _artistResults.value = emptyList()
-            loadLibrary(0)
+            updateFilteredAlbums(_tracks.value, "")
             return
         }
         
+        // Client-side filtering (fast and offline-capable)
+        updateFilteredAlbums(_tracks.value, query)
+        
+        viewModelScope.launch(Dispatchers.Default) {
+             val tracks = _tracks.value
+             val filtered = tracks.filter { 
+                 it.title.contains(query, ignoreCase = true) || 
+                 it.artist.contains(query, ignoreCase = true) || 
+                 it.album.contains(query, ignoreCase = true) 
+             }
+             
+             withContext(Dispatchers.Main) {
+                 _songResults.value = filtered
+                 _albumResults.value = filtered.map { 
+                     AlbumInfo(it.album, it.artist, it.coverUrl) 
+                 }.distinctBy { it.name }
+                 _artistResults.value = filtered.map { 
+                     ArtistItemData(it.artist, "${filtered.count { t -> t.artist == it.artist }} Tracks", it.coverUrl) 
+                 }.distinctBy { it.name }
+             }
+        }
+    }
+    
+    fun fetchStats() {
         viewModelScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                _isLoading.value = true
-                _error.value = null
-                _currentOffset.value = 0
-            }
-            
             try {
-                val results = streamClient.searchLibrary(query, 0, pageSize)
+                val stats = repository.getStats()
                 withContext(Dispatchers.Main) {
-                    if (results != null && results.isNotEmpty()) {
-                        _tracks.value = results
-                        totalTracks = results.size
-                        
-                        // Log first result to debug coverUrl
-                        results.firstOrNull()?.let {
-                            Log.i("LibraryViewModel", "📸 Sample search result - Title: ${it.title}, CoverUrl: ${it.coverUrl}")
-                        }
-                        
-                        // Populate categorized results
-                        _songResults.value = results
-                        
-                        _albumResults.value = results
-                            .groupBy { it.album }
-                            .map { (album, albumTracks) ->
-                                AlbumInfo(
-                                    name = album,
-                                    artist = albumTracks.firstOrNull()?.artist ?: "",
-                                    coverUrl = albumTracks.firstOrNull()?.coverUrl
-                                )
-                            }
-                            .distinctBy { it.name }
-                        
-                        _artistResults.value = results
-                            .groupBy { it.artist }
-                            .map { (artist, artistTracks) ->
-                                ArtistItemData(
-                                    name = artist,
-                                    followerCount = "${artistTracks.size} Tracks",
-                                    photoUrl = artistTracks.firstOrNull()?.coverUrl
-                                )
-                            }
-                            .distinctBy { it.name }
-                        
-                        Log.i("LibraryViewModel", "✅ Found ${results.size} results → ${_albumResults.value.size} albums, ${_artistResults.value.size} artists")
-                    } else {
-                        _error.value = "No results found"
-                        _tracks.value = emptyList()
-                        _songResults.value = emptyList()
-                        _albumResults.value = emptyList()
-                        _artistResults.value = emptyList()
-                    }
+                    _stats.value = stats
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _error.value = "Search error: ${e.message}"
-                    _songResults.value = emptyList()
-                    _albumResults.value = emptyList()
-                    _artistResults.value = emptyList()
-                }
-                Log.e("LibraryViewModel", "❌ Error searching library: ${e.message}", e)
-            } finally {
-                withContext(Dispatchers.Main) {
-                    _isLoading.value = false
-                }
+                Log.e("LibraryViewModel", "Error fetching stats: ${e.message}")
             }
         }
     }
     
-    fun playTrack(track: TrackInfo) {
-        wsClient.sendPlayTrack(track.path)
+    fun playTrack(track: TrackInfo, context: List<TrackInfo> = emptyList()) {
+        if (context.isNotEmpty()) {
+            val paths = context.map { it.path }
+            wsClient.sendSetQueue(paths)
+        }
         
+        wsClient.sendPlayTrack(track.path)
         val isMobile = wsClient.isMobilePlayback.value
         Log.i("LibraryViewModel", "▶️ Playing: ${track.title} (Mobile Mode: $isMobile)")
-        
         if (isMobile) {
-            // Force server to acknowledge mobile mode (pausing PC playback that PlayTrack started)
             wsClient.sendStartMobilePlayback()
         }
     }
@@ -254,32 +229,50 @@ class LibraryViewModel(
     }
     
     fun playAlbum(albumName: String) {
-        val albumTracks = _tracks.value.filter { it.album == albumName }
-        if (albumTracks.isNotEmpty()) {
-            playTrack(albumTracks.first())
-            Log.i("LibraryViewModel", "▶️ Playing album: $albumName (${albumTracks.size} tracks)")
+        val artist = _tracks.value.find { it.album == albumName }?.artist ?: ""
+        wsClient.sendPlayAlbum(albumName, artist)
+        Log.i("LibraryViewModel", "▶️ Sent PlayAlbum command: $albumName")
+        if (wsClient.isMobilePlayback.value) {
+            wsClient.sendStartMobilePlayback()
         }
     }
     
     fun playArtist(artistName: String) {
-        val artistTracks = _tracks.value.filter { it.artist == artistName }
-        if (artistTracks.isNotEmpty()) {
-            playTrack(artistTracks.first())
-            Log.i("LibraryViewModel", "▶️ Playing artist: $artistName (${artistTracks.size} tracks)")
+        wsClient.sendPlayArtist(artistName)
+        Log.i("LibraryViewModel", "▶️ Sent PlayArtist command: $artistName")
+        if (wsClient.isMobilePlayback.value) {
+            wsClient.sendStartMobilePlayback()
         }
     }
     
-    fun loadNextPage() {
-        val nextOffset = _currentOffset.value + pageSize
-        if (nextOffset < totalTracks && _searchQuery.value.isEmpty()) {
-            loadLibrary(nextOffset)
-        }
-    }
+    // Pagination NO OP as we load full DB now, but kept for compatibility if needed
+    fun loadNextPage() { }
+    fun loadPreviousPage() { }
     
-    fun loadPreviousPage() {
-        val prevOffset = (_currentOffset.value - pageSize).coerceAtLeast(0)
-        if (_searchQuery.value.isEmpty()) {
-            loadLibrary(prevOffset)
+    private fun updateFilteredAlbums(tracks: List<TrackInfo>, query: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+             val filtered = if (query.isEmpty()) {
+                 tracks
+             } else {
+                 tracks.filter {
+                     it.album.contains(query, ignoreCase = true) ||
+                     it.artist.contains(query, ignoreCase = true)
+                 }
+             }
+
+            val albumModels = filtered.groupBy { it.album }
+                .map { (album, albumTracks) ->
+                    AlbumInfo(
+                        name = album,
+                        artist = albumTracks.firstOrNull()?.artist ?: "",
+                        coverUrl = albumTracks.firstOrNull()?.coverUrl
+                    )
+                }
+                .sortedBy { it.name }
+
+            withContext(Dispatchers.Main) {
+                _filteredAlbums.value = albumModels
+            }
         }
     }
 }

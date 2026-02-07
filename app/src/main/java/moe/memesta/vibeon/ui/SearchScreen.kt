@@ -245,7 +245,7 @@ fun SearchScreen(
                                                 SquareTrackCard(
                                                     track = track,
                                                     onClick = { 
-                                                        viewModel.playTrack(track)
+                                                        viewModel.playTrack(track, songResults)
                                                         onTrackSelected(track) 
                                                     }
                                                 )

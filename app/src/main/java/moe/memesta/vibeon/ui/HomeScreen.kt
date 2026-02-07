@@ -11,11 +11,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -43,42 +45,18 @@ fun HomeScreen(
     onTrackSelected: (TrackInfo) -> Unit,
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
+    onViewAllSongs: () -> Unit,
     contentPadding: PaddingValues,
     connectionViewModel: ConnectionViewModel
 ) {
     val tracks: List<TrackInfo> by viewModel.tracks.collectAsState()
+    val albums by viewModel.homeAlbums.collectAsState()
+    val artists by viewModel.homeArtists.collectAsState()
+    val featuredAlbums by viewModel.featuredAlbums.collectAsState()
     val connectionState by connectionViewModel.connectionState.collectAsState()
     
     // Skeleton / Loading State
     val isLoading = tracks.isEmpty() && connectionState == moe.memesta.vibeon.ui.ConnectionState.CONNECTED
-
-    // Derived Data
-    val albums: List<AlbumInfo> = remember(tracks) {
-        tracks.groupBy { it.album }
-            .map { (album, albumTracks) ->
-                AlbumInfo(
-                    name = album,
-                    artist = albumTracks.firstOrNull()?.artist ?: "",
-                    coverUrl = albumTracks.firstOrNull()?.coverUrl
-                )
-            }
-            .sortedBy { it.name }
-    }
-    
-    val artists: List<ArtistItemData> = remember(tracks) {
-        tracks.groupBy { it.artist }
-            .map { (artist, artistTracks) ->
-                ArtistItemData(
-                    name = artist,
-                    followerCount = "${artistTracks.size} Tracks",
-                    photoUrl = artistTracks.firstOrNull()?.coverUrl
-                )
-            }
-            .sortedBy { it.name }
-    }
-    
-    // Hero Header Data (Random Album)
-    val featuredAlbum = remember(albums) { albums.shuffled().firstOrNull() }
     
     val listState = rememberLazyListState()
 
@@ -92,36 +70,47 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Hero Header
-            item {
+            item(key = "hero_header") {
                 HeroHeader(
-                    album = featuredAlbum,
-                    onPlayClick = { 
-                        featuredAlbum?.let { 
-                            // TODO: Play album
-                            onAlbumSelected(it.name) 
-                        } 
+                    albums = featuredAlbums,
+                    onPlayClick = { album ->
+                        // TODO: Play album
+                        onAlbumSelected(album.name) 
                     },
                     scrollState = listState
                 )
             }
 
             // Section: Recently Added
-            item {
+            item(key = "section_recent") {
                 AnimatedSection(visible = !isLoading, delayMillis = 100) {
                     Column {
-                        SectionHeader("Recently Added")
+                        SectionHeader(
+                            title = "Recently Added",
+                            onSeeAllClick = onViewAllSongs
+                        )
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp) // Spacing between columns
                         ) {
-                            items(tracks.take(10)) { track ->
-                                moe.memesta.vibeon.ui.components.SquareTrackCard(
-                                    track = track,
-                                    onClick = { 
-                                        viewModel.playTrack(track)
-                                        onTrackSelected(track) 
+                            val recentTracks = tracks.take(20) // Limit to 20 items
+                            val chunks = recentTracks.chunked(4) // 4 items per column
+                            
+                            items(items = chunks, key = { it.firstOrNull()?.path ?: "" }) { columnTracks ->
+                                Column(
+                                    modifier = Modifier.width(300.dp), // Fixed width for columns to ensure cards have space
+                                    verticalArrangement = Arrangement.spacedBy(8.dp) // Spacing between rows
+                                ) {
+                                    columnTracks.forEach { track ->
+                                        moe.memesta.vibeon.ui.components.GridTrackCard(
+                                            track = track,
+                                            onClick = {
+                                                viewModel.playTrack(track)
+                                                onTrackSelected(track)
+                                            }
+                                        )
                                     }
-                                )
+                                }
                             }
                         }
                     }
@@ -140,7 +129,7 @@ fun HomeScreen(
             }
 
             // Section: Albums
-            item {
+            item(key = "section_albums") {
                 AnimatedSection(visible = !isLoading, delayMillis = 200) {
                     Column {
                         SectionHeader("Albums")
@@ -148,7 +137,10 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(albums) { album ->
+                            items(
+                                items = albums,
+                                key = { it.name }
+                            ) { album ->
                                 moe.memesta.vibeon.ui.components.AlbumCard(
                                     albumName = album.name,
                                     coverUrl = album.coverUrl,
@@ -165,14 +157,14 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(5) { moe.memesta.vibeon.ui.components.SkeletonAlbumCard() }
+                            items(5, key = { it }) { moe.memesta.vibeon.ui.components.SkeletonAlbumCard() }
                         }
                     }
                 }
             }
 
             // Section: Artists
-            item {
+            item(key = "section_artists") {
                  AnimatedSection(visible = !isLoading, delayMillis = 300) {
                     Column {
                         SectionHeader("Artists")
@@ -180,7 +172,10 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(artists) { artist ->
+                            items(
+                                items = artists,
+                                key = { it.name }
+                            ) { artist ->
                                 moe.memesta.vibeon.ui.components.ArtistPill(
                                     artistName = artist.name,
                                     photoUrl = artist.photoUrl,
@@ -197,9 +192,19 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(5) { moe.memesta.vibeon.ui.components.SkeletonArtistPill() }
+                            items(5, key = { it }) { moe.memesta.vibeon.ui.components.SkeletonArtistPill() }
                         }
                     }
+                }
+            }
+            
+            // Section: Statistics
+            item(key = "section_stats") {
+                val stats by viewModel.stats.collectAsState()
+                AnimatedSection(visible = !isLoading, delayMillis = 400) {
+                    moe.memesta.vibeon.ui.components.StatisticsSection(
+                        stats = stats
+                    )
                 }
             }
         }
@@ -216,11 +221,27 @@ fun HomeScreen(
 
 @Composable
 fun HeroHeader(
-    album: AlbumInfo?,
-    onPlayClick: () -> Unit,
+    albums: List<AlbumInfo>,
+    onPlayClick: (AlbumInfo) -> Unit,
     scrollState: androidx.compose.foundation.lazy.LazyListState
 ) {
-    if (album == null) return
+    if (albums.isEmpty()) return
+
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { albums.size })
+    
+    // Auto-scroll
+    LaunchedEffect(pagerState) {
+        while(true) {
+            kotlinx.coroutines.delay(7000) // Reduced animation frequency for smoother feel
+            if (albums.isNotEmpty()) {
+                val nextPage = (pagerState.currentPage + 1) % albums.size
+                pagerState.animateScrollToPage(
+                    nextPage, 
+                    animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+                )
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -232,56 +253,89 @@ fun HeroHeader(
                 alpha = 1f - (scrollOffset / 600f).coerceIn(0f, 1f)
             }
     ) {
-        // blurred background
-        AsyncImage(
-            model = album.coverUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(0.6f),
-            contentScale = ContentScale.Crop
-        )
-        
-        // Gradient Overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                        colors = listOf(
-                             MaterialTheme.colorScheme.background.copy(alpha = 0.2f),
-                             MaterialTheme.colorScheme.background
-                        )
-                    )
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val album = albums.getOrNull(page) ?: return@HorizontalPager
+            
+            Box(modifier = Modifier.fillMaxSize()) {
+                // blurred background
+                AsyncImage(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0.6f),
+                    contentScale = ContentScale.Crop,
+                    model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                        .data(album.coverUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null
                 )
-        )
 
-        // Content
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(24.dp)
+                // Gradient Overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(
+                                     MaterialTheme.colorScheme.background.copy(alpha = 0.2f),
+                                     MaterialTheme.colorScheme.background
+                                )
+                            )
+                        )
+                )
+
+                // Content
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(24.dp)
+                ) {
+                    Text(
+                        text = "Featured Album",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = album.name,
+                        style = MaterialTheme.typography.headlineLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = album.artist,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { onPlayClick(album) }) {
+                        Text("Play Now")
+                    }
+                }
+            }
+        }
+        
+        // Pager Indicator (Simple dots)
+        Row(
+            Modifier
+                .wrapContentHeight()
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Featured Album",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = album.name,
-                style = MaterialTheme.typography.headlineLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = album.artist,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onPlayClick) {
-                Text("Play Now")
+            repeat(pagerState.pageCount) { iteration ->
+                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                Box(
+                    modifier = Modifier
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(8.dp)
+                )
             }
         }
     }
@@ -290,19 +344,13 @@ fun HeroHeader(
 @Composable
 fun AnimatedSection(
     visible: Boolean,
-    delayMillis: Int,
+    delayMillis: Int, // Keep parameter for compatibility but ignore it
     content: @Composable () -> Unit
 ) {
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
         enter = androidx.compose.animation.fadeIn(
-            animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, delayMillis = delayMillis)
-        ) + androidx.compose.animation.slideInVertically(
-            initialOffsetY = { 50 },
-            animationSpec = androidx.compose.animation.core.spring(
-                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
-                stiffness = androidx.compose.animation.core.Spring.StiffnessLow
-            )
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 200)
         )
     ) {
         content()

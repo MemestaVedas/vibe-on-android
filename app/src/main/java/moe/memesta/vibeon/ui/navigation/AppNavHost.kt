@@ -39,7 +39,8 @@ import moe.memesta.vibeon.ui.theme.VibeAnimations
 fun AppNavHost(
     connectionViewModel: ConnectionViewModel,
     playbackViewModel: PlaybackViewModel,
-    favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager
+    favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
+    trackDao: moe.memesta.vibeon.data.local.TrackDao
 ) {
     val navController = rememberNavController()
     var currentDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
@@ -51,6 +52,14 @@ fun AppNavHost(
     // Handle optimistic navigation when auto-connecting to favorites
     val connectionState by connectionViewModel.connectionState.collectAsState()
     val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
+
+    // Shared LibraryViewModel instance - preserved across navigation
+    val libraryViewModel = remember(connectedDevice) {
+        connectedDevice?.let { device ->
+             val repo = moe.memesta.vibeon.data.LibraryRepository(trackDao, connectionViewModel.wsClient, device.host, device.port)
+             LibraryViewModel(repository = repo, wsClient = connectionViewModel.wsClient)
+        }
+    }
     
     LaunchedEffect(connectionState, connectedDevice) {
         // When we successfully connect via auto-connect, ensure we're on library screen
@@ -297,23 +306,19 @@ fun AppNavHost(
                 }
                 
                 composable("library") {
-                    // Sync currentDevice with connectedDevice from ViewModel
-                    val device = connectionViewModel.connectedDevice.collectAsState().value
-                    currentDevice = device
-                    
-                    val libraryViewModel = remember(device) {
-                        if (device != null) {
-                                LibraryViewModel(host = device.host, port = device.port, wsClient = connectionViewModel.wsClient)
-                        } else null
+                    // Use shared LibraryViewModel
+                    if (connectedDevice != null) {
+                        currentDevice = connectedDevice
                     }
                     
                     if (libraryViewModel != null) {
                         // Replaced LibraryScreen with HomeScreen for the main "Home" tab
-                            HomeScreen(
+                        HomeScreen(
                             viewModel = libraryViewModel,
                             onTrackSelected = { navController.navigate("now_playing") },
                             onAlbumSelected = { albumName -> navController.navigate("album/$albumName") },
                             onArtistSelected = { artistName -> navController.navigate("artist/$artistName") },
+                            onViewAllSongs = { navController.navigate("all_songs") },
                             contentPadding = innerPadding,
                             connectionViewModel = connectionViewModel
                         )
@@ -323,12 +328,29 @@ fun AppNavHost(
                     }
                 }
 
+                // All Songs - Reusing LibraryScreen
+                composable("all_songs") {
+                    // Use shared LibraryViewModel
+                    if (connectedDevice != null) {
+                        currentDevice = connectedDevice
+                    }
+                    
+                    if (libraryViewModel != null) {
+                        moe.memesta.vibeon.ui.LibraryScreen(
+                            viewModel = libraryViewModel,
+                            onBackClick = { navController.popBackStack() },
+                            onTrackSelected = { navController.navigate("now_playing") },
+                            onNavigateToPlayer = { navController.navigate("now_playing") },
+                            contentPadding = innerPadding
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                    }
+                }
+
                 // Albums Tab - Full Grid View
                 composable("albums") {
-                    val device = currentDevice
-                    val libraryViewModel = remember(device) {
-                        if (device != null) LibraryViewModel(host = device.host, port = device.port, wsClient = connectionViewModel.wsClient) else null
-                    }
+                    // Use shared LibraryViewModel
                     
                     if (libraryViewModel != null) {
                         AlbumsGridScreen(
@@ -348,10 +370,7 @@ fun AppNavHost(
                 
                 // Search Tab - Full Search Screen
                 composable("search") {
-                    val device = currentDevice
-                    val libraryViewModel = remember(device) {
-                        if (device != null) LibraryViewModel(host = device.host, port = device.port, wsClient = connectionViewModel.wsClient) else null
-                    }
+                    // Use shared LibraryViewModel
                     
                     if (libraryViewModel != null) {
                         SearchScreen(
@@ -368,10 +387,7 @@ fun AppNavHost(
                 
                 // Artists Tab - Full List View
                 composable("artists") {
-                    val device = currentDevice
-                    val libraryViewModel = remember(device) {
-                        if (device != null) LibraryViewModel(host = device.host, port = device.port, wsClient = connectionViewModel.wsClient) else null
-                    }
+                    // Use shared LibraryViewModel
                     
                     if (libraryViewModel != null) {
                         ArtistsListScreen(
@@ -395,10 +411,7 @@ fun AppNavHost(
                     arguments = listOf(androidx.navigation.navArgument("albumName") { type = androidx.navigation.NavType.StringType })
                 ) { backStackEntry ->
                     val albumName = backStackEntry.arguments?.getString("albumName") ?: return@composable
-                    val device = currentDevice
-                    val libraryViewModel = remember(device) {
-                        if (device != null) LibraryViewModel(host = device.host, port = device.port, wsClient = connectionViewModel.wsClient) else null
-                    }
+                    // Use shared LibraryViewModel
 
                     if (libraryViewModel != null) {
                         AlbumDetailScreen(
@@ -416,10 +429,7 @@ fun AppNavHost(
                     arguments = listOf(androidx.navigation.navArgument("artistName") { type = androidx.navigation.NavType.StringType })
                 ) { backStackEntry ->
                     val artistName = backStackEntry.arguments?.getString("artistName") ?: return@composable
-                        val device = currentDevice
-                    val libraryViewModel = remember(device) {
-                        if (device != null) LibraryViewModel(host = device.host, port = device.port, wsClient = connectionViewModel.wsClient) else null
-                    }
+                        // Use shared LibraryViewModel
 
                     if (libraryViewModel != null) {
                         ArtistDetailScreen(
