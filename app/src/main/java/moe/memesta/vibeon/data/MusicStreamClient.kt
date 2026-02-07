@@ -127,6 +127,10 @@ class MusicStreamClient(
             
             for (i in 0 until tracksArray.length()) {
                 val track = tracksArray.getJSONObject(i)
+                var coverUrl = track.optString("coverUrl", null)
+                if (coverUrl != null && !coverUrl.startsWith("http")) {
+                    coverUrl = "$baseUrl$coverUrl"
+                }
                 tracks.add(
                     TrackInfo(
                         path = track.getString("path"),
@@ -134,7 +138,7 @@ class MusicStreamClient(
                         artist = track.getString("artist"),
                         album = track.getString("album"),
                         duration = track.getDouble("durationSecs"),
-                        coverUrl = track.optString("coverUrl", null)
+                        coverUrl = coverUrl
                     )
                 )
             }
@@ -197,6 +201,10 @@ class MusicStreamClient(
             
             for (i in 0 until tracksArray.length()) {
                 val track = tracksArray.getJSONObject(i)
+                var coverUrl = track.optString("coverUrl", null)
+                if (coverUrl != null && !coverUrl.startsWith("http")) {
+                    coverUrl = "$baseUrl$coverUrl"
+                }
                 tracks.add(
                     TrackInfo(
                         path = track.getString("path"),
@@ -204,7 +212,7 @@ class MusicStreamClient(
                         artist = track.getString("artist"),
                         album = track.getString("album"),
                         duration = track.getDouble("durationSecs"),
-                        coverUrl = track.optString("coverUrl", null)
+                        coverUrl = coverUrl
                     )
                 )
             }

@@ -4,7 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,10 +38,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.material3.LinearProgressIndicator
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.ConnectionViewModel
 import moe.memesta.vibeon.ui.PlaybackViewModel
 import moe.memesta.vibeon.ui.theme.VibeAnimations
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import kotlin.math.abs
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -73,7 +78,11 @@ fun BottomPlayerBar(
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
             .shadow(elevation = 24.dp, shape = RoundedCornerShape(28.dp), spotColor = Color.Black.copy(alpha = 0.5f))
             .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFF222222))
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(Color(0xFF2E2E2E), Color(0xFF222222))
+                )
+            )
             .fillMaxWidth()
     ) {
         Column {
@@ -174,21 +183,46 @@ fun BottomPlayerBar(
                         }
                     }
                     
-                    // Smooth animated progress
+                    // Smooth animated progress with shimmer
                     val animatedProgress by animateFloatAsState(
                         targetValue = progress,
                         animationSpec = VibeAnimations.SpringStandard,
                         label = "progressAnimation"
                     )
                     
-                    LinearProgressIndicator(
-                        progress = { animatedProgress },
+                    val shimmerTransition = rememberInfiniteTransition(label = "progressShimmer")
+                    val shimmerTranslate by shimmerTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1000f,
+                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                            animation = tween(2000, easing = androidx.compose.animation.core.LinearEasing)
+                        ),
+                        label = "shimmerTranslate"
+                    )
+                    
+                    val progressBrush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                         colors = listOf(accentColor, Color(0xFFFFCDD2), accentColor),
+                         startX = shimmerTranslate - 200f,
+                         endX = shimmerTranslate + 200f,
+                         tileMode = androidx.compose.ui.graphics.TileMode.Mirror 
+                    )
+
+                    Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(2.dp),
-                        color = accentColor,
-                        trackColor = Color.Transparent
-                    )
+                            .height(2.dp)
+                    ) {
+                        // Track
+                        drawRect(Color.White.copy(alpha = 0.1f))
+                        // Progress
+                        drawRect(
+                            brush = progressBrush,
+                            size = androidx.compose.ui.geometry.Size(
+                                width = size.width * animatedProgress,
+                                height = size.height
+                            )
+                        )
+                    }
                 }
             }
 

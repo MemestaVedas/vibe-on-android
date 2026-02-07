@@ -6,6 +6,8 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
@@ -29,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.ui.*
+import moe.memesta.vibeon.ui.pairing.PairingScreen
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -53,9 +56,10 @@ fun AppNavHost(
         // When we successfully connect via auto-connect, ensure we're on library screen
         when (connectionState) {
             ConnectionState.CONNECTED -> {
-                if (connectedDevice != null && navController.currentDestination?.route == "discovery") {
+                if (connectedDevice != null && navController.currentDestination?.route in listOf("discovery", "pairing")) {
+                    val popTarget = if (navController.currentDestination?.route == "pairing") "pairing" else "discovery"
                     navController.navigate("library") {
-                        popUpTo("discovery") { inclusive = true }
+                        popUpTo(popTarget) { inclusive = true }
                     }
                 }
             }
@@ -192,13 +196,103 @@ fun AppNavHost(
                         }
                     }
                     
-                    DiscoveryScreen(
-                        viewModel = connectionViewModel,
+                    // Start scanning when this screen is active
+                    DisposableEffect(Unit) {
+                        connectionViewModel.startScanning()
+                        onDispose {
+                            connectionViewModel.stopScanning()
+                        }
+                    }
+                    
+                    val devices by connectionViewModel.discoveredDevices.collectAsState()
+
+                    moe.memesta.vibeon.ui.pairing.PairingScreen(
+                        devices = devices,
+                        connectionState = connectionState, // Pass connectionState
+                        connectedDevice = connectedDevice, // Pass connectedDevice
+                        onConnect = { ip, port ->
+                            // Handle manual connection
+                            val device = DiscoveredDevice(
+                                name = "Manual: $ip",
+                                host = ip,
+                                port = port
+                            )
+                            currentDevice = device
+                            connectionViewModel.connectToDevice(device)
+                        },
                         onDeviceSelected = { device ->
                             currentDevice = device
                             connectionViewModel.connectToDevice(device)
                         },
-                        modifier = Modifier.padding(innerPadding)
+                        onNavigateBack = { navController.popBackStack() }, // Add onNavigateBack
+                        onNavigateToScan = {
+                            // TODO: Implement QR Scanning
+                        }
+                    )
+                }
+
+                composable(
+                    route = "pairing",
+                    enterTransition = {
+                        fadeIn(animationSpec = tween(VibeAnimations.HeroDuration)) +
+                            slideInVertically(
+                                initialOffsetY = { fullHeight -> fullHeight / 8 },
+                                animationSpec = tween(VibeAnimations.HeroDuration)
+                            ) +
+                            scaleIn(initialScale = 0.98f)
+                    },
+                    exitTransition = {
+                        fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration)) +
+                            scaleOut(targetScale = 0.98f)
+                    },
+                    popEnterTransition = {
+                        fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration)) +
+                            scaleIn(initialScale = 0.98f)
+                    },
+                    popExitTransition = {
+                        fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration)) +
+                            slideOutVertically(
+                                targetOffsetY = { fullHeight -> fullHeight / 10 },
+                                animationSpec = tween(VibeAnimations.ScreenExitDuration)
+                            )
+                    }
+                ) {
+                    DisposableEffect(Unit) {
+                        connectionViewModel.startScanning()
+                        onDispose { connectionViewModel.stopScanning() }
+                    }
+
+                    val devices by connectionViewModel.discoveredDevices.collectAsState()
+                    val connectionState by connectionViewModel.connectionState.collectAsState()
+                    val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
+
+                    LaunchedEffect(connectionState, connectedDevice) {
+                        if (connectionState == ConnectionState.CONNECTING && connectedDevice != null) {
+                            navController.navigate("library") {
+                                popUpTo("pairing") { inclusive = true }
+                            }
+                        }
+                    }
+
+                    PairingScreen(
+                        devices = devices,
+                        connectionState = connectionState,
+                        connectedDevice = connectedDevice,
+                        onConnect = { ip, port ->
+                            connectionViewModel.connectToDevice(
+                                DiscoveredDevice(
+                                    name = "Manual: $ip",
+                                    host = ip,
+                                    port = port
+                                )
+                            )
+                        },
+                        onDeviceSelected = { device ->
+                            currentDevice = device
+                            connectionViewModel.connectToDevice(device)
+                        },
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToScan = { /* TODO: QR pairing */ }
                     )
                 }
                 
@@ -262,7 +356,10 @@ fun AppNavHost(
                     if (libraryViewModel != null) {
                         SearchScreen(
                             viewModel = libraryViewModel,
-                            modifier = Modifier.padding(innerPadding)
+                            onTrackSelected = { navController.navigate("now_playing") },
+                            onAlbumSelected = { albumName -> navController.navigate("album/$albumName") },
+                            onArtistSelected = { artistName -> navController.navigate("artist/$artistName") },
+                            contentPadding = innerPadding
                         )
                     } else {
                         LaunchedEffect(Unit) { navController.navigate("discovery") }

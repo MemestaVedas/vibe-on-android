@@ -10,6 +10,8 @@ import kotlinx.coroutines.withContext
 import android.util.Log
 import moe.memesta.vibeon.data.MusicStreamClient
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.data.AlbumInfo
+import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.WebSocketClient
 
 class LibraryViewModel(
@@ -44,6 +46,16 @@ class LibraryViewModel(
     
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
+    
+    // Categorized search results
+    private val _songResults = MutableStateFlow<List<TrackInfo>>(emptyList())
+    val songResults: StateFlow<List<TrackInfo>> = _songResults
+    
+    private val _albumResults = MutableStateFlow<List<AlbumInfo>>(emptyList())
+    val albumResults: StateFlow<List<AlbumInfo>> = _albumResults
+    
+    private val _artistResults = MutableStateFlow<List<ArtistItemData>>(emptyList())
+    val artistResults: StateFlow<List<ArtistItemData>> = _artistResults
     
     private val _currentOffset = MutableStateFlow(0)
     val currentOffset: StateFlow<Int> = _currentOffset
@@ -144,6 +156,10 @@ class LibraryViewModel(
         _searchQuery.value = query
         
         if (query.isEmpty()) {
+            // Clear search results when query is empty
+            _songResults.value = emptyList()
+            _albumResults.value = emptyList()
+            _artistResults.value = emptyList()
             loadLibrary(0)
             return
         }
@@ -158,18 +174,55 @@ class LibraryViewModel(
             try {
                 val results = streamClient.searchLibrary(query, 0, pageSize)
                 withContext(Dispatchers.Main) {
-                    if (results != null) {
+                    if (results != null && results.isNotEmpty()) {
                         _tracks.value = results
                         totalTracks = results.size
-                        Log.i("LibraryViewModel", "✅ Found ${results.size} results for '$query'")
+                        
+                        // Log first result to debug coverUrl
+                        results.firstOrNull()?.let {
+                            Log.i("LibraryViewModel", "📸 Sample search result - Title: ${it.title}, CoverUrl: ${it.coverUrl}")
+                        }
+                        
+                        // Populate categorized results
+                        _songResults.value = results
+                        
+                        _albumResults.value = results
+                            .groupBy { it.album }
+                            .map { (album, albumTracks) ->
+                                AlbumInfo(
+                                    name = album,
+                                    artist = albumTracks.firstOrNull()?.artist ?: "",
+                                    coverUrl = albumTracks.firstOrNull()?.coverUrl
+                                )
+                            }
+                            .distinctBy { it.name }
+                        
+                        _artistResults.value = results
+                            .groupBy { it.artist }
+                            .map { (artist, artistTracks) ->
+                                ArtistItemData(
+                                    name = artist,
+                                    followerCount = "${artistTracks.size} Tracks",
+                                    photoUrl = artistTracks.firstOrNull()?.coverUrl
+                                )
+                            }
+                            .distinctBy { it.name }
+                        
+                        Log.i("LibraryViewModel", "✅ Found ${results.size} results → ${_albumResults.value.size} albums, ${_artistResults.value.size} artists")
                     } else {
                         _error.value = "No results found"
                         _tracks.value = emptyList()
+                        _songResults.value = emptyList()
+                        _albumResults.value = emptyList()
+                        _artistResults.value = emptyList()
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     _error.value = "Search error: ${e.message}"
+                    _songResults.value = emptyList()
+                    _albumResults.value = emptyList()
+                    _artistResults.value = emptyList()
                 }
                 Log.e("LibraryViewModel", "❌ Error searching library: ${e.message}", e)
             } finally {

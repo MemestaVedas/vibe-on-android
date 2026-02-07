@@ -1,36 +1,73 @@
 package moe.memesta.vibeon.ui.components
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.ui.theme.VibeAnimations
 
 @Composable
-fun SquareTrackCard(track: TrackInfo, onClick: () -> Unit) {
+fun SquareTrackCard(
+    track: TrackInfo,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    highlight: Float = 1f
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val targetScale = if (pressed) 0.98f else highlight
+    val scale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = VibeAnimations.SpringExpressive,
+        label = "trackCardScale"
+    )
+    val emphasis = ((highlight - 0.94f) / 0.06f).coerceIn(0f, 1f)
+    val targetAlpha = 0.86f + (emphasis * 0.14f)
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = VibeAnimations.SpringStandard,
+        label = "trackCardAlpha"
+    )
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(140.dp)
-            .clickable { onClick() }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current
+            ) { onClick() }
     ) {
         // Art
         Box(
             modifier = Modifier
                 .size(140.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         ) {
             if (track.coverUrl != null) {
                 AsyncImage(
@@ -45,7 +82,7 @@ fun SquareTrackCard(track: TrackInfo, onClick: () -> Unit) {
         Text(
             text = track.title,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -60,17 +97,47 @@ fun SquareTrackCard(track: TrackInfo, onClick: () -> Unit) {
 }
 
 @Composable
-fun AlbumCard(albumName: String, coverUrl: String?, onClick: () -> Unit) {
+fun AlbumCard(
+    albumName: String,
+    coverUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    highlight: Float = 1f
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val targetScale = if (pressed) 0.98f else highlight
+    val scale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = VibeAnimations.SpringExpressive,
+        label = "albumCardScale"
+    )
+    val emphasis = ((highlight - 0.94f) / 0.06f).coerceIn(0f, 1f)
+    val targetAlpha = 0.86f + (emphasis * 0.14f)
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = VibeAnimations.SpringStandard,
+        label = "albumCardAlpha"
+    )
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(140.dp)
-            .clickable { onClick() }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current
+            ) { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .size(140.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
             contentAlignment = Alignment.Center
         ) {
             if (coverUrl != null) {
@@ -92,7 +159,7 @@ fun AlbumCard(albumName: String, coverUrl: String?, onClick: () -> Unit) {
         Text(
             text = albumName,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -100,11 +167,42 @@ fun AlbumCard(albumName: String, coverUrl: String?, onClick: () -> Unit) {
 }
 
 @Composable
-fun ArtistPill(artistName: String, photoUrl: String?, onClick: () -> Unit) {
+fun ArtistPill(
+    artistName: String,
+    photoUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    highlight: Float = 1f
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val targetScale = if (pressed) 0.98f else highlight
+    val scale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = VibeAnimations.SpringExpressive,
+        label = "artistPillScale"
+    )
+    val emphasis = ((highlight - 0.94f) / 0.06f).coerceIn(0f, 1f)
+    val targetAlpha = 0.86f + (emphasis * 0.14f)
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = VibeAnimations.SpringStandard,
+        label = "artistPillAlpha"
+    )
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         shape = CircleShape,
-        modifier = Modifier.clickable { onClick() }
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current
+            ) { onClick() }
     ) {
         Row(
             modifier = Modifier.padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
@@ -139,5 +237,124 @@ fun ArtistPill(artistName: String, photoUrl: String?, onClick: () -> Unit) {
                 fontWeight = FontWeight.Medium
             )
         }
+    }
+}
+
+@Composable
+fun SkeletonSquareCard(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "skeleton_track")
+    val alpha by transition.animateValue(
+        initialValue = 0.45f,
+        targetValue = 0.9f,
+        typeConverter = Float.VectorConverter,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "skeleton_track_alpha"
+    )
+    val color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+
+    Column(
+        modifier = modifier.width(140.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(140.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(color)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .height(12.dp)
+                .fillMaxWidth(0.8f)
+                .clip(RoundedCornerShape(6.dp))
+                .background(color)
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Box(
+            modifier = Modifier
+                .height(10.dp)
+                .fillMaxWidth(0.55f)
+                .clip(RoundedCornerShape(6.dp))
+                .background(color)
+        )
+    }
+}
+
+@Composable
+fun SkeletonAlbumCard(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "skeleton_album")
+    val alpha by transition.animateValue(
+        initialValue = 0.4f,
+        targetValue = 0.85f,
+        typeConverter = Float.VectorConverter,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "skeleton_album_alpha"
+    )
+    val color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+
+    Column(
+        modifier = modifier.width(140.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(140.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(color)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .height(12.dp)
+                .fillMaxWidth(0.7f)
+                .clip(RoundedCornerShape(6.dp))
+                .background(color)
+        )
+    }
+}
+
+@Composable
+fun SkeletonArtistPill(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "skeleton_artist")
+    val alpha by transition.animateValue(
+        initialValue = 0.4f,
+        targetValue = 0.9f,
+        typeConverter = Float.VectorConverter,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1600),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "skeleton_artist_alpha"
+    )
+    val color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+
+    Row(
+        modifier = modifier
+            .height(48.dp)
+            .width(160.dp)
+            .clip(CircleShape)
+            .background(color)
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Box(
+            modifier = Modifier
+                .height(12.dp)
+                .fillMaxWidth(0.6f)
+                .clip(RoundedCornerShape(6.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+        )
     }
 }
