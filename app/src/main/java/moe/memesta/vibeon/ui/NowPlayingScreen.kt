@@ -438,7 +438,6 @@ fun NowPlayingView(
                 IconButton(onClick = { /* Shuffle */ }) {
                     Icon(Icons.Rounded.Shuffle, null, tint = Color.White.copy(alpha = 0.6f))
                 }
-                
                 // Previous
                 Surface(
                     onClick = onSkipPrevious,
@@ -607,7 +606,7 @@ fun SquigglyProgressBar(
                    change.consume()
                    val newProgress = (change.position.x / width).coerceIn(0f, 1f)
                    dragProgress = newProgress
-                   onSeek(newProgress) // Optional: Live seek
+                   // onSeek(newProgress) // Removed to prevent network spam during drag
                }
             }
             .onSizeChanged { width = it.width.toFloat() }

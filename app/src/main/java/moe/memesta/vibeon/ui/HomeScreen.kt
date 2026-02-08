@@ -229,11 +229,13 @@ fun HeroHeader(
 
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { albums.size })
     
-    // Auto-scroll
-    LaunchedEffect(pagerState) {
-        while(true) {
-            kotlinx.coroutines.delay(7000) // Reduced animation frequency for smoother feel
-            if (albums.isNotEmpty()) {
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+    
+    // Auto-scroll (Pauses when user creates interaction)
+    LaunchedEffect(pagerState, isDragged) {
+        if (!isDragged && albums.isNotEmpty()) {
+            while(true) {
+                kotlinx.coroutines.delay(7000)
                 val nextPage = (pagerState.currentPage + 1) % albums.size
                 pagerState.animateScrollToPage(
                     nextPage, 
