@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -32,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.components.AlbumCard
 import moe.memesta.vibeon.ui.components.ArtistPill
 import moe.memesta.vibeon.ui.components.SectionHeader
@@ -86,7 +89,7 @@ fun SearchScreen(
                     )
                 )
                 .statusBarsPadding() // Apply padding here to avoid notch
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = Dimens.SectionSpacing)
                 .padding(top = 16.dp, bottom = 12.dp)
         ) {
             Column {
@@ -122,7 +125,7 @@ fun SearchScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
+                        .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
                         .focusRequester(focusRequester),
                     leadingIcon = { 
                         Icon(
@@ -184,15 +187,15 @@ fun SearchScreen(
                         contentPadding = PaddingValues(
                             bottom = contentPadding.calculateBottomPadding() + 24.dp
                         ),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing)
                     ) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
                             Column {
                                 SectionHeader("Songs")
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                 ) {
                                     items(4) { SkeletonSquareCard() }
                                 }
@@ -202,8 +205,8 @@ fun SearchScreen(
                             Column {
                                 SectionHeader("Albums")
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                 ) {
                                     items(3) { SkeletonAlbumCard() }
                                 }
@@ -213,8 +216,8 @@ fun SearchScreen(
                             Column {
                                 SectionHeader("Artists")
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                 ) {
                                     items(3) { SkeletonArtistPill() }
                                 }
@@ -229,7 +232,7 @@ fun SearchScreen(
                         contentPadding = PaddingValues(
                             bottom = contentPadding.calculateBottomPadding() + 24.dp
                         ),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing)
                     ) {
                         // Songs Section
                         if (songResults.isNotEmpty()) {
@@ -238,8 +241,8 @@ fun SearchScreen(
                                     Column {
                                         SectionHeader("Songs")
                                         LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                         ) {
                                             items(songResults.take(10)) { track ->
                                                 SquareTrackCard(
@@ -263,8 +266,8 @@ fun SearchScreen(
                                     Column {
                                         SectionHeader("Albums")
                                         LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                         ) {
                                             items(albumResults) { album ->
                                                 AlbumCard(
@@ -286,8 +289,8 @@ fun SearchScreen(
                                     Column {
                                         SectionHeader("Artists")
                                         LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                         ) {
                                             items(artistResults) { artist ->
                                                 ArtistPill(

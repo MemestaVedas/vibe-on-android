@@ -20,6 +20,9 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
+import androidx.compose.foundation.pager.PagerState
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +46,8 @@ import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.ConnectionViewModel
 import moe.memesta.vibeon.ui.PlaybackViewModel
 import moe.memesta.vibeon.ui.theme.VibeAnimations
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.infiniteRepeatable
@@ -58,8 +63,10 @@ fun BottomPlayerBar(
     onNavigateToPlayer: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
+    pagerState: PagerState? = null,
     modifier: Modifier = Modifier
 ) {
+    val scope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     
@@ -128,8 +135,15 @@ fun BottomPlayerBar(
                                         .background(Color.DarkGray)
                                 ) {
                                     if (currentTrack.coverUrl != null) {
+                                        val context = androidx.compose.ui.platform.LocalContext.current
+                                        val request = remember(currentTrack.coverUrl) {
+                                            coil.request.ImageRequest.Builder(context)
+                                                .data(currentTrack.coverUrl)
+                                                .crossfade(true)
+                                                .build()
+                                        }
                                         AsyncImage(
-                                            model = currentTrack.coverUrl,
+                                            model = request,
                                             contentDescription = null,
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Crop
@@ -219,25 +233,19 @@ fun BottomPlayerBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val items = listOf(
-                    NavigationItem("library", "Home", Icons.Filled.Home),
-                    NavigationItem("albums", "Albums", Icons.Filled.Album),
-                    NavigationItem("search", "Search", Icons.Filled.Search),
-                    NavigationItem("artists", "Artist", Icons.Filled.Person),
-                    NavigationItem("settings", "Settings", Icons.Filled.Settings)
+                    NavigationItem("library", "Home", Icons.Filled.Home, 0),
+                    NavigationItem("albums", "Albums", Icons.Filled.Album, 1),
+                    NavigationItem("search", "Search", Icons.Filled.Search, 2),
+                    NavigationItem("artists", "Artist", Icons.Filled.Person, 3),
+                    NavigationItem("settings", "Settings", Icons.Filled.Settings, 4)
                 )
 
                 items.forEach { item ->
-                    val isSelected = currentRoute == item.route || 
-                                     (item.route == "library" && currentRoute == "discovery")
-                    
-                    // Press animation with organic spring
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val isPressed by interactionSource.collectIsPressedAsState()
-                    val scale by animateFloatAsState(
-                        targetValue = if (isPressed) VibeAnimations.PressScale else 1f,
-                        animationSpec = VibeAnimations.SpringExpressive,
-                        label = "navItemScale"
-                    )
+                    val isSelected = if (pagerState != null && currentRoute == "main") {
+                        pagerState.currentPage == item.pageIndex
+                    } else {
+                        currentRoute == item.route || (item.route == "library" && currentRoute == "discovery")
+                    }
                     
                     // Smooth color transition
                     val iconColor by animateColorAsState(
@@ -249,19 +257,18 @@ fun BottomPlayerBar(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .scale(scale)
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null  // Remove ripple for cleaner press effect
-                            ) {
-                                if (currentRoute != item.route) {
-                                    // Proper back navigation: removed popUpTo so back respects history
-                                    navController.navigate(item.route) {
+                            .bouncyClickable(onClick = {
+                                if (pagerState != null && currentRoute == "main") {
+                                    scope.launch {
+                                        pagerState.animateScrollToPage(item.pageIndex)
+                                    }
+                                } else if (currentRoute != item.route) {
+                                    navController.navigate(if (item.route == "library") "main" else item.route) {
                                         launchSingleTop = true
                                         restoreState = true
                                     }
                                 }
-                            }
+                            })
                             .padding(8.dp)
                     ) {
                         Box(
@@ -269,14 +276,14 @@ fun BottomPlayerBar(
                             modifier = Modifier
                                 .height(32.dp)
                                 .width(if (isSelected) 50.dp else 32.dp)
-                                .clip(RoundedCornerShape(16.dp))
+                                .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
                                 .background(if (isSelected) Color(0xFF3E2C2C) else Color.Transparent)
                         ) {
                             Icon(
                                 imageVector = item.icon,
                                 contentDescription = item.label,
                                 tint = iconColor,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(Dimens.IconSize)
                             )
                         }
                         
@@ -295,4 +302,4 @@ fun BottomPlayerBar(
     }
 }
 
-data class NavigationItem(val route: String, val label: String, val icon: ImageVector)
+data class NavigationItem(val route: String, val label: String, val icon: ImageVector, val pageIndex: Int)

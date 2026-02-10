@@ -199,8 +199,15 @@ fun NowPlayingView(
     ) {
         // blurred background
         if (!coverUrl.isNullOrEmpty()) {
+             val context = LocalContext.current
+             val request = remember(coverUrl) {
+                 ImageRequest.Builder(context)
+                     .data(coverUrl)
+                     .crossfade(true)
+                     .build()
+             }
              AsyncImage(
-                model = coverUrl,
+                model = request,
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
@@ -230,39 +237,26 @@ fun NowPlayingView(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = Dimens.SectionSpacing) // 24.dp
                 .padding(bottom = 80.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Header (Minimal/Floating)
+            Box(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                IconButton(onClick = onBackToLibrary) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        .size(32.dp)
+                        .bouncyClickable(onClick = onBackToLibrary),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         Icons.Rounded.KeyboardArrowDown,
                         contentDescription = "Dismiss",
                         tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "PLAYING FROM LIBRARY",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.7f),
-                        letterSpacing = 1.sp
-                    )
-                }
-                
-                IconButton(onClick = { /* More options */ }) {
-                    Icon(
-                        Icons.Rounded.MoreVert,
-                        contentDescription = "More",
-                        tint = Color.White.copy(alpha = 0.7f)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -285,7 +279,7 @@ fun NowPlayingView(
                         )
                         .graphicsLayer {
                             shadowElevation = 24.dp.toPx()
-                            shape = RoundedCornerShape(32.dp) // Slightly tighter corners for bigger art
+                            shape = RoundedCornerShape(32.dp) // Hero radius
                             clip = true
                         }
                         .background(Color.Transparent),
@@ -301,8 +295,15 @@ fun NowPlayingView(
                     )
                     
                     if (!coverUrl.isNullOrEmpty()) {
+                        val context = LocalContext.current
+                        val request = remember(coverUrl) {
+                            ImageRequest.Builder(context)
+                                .data(coverUrl)
+                                .crossfade(true)
+                                .build()
+                        }
                         AsyncImage(
-                            model = coverUrl,
+                            model = request,
                             contentDescription = "Album Art",
                             modifier = Modifier
                                 .fillMaxSize()
@@ -367,15 +368,14 @@ fun NowPlayingView(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     // Lyrics Button
-                    Surface(
-                        color = Color.White.copy(alpha = 0.1f),
-                        shape = CircleShape,
-                        modifier = Modifier.clickable { onLyricsClick() }
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                            .bouncyClickable(onClick = onLyricsClick)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Rounded.Lyrics,
                                 contentDescription = null,
@@ -427,7 +427,7 @@ fun NowPlayingView(
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp)) // Reduced spacing to bring controls closer
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Main Controls
             Row(
@@ -438,55 +438,53 @@ fun NowPlayingView(
                 IconButton(onClick = { /* Shuffle */ }) {
                     Icon(Icons.Rounded.Shuffle, null, tint = Color.White.copy(alpha = 0.6f))
                 }
+                
                 // Previous
-                Surface(
-                    onClick = onSkipPrevious,
-                    modifier = Modifier.size(64.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color.White.copy(alpha = 0.1f)
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+                        .bouncyClickable(onClick = onSkipPrevious),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.SkipPrevious,
-                            contentDescription = "Previous",
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
+                    Icon(
+                        Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
 
                 // Play/Pause
-                Surface(
-                    onClick = onPlayPauseToggle,
-                    modifier = Modifier.size(88.dp),
-                    shape = RoundedCornerShape(32.dp),
-                    color = primaryControlColor
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .background(primaryControlColor, RoundedCornerShape(32.dp))
+                        .bouncyClickable(onClick = onPlayPauseToggle),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                            contentDescription = "Play/Pause",
-                            tint = onPrimaryControlColor,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
+                    Icon(
+                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = "Play/Pause",
+                        tint = onPrimaryControlColor,
+                        modifier = Modifier.size(48.dp)
+                    )
                 }
 
                 // Next
-                Surface(
-                    onClick = onSkipNext,
-                    modifier = Modifier.size(64.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color.White.copy(alpha = 0.1f)
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+                        .bouncyClickable(onClick = onSkipNext),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.SkipNext,
-                            contentDescription = "Next",
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
+                    Icon(
+                        Icons.Rounded.SkipNext,
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
                 
                 IconButton(onClick = { /* Repeat */ }) {
@@ -494,7 +492,7 @@ fun NowPlayingView(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp)) // Fixed spacing after controls
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Bottom Controls (Volume / Output)
             Row(
@@ -506,8 +504,8 @@ fun NowPlayingView(
                    modifier = Modifier
                        .clip(RoundedCornerShape(16.dp))
                        .background(Color.White.copy(alpha = 0.1f))
-                       .padding(horizontal = 16.dp, vertical = 12.dp)
-                       .clickable { onTogglePlaybackLocation() },
+                       .bouncyClickable(onClick = onTogglePlaybackLocation)
+                       .padding(horizontal = 16.dp, vertical = 12.dp),
                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -529,8 +527,8 @@ fun NowPlayingView(
                    modifier = Modifier
                        .clip(RoundedCornerShape(16.dp))
                        .background(Color.White.copy(alpha = 0.1f))
-                       .padding(horizontal = 16.dp, vertical = 12.dp)
-                       .clickable { onQueueClick() },
+                       .bouncyClickable(onClick = onQueueClick)
+                       .padding(horizontal = 16.dp, vertical = 12.dp),
                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -654,7 +652,7 @@ fun SquigglyProgressBar(
             drawCircle(
                 color = thumbColor,
                 radius = 8.dp.toPx(),
-                center = androidx.compose.ui.geometry.Offset(thumbX, thumbY.toFloat())
+                 center = androidx.compose.ui.geometry.Offset(thumbX, thumbY.toFloat())
             )
         }
     }

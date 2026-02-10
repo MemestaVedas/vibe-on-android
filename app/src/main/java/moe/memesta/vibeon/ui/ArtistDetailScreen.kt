@@ -1,11 +1,11 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package moe.memesta.vibeon.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -14,9 +14,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -28,21 +28,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.utils.PaletteUtils
+import moe.memesta.vibeon.ui.utils.ThemeColors
+import androidx.navigation.NavController
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ArtistDetailScreen(
     artistName: String,
     viewModel: LibraryViewModel,
+    navController: NavController,
     onBackClick: () -> Unit,
     onTrackSelected: (TrackInfo) -> Unit,
     contentPadding: PaddingValues
@@ -80,6 +89,19 @@ fun ArtistDetailScreen(
 
     val scrollState = rememberLazyListState()
     var selectedTab by remember { mutableStateOf(0) } // 0: Songs, 1: Albums
+    
+    // Dynamic Theming
+    var themeColors by remember { mutableStateOf(ThemeColors()) }
+    val animatedVibrant by animateColorAsState(
+        targetValue = if (themeColors.vibrant != Color.Transparent) themeColors.vibrant else MaterialTheme.colorScheme.primary,
+        animationSpec = tween(1000),
+        label = "themeVibrant"
+    )
+    val animatedMuted by animateColorAsState(
+        targetValue = if (themeColors.muted != Color.Transparent) themeColors.muted else MaterialTheme.colorScheme.secondary,
+        animationSpec = tween(1000),
+        label = "themeMuted"
+    )
 
     Box(
         modifier = Modifier
@@ -88,14 +110,24 @@ fun ArtistDetailScreen(
     ) {
         // --- 1. Immersive Background (Blurred) ---
          if (photoUrl != null) {
+            val context = LocalContext.current
+            val request = remember(photoUrl) {
+                ImageRequest.Builder(context)
+                    .data(photoUrl)
+                    .crossfade(true)
+                    .build()
+            }
             AsyncImage(
-                model = photoUrl,
+                model = request,
                 contentDescription = null,
+                onSuccess = { result ->
+                    themeColors = PaletteUtils.extractColors(result.result.drawable)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
-                    .alpha(0.4f)
-                    .blur(50.dp),
+                    .height(440.dp)
+                    .alpha(0.35f)
+                    .blur(60.dp),
                 contentScale = ContentScale.Crop
             )
             
@@ -103,12 +135,12 @@ fun ArtistDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
+                    .height(440.dp)
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.2f),
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.1f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
                                 MaterialTheme.colorScheme.background
                             )
                         )
@@ -121,7 +153,7 @@ fun ArtistDetailScreen(
             state = scrollState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                bottom = contentPadding.calculateBottomPadding() + 24.dp,
+                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing,
                 top = 0.dp
             )
         ) {
@@ -142,8 +174,15 @@ fun ArtistDetailScreen(
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         if (photoUrl != null) {
+                            val context = LocalContext.current
+                            val request = remember(photoUrl) {
+                                ImageRequest.Builder(context)
+                                    .data(photoUrl)
+                                    .crossfade(true)
+                                    .build()
+                            }
                             AsyncImage(
-                                model = photoUrl,
+                                model = request,
                                 contentDescription = decodedArtistName,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
@@ -166,22 +205,31 @@ fun ArtistDetailScreen(
                     
                     Text(
                         text = decodedArtistName,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 24.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        modifier = Modifier.padding(horizontal = Dimens.ScreenPadding),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        letterSpacing = (-1.5).sp
                     )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     
-                    Text(
-                        text = "Artist • ${artistTracks.size} Tracks",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Surface(
+                        color = animatedVibrant.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, animatedVibrant.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            text = "Artist • ${artistTracks.size} Tracks",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = animatedVibrant,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                    }
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
@@ -199,7 +247,7 @@ fun ArtistDetailScreen(
                             },
                              contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Play")
                         }
@@ -214,40 +262,70 @@ fun ArtistDetailScreen(
                                 }
                             }
                         ) {
-                             Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
+                             Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
                              Spacer(modifier = Modifier.width(8.dp))
                              Text("Shuffle")
                         }
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
-                    
-                    // Tabs
-                    TabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        indicator = { tabPositions ->
-                            TabRowDefaults.Indicator(
-                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                                color = MaterialTheme.colorScheme.primary,
-                                height = 3.dp
+                }
+            }
+            
+            // Sticky Tab Row
+            stickyHeader {
+                val isAtTop by remember {
+                    derivedStateOf { 
+                        scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 400 
+                    }
+                }
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = if (isAtTop) MaterialTheme.colorScheme.background.copy(alpha = 0.85f) else Color.Transparent,
+                    tonalElevation = if (isAtTop) 4.dp else 0.dp
+                ) {
+                    Box(modifier = Modifier.then(
+                        if (isAtTop) Modifier.blur(20.dp) else Modifier
+                    )) {
+                        TabRow(
+                            selectedTabIndex = selectedTab,
+                            containerColor = Color.Transparent,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            indicator = { tabPositions ->
+                                TabRowDefaults.Indicator(
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                    color = animatedVibrant,
+                                    height = 3.dp
+                                )
+                            },
+                            divider = {
+                                HorizontalDivider(color = animatedVibrant.copy(alpha = 0.2f))
+                            }
+                        ) {
+                            Tab(
+                                selected = selectedTab == 0,
+                                onClick = { selectedTab = 0 },
+                                text = { 
+                                    Text(
+                                        "Songs", 
+                                        fontWeight = if(selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                                        color = if(selectedTab == 0) animatedVibrant else MaterialTheme.colorScheme.onSurfaceVariant
+                                    ) 
+                                }
                             )
-                        },
-                        divider = {
-                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            Tab(
+                                selected = selectedTab == 1,
+                                onClick = { selectedTab = 1 },
+                                text = { 
+                                    Text(
+                                        "Albums", 
+                                        fontWeight = if(selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                                        color = if(selectedTab == 1) animatedVibrant else MaterialTheme.colorScheme.onSurfaceVariant
+                                    ) 
+                                }
+                            )
                         }
-                    ) {
-                        Tab(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = { Text("Songs", fontWeight = if(selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
-                        )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            text = { Text("Albums", fontWeight = if(selectedTab == 1) FontWeight.Bold else FontWeight.Normal) }
-                        )
                     }
                 }
             }
@@ -255,35 +333,50 @@ fun ArtistDetailScreen(
             // Content based on tab
             if (selectedTab == 0) {
                  itemsIndexed(artistTracks) { index, track ->
-                    AlbumTrackRow(
-                        index = index + 1,
-                        track = track,
-                        onClick = {
-                            viewModel.playTrack(track, artistTracks)
-                            onTrackSelected(track)
-                        }
+                    val alpha by animateFloatAsState(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                        label = "itemAlpha"
                     )
+                    val slide by animateFloatAsState(
+                        targetValue = 0f,
+                        animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                        label = "itemSlide"
+                    )
+                    
+                    Box(modifier = Modifier.graphicsLayer { 
+                        this.alpha = alpha
+                        this.translationY = slide
+                    }) {
+                        AlbumTrackRow(
+                            index = index + 1,
+                            track = track,
+                            onClick = {
+                                viewModel.playTrack(track, artistTracks)
+                                onTrackSelected(track)
+                            }
+                        )
+                    }
                 }
             } else {
                  item {
                      Spacer(modifier = Modifier.height(16.dp))
                      
-                     // Grid for Albums (using FlowRow or similar manually in Column since we are in LazyColumn)
-                     // Or just a vertical list of rows for better scrolling
-                     // Given user requested "reuse same layout", I will use a Grid adapter here
-                     
-                     Column(modifier = Modifier.padding(16.dp)) {
+                     // Grid for Albums
+                     Column(modifier = Modifier.padding(Dimens.ScreenPadding)) {
                          val chunkedAlbums = artistAlbums.chunked(2) // 2 columns
                          chunkedAlbums.forEach { rowAlbums ->
                              Row(
                                  modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                 horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                              ) {
                                  rowAlbums.forEach { (albumName, cover) ->
                                      AlbumCard(
                                          albumName = albumName,
                                          coverUrl = cover,
-                                         onClick = { viewModel.playAlbum(albumName) }, // TODO: Navigate to detail
+                                         onClick = { 
+                                             navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
+                                         },
                                          modifier = Modifier.weight(1f)
                                      )
                                  }
@@ -297,37 +390,51 @@ fun ArtistDetailScreen(
             }
         }
         
-        // --- 3. Custom Top Bar ---
+        // --- 3. Glassmorphic Top Bar ---
          val showTitle by remember {
-            derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 600 }
+            derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 400 }
         }
         
-        SmallTopAppBar(
-            title = {
-                AnimatedVisibility(
-                    visible = showTitle,
-                    enter = fadeIn() + slideInVertically { 20 },
-                    exit = fadeOut()
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding(),
+            color = Color.Transparent
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .then(
+                        if (showTitle) Modifier.blur(20.dp).background(MaterialTheme.colorScheme.background.copy(alpha = 0.7f))
+                        else Modifier
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(decodedArtistName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
+                    }
+                    
+                    AnimatedVisibility(
+                        visible = showTitle,
+                        enter = fadeIn() + slideInVertically { 20 },
+                        exit = fadeOut()
+                    ) {
+                        Text(
+                            decodedArtistName, 
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1, 
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        Icons.Default.ArrowBack, 
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = if (showTitle) MaterialTheme.colorScheme.background.copy(alpha = 0.95f) else Color.Transparent,
-                scrolledContainerColor = MaterialTheme.colorScheme.background
-            ),
-             // Removed statusBarsPadding to allow background to fill the status bar area.
-             modifier = Modifier
-        )
+            }
+        }
     }
 }
 

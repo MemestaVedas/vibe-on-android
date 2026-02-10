@@ -290,9 +290,6 @@ class WebSocketClient {
                             // Clear old lyrics and fetch new ones
                             client._lyrics.value = null
                             client.getLyrics()
-                        } else if (client._lyrics.value == null && trackId.isNotEmpty()) {
-                            // Retry fetching if we have no lyrics but have a track
-                             client.getLyrics()
                         }
                         var coverUrl = json.optString("cover_url", null) ?: json.optString("coverUrl", null)
 
@@ -348,14 +345,9 @@ class WebSocketClient {
                         // Handle queue updates
                         val queueArray = json.optJSONArray("queue") ?: return
                         val queueItems = mutableListOf<QueueItem>()
-                        val base = client.baseUrl
 
                         for (i in 0 until queueArray.length()) {
                             val item = queueArray.getJSONObject(i)
-                             var cover = item.optString("coverUrl", null)
-                             if (cover != null && !cover.startsWith("http")) {
-                                 cover = "$base$cover"
-                             }
                              
                             queueItems.add(
                                 QueueItem(
@@ -371,10 +363,6 @@ class WebSocketClient {
                         client._currentIndex.value = json.optInt("currentIndex", 0)
                         Log.i("WebSocket", "📋 Queue updated with ${queueItems.size} tracks")
                     }
-                    "error" -> {
-                        val message = json.optString("message")
-                        Log.e("WebSocket", "Error from server: $message")
-                    }
                     "handoffPrepare" -> {
                         // Server is ready to stream to mobile
                         val url = json.optString("url")
@@ -385,73 +373,51 @@ class WebSocketClient {
                         Log.i("WebSocket", "🎵 Received stream URL: $url at position ${String.format("%.2f", positionSecs)}s")
                     }
                     "lyrics" -> {
-                        // Handle lyrics
+                        // Handle lyrics update
                         client._isLoadingLyrics.value = false
-                        client._lyrics.value = LyricsData(
-                            trackPath = json.optString("trackPath"),
-                            hasSynced = json.optBoolean("hasSynced"),
-                            syncedLyrics = json.optString("syncedLyrics", null).takeIf { it != "null" },
-                            plainLyrics = json.optString("plainLyrics", null).takeIf { it != "null" },
-                            instrumental = json.optBoolean("instrumental")
-                        )
-                        Log.i("WebSocket", "📜 Received lyrics: Synced=${json.optBoolean("hasSynced")}")
-                    }
-                    "error" -> {
-                         // Check if error is related to lyrics (simple heuristic)
-                         val msg = json.optString("message", "")
-                         if (msg == "Lyrics not found" || msg == "No track playing") {
-                             client._isLoadingLyrics.value = false
-                         }
-                    }
-                    "streamStopped" -> {
-                        // Mobile streaming stopped
-                        client._isMobilePlayback.value = false
-                        client._streamUrl.value = null
-                        Log.i("WebSocket", "🛑 Mobile streaming stopped")
-                    }
-                    "library" -> {
-                        val tracksArray = json.optJSONArray("tracks") ?: return
-                        val tracks = mutableListOf<TrackInfo>()
-                        val base = client.baseUrl
-                        for (i in 0 until tracksArray.length()) {
-                            val t = tracksArray.getJSONObject(i)
-                            val path = t.getString("path")
-                            var cover = t.optString("coverUrl", null)
-                            if (cover != null && !cover.startsWith("http")) {
-                                cover = "$base$cover"
-                            }
-                            tracks.add(TrackInfo(
-                                path = path,
-                                title = t.getString("title"),
-                                artist = t.getString("artist"),
-                                album = t.getString("album"),
-                                duration = t.getDouble("durationSecs"),
-                                coverUrl = cover
-                            ))
-                        }
-                        client._library.value = tracks
-                        Log.i("WebSocket", "📚 Received library with ${tracks.size} tracks")
-                    }
-                    "lyrics" -> {
-                        // Handle separate Lyrics message
-                        Log.i("WebSocket", "📝 Raw Lyrics JSON: $json")
                         
-                        // Try camelCase first (what serde should send), then snake_case as fallback
+                        val trackPath = json.optString("trackPath")
+                        val hasSynced = json.optBoolean("hasSynced")
                         val plainLyrics = json.optString("plainLyrics", "").ifEmpty {
                             json.optString("plain_lyrics", "")
-                        }
+                        }.takeIf { it != "null" && it.isNotEmpty() }
                         val syncedLyrics = json.optString("syncedLyrics", "").ifEmpty {
                             json.optString("synced_lyrics", "")
-                        }
-                        val finalLyrics = if (syncedLyrics.isNotEmpty()) syncedLyrics else plainLyrics
-                        
-                        Log.i("WebSocket", "📝 Lyrics received - Plain: ${plainLyrics.take(50)}, Synced: ${syncedLyrics.take(50)}")
-                        Log.i("WebSocket", "📝 Final lyrics length: ${finalLyrics.length}")
-                        
-                        // Update current track with lyrics
+                        }.takeIf { it != "null" && it.isNotEmpty() }
+                        val instrumental = json.optBoolean("instrumental")
+
+                        // Update dedicated lyrics state
+                        client._lyrics.value = LyricsData(
+                            trackPath = trackPath,
+                            hasSynced = hasSynced,
+                            syncedLyrics = syncedLyrics,
+                            plainLyrics = plainLyrics,
+                            instrumental = instrumental
+                        )
+
+                        // Update current track lyrics field for double-binding
+                        val finalLyricsText = syncedLyrics ?: plainLyrics ?: ""
                         val current = client._currentTrack.value
-                        client._currentTrack.value = current.copy(lyrics = finalLyrics)
-                        Log.i("WebSocket", "📝 Updated currentTrack with lyrics, new value: ${client._currentTrack.value.lyrics.take(50)}")
+                        client._currentTrack.value = current.copy(lyrics = finalLyricsText)
+                        
+                        Log.i("WebSocket", "📜 Lyrics received for $trackPath (Synced: $hasSynced, Length: ${finalLyricsText.length})")
+                    }
+                    "error" -> {
+                        val message = json.optString("message")
+                        Log.e("WebSocket", "Error from server: $message")
+                        
+                        // Stop loading state on lyrics-related errors
+                        if (message.contains("lyrics", ignoreCase = true) || message.contains("track", ignoreCase = true)) {
+                            client._isLoadingLyrics.value = false
+                            // Important: If we failed to get lyrics, set an empty state to prevent any potential UI retries
+                            if (client.lastTrackId != null && client._lyrics.value == null) {
+                                client._lyrics.value = LyricsData(trackPath = client.lastTrackId!!)
+                            }
+                        }
+                    }
+                    "streamStopped" -> {
+                        client._isMobilePlayback.value = false
+                        client._streamUrl.value = null
                     }
                 }
             } catch (e: Exception) {

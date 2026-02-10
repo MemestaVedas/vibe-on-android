@@ -2,29 +2,32 @@ package moe.memesta.vibeon.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import moe.memesta.vibeon.ui.theme.Dimens
 
 @Composable
 fun StatisticsSection(
     stats: moe.memesta.vibeon.data.LibraryStats?
 ) {
     if (stats == null) {
-        // Show loading skeleton or return
         return
     }
     
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = Dimens.ScreenPadding)
     ) {
         // Header
         Text(
@@ -37,7 +40,7 @@ fun StatisticsSection(
         )
         Text(
             text = "See how you've been vibing ✨",
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium, // 15sp
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 20.dp)
         )
@@ -58,7 +61,7 @@ fun StatisticsSection(
                 )
                 StatisticsBadge(
                     label = "Times Played",
-                    value = "—", // Placeholder for future play count tracking
+                    value = "—", // Placeholder
                     color = Color(0xFF9B8B9E), // Mauve/Purple
                     modifier = Modifier.weight(1f)
                 )
@@ -97,12 +100,12 @@ fun StatisticsBadge(
             .clip(RoundedCornerShape(20.dp)),
         contentAlignment = Alignment.Center
     ) {
-        // Star background
-        androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.res.painterResource(id = moe.memesta.vibeon.R.drawable.ic_star_badge),
+        // Star background (Using Icon instead of Image to avoid resource missing errors)
+        Icon(
+            imageVector = Icons.Rounded.Star,
             contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color)
+            modifier = Modifier.fillMaxSize().padding(12.dp).alpha(0.1f), // Subtle background
+            tint = color
         )
         
         // Content

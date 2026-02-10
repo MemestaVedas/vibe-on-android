@@ -1,5 +1,6 @@
 package moe.memesta.vibeon.data
 
+import androidx.compose.runtime.Immutable
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Data classes for library browsing
  */
+@Immutable
 data class TrackInfo(
     val path: String,
     val title: String,
@@ -23,11 +25,13 @@ data class TrackInfo(
     val coverUrl: String? = null
 )
 
+@Immutable
 data class LibraryResponse(
     val tracks: List<TrackInfo>,
     val total: Int
 )
 
+@Immutable
 data class ServerInfo(
     val name: String,
     val version: String,

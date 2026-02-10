@@ -1,11 +1,10 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package moe.memesta.vibeon.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -13,9 +12,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,9 +33,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
+import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.utils.PaletteUtils
+import moe.memesta.vibeon.ui.utils.ThemeColors
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -45,6 +51,7 @@ import java.nio.charset.StandardCharsets
 fun AlbumDetailScreen(
     albumName: String,
     viewModel: LibraryViewModel,
+    navController: NavController,
     onBackClick: () -> Unit,
     onTrackSelected: (TrackInfo) -> Unit,
     contentPadding: PaddingValues
@@ -65,8 +72,17 @@ fun AlbumDetailScreen(
     }
     
     val scrollState = rememberLazyListState()
-    val coverUrl = albumTracks.firstOrNull()?.coverUrl
-    val artistName = albumTracks.firstOrNull()?.artist ?: "Unknown Artist"
+    val firstTrack = albumTracks.firstOrNull()
+    val coverUrl = firstTrack?.coverUrl
+    val artistName = firstTrack?.artist ?: "Unknown Artist"
+    
+    // Dynamic Theming
+    var themeColors by remember { mutableStateOf(ThemeColors()) }
+    val animatedVibrant by animateColorAsState(
+        targetValue = if (themeColors.vibrant != Color.Transparent) themeColors.vibrant else MaterialTheme.colorScheme.primary,
+        animationSpec = tween(1000),
+        label = "albumVibrant"
+    )
 
     Box(
         modifier = Modifier
@@ -75,14 +91,24 @@ fun AlbumDetailScreen(
     ) {
         // --- 1. Immersive Background (Blurred) ---
         if (coverUrl != null) {
+            val context = LocalContext.current
+            val request = remember(coverUrl) {
+                ImageRequest.Builder(context)
+                    .data(coverUrl)
+                    .crossfade(true)
+                    .build()
+            }
             AsyncImage(
-                model = coverUrl,
+                model = request,
                 contentDescription = null,
+                onSuccess = { result ->
+                    themeColors = PaletteUtils.extractColors(result.result.drawable)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
-                    .alpha(0.4f)
-                    .blur(50.dp),
+                    .height(440.dp)
+                    .alpha(0.35f)
+                    .blur(60.dp),
                 contentScale = ContentScale.Crop
             )
             
@@ -90,12 +116,12 @@ fun AlbumDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
+                    .height(440.dp)
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.2f),
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.1f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
                                 MaterialTheme.colorScheme.background
                             )
                         )
@@ -108,7 +134,7 @@ fun AlbumDetailScreen(
             state = scrollState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                bottom = contentPadding.calculateBottomPadding() + 24.dp,
+                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing,
                 top = 0.dp // Start at top for transparent status bar effect
             )
         ) {
@@ -123,14 +149,22 @@ fun AlbumDetailScreen(
                     // Album Art
                     Box(
                         modifier = Modifier
-                            .size(240.dp)
-                            .shadow(24.dp, RoundedCornerShape(12.dp))
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(260.dp)
+                            .shadow(32.dp, RoundedCornerShape(Dimens.CornerRadiusLarge))
+                            .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
+                            // Basic clickable for now, maybe expand later
                     ) {
                         if (coverUrl != null) {
+                            val context = LocalContext.current
+                            val request = remember(coverUrl) {
+                                ImageRequest.Builder(context)
+                                    .data(coverUrl)
+                                    .crossfade(true)
+                                    .build()
+                            }
                             AsyncImage(
-                                model = coverUrl,
+                                model = request,
                                 contentDescription = decodedAlbumName,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
@@ -141,7 +175,7 @@ fun AlbumDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    Icons.Default.PlayArrow, // Fallback icon
+                                    Icons.Rounded.PlayArrow, // Fallback icon
                                     contentDescription = null,
                                     modifier = Modifier.size(64.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -155,33 +189,43 @@ fun AlbumDetailScreen(
                     // Text Info
                     Text(
                         text = decodedAlbumName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 24.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        modifier = Modifier.padding(horizontal = Dimens.ScreenPadding),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        letterSpacing = (-1).sp
                     )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     
                     Text(
                         text = artistName,
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { 
-                            // TODO: Navigate to artist
-                        }
+                        fontWeight = FontWeight.Bold,
+                        color = animatedVibrant,
+                        modifier = Modifier.bouncyClickable(onClick = { 
+                            navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
+                        })
                     )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     
-                    Text(
-                        text = "Album • ${albumTracks.size} Songs",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Surface(
+                        color = animatedVibrant.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, animatedVibrant.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            text = "Album • ${albumTracks.size} Songs",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = animatedVibrant,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                    }
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
@@ -194,14 +238,13 @@ fun AlbumDetailScreen(
                         // Shuffle Button
                         OutlinedButton(
                             onClick = { 
-                                // TODO: Shuffle play 
                                 if (albumTracks.isNotEmpty()) {
                                     viewModel.playTrack(albumTracks.random(), albumTracks)
                                     onTrackSelected(albumTracks.first())
                                 }
                             },
                         ) {
-                            Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Shuffle")
                         }
@@ -218,7 +261,7 @@ fun AlbumDetailScreen(
                             },
                             contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Play")
                         }
@@ -228,50 +271,80 @@ fun AlbumDetailScreen(
             
             // Track List
             itemsIndexed(albumTracks) { index, track ->
-                AlbumTrackRow(
-                    index = index + 1,
-                    track = track,
-                    onClick = {
-                        viewModel.playTrack(track, albumTracks)
-                        onTrackSelected(track)
-                    }
+                val alpha by animateFloatAsState(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                    label = "itemAlpha"
                 )
+                val slide by animateFloatAsState(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                    label = "itemSlide"
+                )
+                
+                Box(modifier = Modifier.graphicsLayer { 
+                    this.alpha = alpha
+                    this.translationY = slide
+                }) {
+                    AlbumTrackRow(
+                        index = index + 1,
+                        track = track,
+                        onClick = {
+                            viewModel.playTrack(track, albumTracks)
+                            onTrackSelected(track)
+                        }
+                    )
+                }
             }
         }
 
-        // --- 3. Custom Top Bar (Collapsing style logic visual only) ---
-        // This stays fixed at top
+        // --- 3. Glassmorphic Top Bar ---
         val showTitle by remember {
-            derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 600 }
+            derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 400 }
         }
         
-        SmallTopAppBar(
-            title = {
-                AnimatedVisibility(
-                    visible = showTitle,
-                    enter = fadeIn() + slideInVertically { 20 },
-                    exit = fadeOut()
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding(),
+            color = Color.Transparent
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .then(
+                        if (showTitle) Modifier
+                            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.85f))
+                            .blur(25.dp)
+                        else Modifier
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(decodedAlbumName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
+                    }
+                    
+                    AnimatedVisibility(
+                        visible = showTitle,
+                        enter = fadeIn() + slideInVertically { 20 },
+                        exit = fadeOut()
+                    ) {
+                        Text(
+                            decodedAlbumName, 
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1, 
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        Icons.Default.ArrowBack, 
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.smallTopAppBarColors(
-                containerColor = if (showTitle) MaterialTheme.colorScheme.background.copy(alpha = 0.95f) else Color.Transparent,
-                scrolledContainerColor = MaterialTheme.colorScheme.background
-            ),
-             // Removed statusBarsPadding to allow background to fill the status bar area.
-             // TopAppBar handles content insets automatically or we rely on the transparent container.
-             modifier = Modifier
-        )
+            }
+        }
     }
 }
 
@@ -284,8 +357,8 @@ fun AlbumTrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 12.dp, horizontal = 24.dp),
+            .bouncyClickable(onClick = onClick, scaleDown = 0.98f)
+            .padding(vertical = 12.dp, horizontal = Dimens.ScreenPadding),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Index

@@ -1,11 +1,14 @@
 package moe.memesta.vibeon.ui.theme
 
-import androidx.compose.animation.core.EaseInCubic
-import androidx.compose.animation.core.EaseOutExpo
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
 
 /**
  * Centralized animation configuration for organic, polished UI feel.
@@ -18,10 +21,11 @@ object VibeAnimations {
     /**
      * Organic spring with subtle bounce (Material 3 Expressive style).
      * Use for press/release effects, nav transitions, interactive elements.
+     * Tuned for "very smooth" feel (low stiffness).
      */
     val SpringExpressive = spring<Float>(
-        dampingRatio = Spring.DampingRatioLowBouncy,  // 0.75f - subtle overshoot
-        stiffness = Spring.StiffnessMediumLow         // 200f - relaxed, not snappy
+        dampingRatio = 0.8f,                  // Slightly less bouncy than LowBouncy (0.75f) for stability
+        stiffness = 110f                      // Much softer than MediumLow (200f) for fluid motion
     )
     
     /**
@@ -29,8 +33,8 @@ object VibeAnimations {
      * Use for utility animations where bounce would feel distracting.
      */
     val SpringStandard = spring<Float>(
-        dampingRatio = Spring.DampingRatioNoBouncy,   // 1.0f - no overshoot
-        stiffness = Spring.StiffnessMedium            // 400f - responsive
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 300f                      // Slightly softer than Medium (400f)
     )
 
     /**
@@ -38,23 +42,23 @@ object VibeAnimations {
      */
     fun <T> springStandardGeneric(): SpringSpec<T> = spring(
         dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMedium
+        stiffness = 300f
     )
 
     /**
      * Helper to create an expressive spring for any type.
      */
     fun <T> springExpressiveGeneric(): SpringSpec<T> = spring(
-        dampingRatio = Spring.DampingRatioLowBouncy,
-        stiffness = Spring.StiffnessMediumLow
+        dampingRatio = 0.8f,
+        stiffness = 110f
     )
     
     /**
      * Fast, snappy spring for micro-interactions.
      */
     val SpringSnappy = spring<Float>(
-        dampingRatio = Spring.DampingRatioMediumBouncy, // 0.5f
-        stiffness = Spring.StiffnessHigh                // 10000f
+        dampingRatio = Spring.DampingRatioMediumBouncy,
+        stiffness = Spring.StiffnessMedium
     )
     
     // ===== TWEEN SPECS (Easing Curves) =====
@@ -90,4 +94,35 @@ object VibeAnimations {
     const val FadeDuration = 200
     const val MicroDuration = 100
     const val HeroDuration = 450
+}
+
+/**
+ * A modifier that adds a bouncy click effect.
+ * Handles scale, rotation (subtle), and alpha changes on press.
+ */
+fun Modifier.bouncyClickable(
+    enabled: Boolean = true,
+    scaleDown: Float = 0.92f,
+    onClick: () -> Unit
+): Modifier = composed {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) scaleDown else 1f,
+        animationSpec = VibeAnimations.SpringExpressive,
+        label = "bouncyScale"
+    )
+
+    this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = LocalIndication.current,
+            enabled = enabled,
+            onClick = onClick
+        )
 }

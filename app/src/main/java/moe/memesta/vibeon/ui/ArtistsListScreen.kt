@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Search
@@ -22,7 +23,7 @@ fun ArtistsListScreen(
     onBackClick: () -> Unit,
     onArtistClick: (String) -> Unit,
     onPlayArtist: (String) -> Unit,
-    modifier: Modifier = Modifier
+    contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val tracks by viewModel.tracks.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -44,42 +45,41 @@ fun ArtistsListScreen(
     }
     
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(top = 12.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Artists",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
             }
             
-            IconButton(onClick = { /* Open search */ }) {
-                Icon(Icons.Rounded.Search, contentDescription = "Search")
-            }
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Text(
+                text = "Artists",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
         
         // Artists List
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            contentPadding = PaddingValues(
+                top = 8.dp,
+                bottom = contentPadding.calculateBottomPadding() + 24.dp
+            )
         ) {
             items(artists) { artist ->
                 ArtistListItem(

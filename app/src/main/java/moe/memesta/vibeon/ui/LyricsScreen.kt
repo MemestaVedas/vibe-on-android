@@ -35,6 +35,8 @@ import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.ui.theme.VibeBackground
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 data class LyricGroup(
     val timestamp: Long,
@@ -99,82 +101,25 @@ fun LyricsScreen(
             .background(VibeBackground)
     ) {
         // --- 1. Top Header (Track Info) ---
-        Row(
+        // --- 1. Top Header (Minimal/Floating) ---
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)
-                .zIndex(2f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(Dimens.ScreenPadding)
+                .zIndex(2f)
         ) {
-            // Left: Back Button
-            IconButton(onClick = onBack) {
+            // Back Button
+            Box(
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                    .bouncyClickable { onBack() }
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = Icons.Rounded.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.White
-                )
-            }
-
-            // Center-Left: Album Art + Text
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Formatting similar to reference image
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.DarkGray)
-                ) {
-                    if (!currentTrack.coverUrl.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = currentTrack.coverUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .size(24.dp),
-                            tint = Color.White.copy(alpha = 0.5f)
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                Column {
-                    Text(
-                        text = currentTrack.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = currentTrack.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            
-            // Right: Menu Button
-            IconButton(onClick = { /* TODO: Menu options */ }) {
-                Icon(
-                    imageVector = Icons.Rounded.MoreVert,
-                    contentDescription = "Options",
                     tint = Color.White
                 )
             }
@@ -204,8 +149,8 @@ fun LyricsScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 32.dp),
-                contentPadding = PaddingValues(top = 250.dp, bottom = 200.dp),
+                    .padding(horizontal = Dimens.SectionSpacing), // Use consistent spacing
+                contentPadding = PaddingValues(top = 150.dp, bottom = 200.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(32.dp)
             ) {
@@ -259,7 +204,7 @@ fun LyricsScreen(
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .clickable { viewMode = mode.mode }
+                                .bouncyClickable { viewMode = mode.mode }
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {

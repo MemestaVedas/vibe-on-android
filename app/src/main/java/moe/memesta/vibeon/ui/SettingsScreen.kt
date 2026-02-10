@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.data.local.FavoriteDevice
 import moe.memesta.vibeon.data.local.FavoritesManager
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 @Composable
 fun SettingsScreen(
@@ -36,7 +38,7 @@ fun SettingsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = Dimens.SectionSpacing),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 24.dp,
@@ -188,7 +190,7 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .bouncyClickable {
                         // Trigger manual library refresh
                         // TODO: Call library refresh function
                     },
@@ -249,7 +251,7 @@ fun FavoriteDeviceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onToggleExpand() },
+            .bouncyClickable { onToggleExpand() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
@@ -284,7 +286,7 @@ fun FavoriteDeviceCard(
             
             if (isExpanded) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Divider()
+                HorizontalDivider()
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 // Device Details

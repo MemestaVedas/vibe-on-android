@@ -2,23 +2,23 @@ package moe.memesta.vibeon.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 @Composable
 fun AlbumGridItem(
@@ -31,7 +31,7 @@ fun AlbumGridItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .bouncyClickable(onClick = onClick),
         horizontalAlignment = Alignment.Start
     ) {
         // Album Art with Play Button Overlay
@@ -39,6 +39,7 @@ fun AlbumGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
+                .clip(MaterialTheme.shapes.medium) // 24dp from theme or Dimens logic if mapped
         ) {
             // Album Art
             if (coverUrl != null) {
@@ -46,15 +47,13 @@ fun AlbumGridItem(
                     model = coverUrl,
                     contentDescription = albumName,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clip(MaterialTheme.shapes.medium), // Use theme shape (24dp)
+                        .fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
@@ -74,16 +73,21 @@ fun AlbumGridItem(
                     .align(Alignment.BottomEnd)
                     .padding(8.dp)
                     .size(48.dp)
+                    .background(
+                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha=0.9f),
+                         shape = androidx.compose.foundation.shape.CircleShape
+                    )
             ) {
-                Image(
-                    painter = androidx.compose.ui.res.painterResource(moe.memesta.vibeon.R.drawable.ic_play_star),
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
                     contentDescription = "Play Album",
-                    modifier = Modifier.fillMaxSize()
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
         
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Dimens.ItemSpacing))
         
         // Album Info
         Text(

@@ -1,6 +1,5 @@
 package moe.memesta.vibeon.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 @Composable
 fun CircularArtistCard(
@@ -25,7 +25,7 @@ fun CircularArtistCard(
     Column(
         modifier = modifier
             .width(100.dp)
-            .clickable { onClick() },
+            .bouncyClickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AsyncImage(
@@ -41,7 +41,7 @@ fun CircularArtistCard(
         
         Text(
             text = artistName,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium, // 15sp
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,

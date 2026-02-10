@@ -15,8 +15,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import moe.memesta.vibeon.data.QueueItem
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 @Composable
 fun QueueScreen(
@@ -27,24 +28,24 @@ fun QueueScreen(
 
     if (queue.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-             Text("Queue is empty", color = Color.White.copy(alpha = 0.5f))
+             Text("Queue is empty", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
         }
     } else {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 24.dp),
-            contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = Dimens.ScreenPadding),
+            contentPadding = PaddingValues(top = Dimens.SectionSpacing, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
         ) {
             item {
                  Text(
                     text = "Up Next",
                     style = MaterialTheme.typography.headlineSmall,
-                     color = Color.White,
+                     color = MaterialTheme.colorScheme.onBackground,
                      fontWeight = FontWeight.Bold,
-                     modifier = Modifier.padding(bottom = 16.dp)
+                     modifier = Modifier.padding(bottom = Dimens.SectionSpacing)
                  )
             }
             
@@ -58,7 +59,10 @@ fun QueueScreen(
 @Composable
 fun QueueItemRow(item: QueueItem, isCurrent: Boolean) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .bouncyClickable(onClick = {}, enabled = false) // Add bounce for consistency even if not clickable yet
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
          if (isCurrent) {
@@ -75,14 +79,14 @@ fun QueueItemRow(item: QueueItem, isCurrent: Boolean) {
          Column(modifier = Modifier.weight(1f)) {
              Text(
                  text = item.title,
-                 color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White,
+                 color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                  fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                  style = MaterialTheme.typography.bodyLarge,
                  maxLines = 1
              )
              Text(
                  text = item.artist,
-                 color = Color.White.copy(alpha = 0.6f),
+                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                  style = MaterialTheme.typography.bodyMedium,
                  maxLines = 1
              )

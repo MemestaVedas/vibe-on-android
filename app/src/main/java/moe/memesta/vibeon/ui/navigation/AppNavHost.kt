@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
+import androidx.compose.foundation.pager.rememberPagerState
+import moe.memesta.vibeon.ui.navigation.MainContentPager
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.Color
@@ -44,6 +46,8 @@ fun AppNavHost(
 ) {
     val navController = rememberNavController()
     var currentDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
+    
+    val pagerState = rememberPagerState(pageCount = { 5 })
     
     // Determine smart start destination based on favorites
     val favorites = remember { favoritesManager.getFavorites() }
@@ -87,7 +91,7 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in listOf("library", "albums", "search", "artists", "settings")
+    val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings")
 
 
     SharedTransitionLayout {
@@ -110,7 +114,8 @@ fun AppNavHost(
                             }
                         },
                         sharedTransitionScope = this@SharedTransitionLayout,
-                        animatedVisibilityScope = this
+                        animatedVisibilityScope = this,
+                        pagerState = pagerState
                     )
                 }
             },
@@ -305,26 +310,30 @@ fun AppNavHost(
                     )
                 }
                 
-                composable("library") {
-                    // Use shared LibraryViewModel
+                composable("main") {
                     if (connectedDevice != null) {
                         currentDevice = connectedDevice
                     }
                     
                     if (libraryViewModel != null) {
-                        // Replaced LibraryScreen with HomeScreen for the main "Home" tab
-                        HomeScreen(
-                            viewModel = libraryViewModel,
-                            onTrackSelected = { navController.navigate("now_playing") },
-                            onAlbumSelected = { albumName -> navController.navigate("album/$albumName") },
-                            onArtistSelected = { artistName -> navController.navigate("artist/$artistName") },
-                            onViewAllSongs = { navController.navigate("all_songs") },
-                            contentPadding = innerPadding,
-                            connectionViewModel = connectionViewModel
+                        MainContentPager(
+                            pagerState = pagerState,
+                            libraryViewModel = libraryViewModel,
+                            connectionViewModel = connectionViewModel,
+                            favoritesManager = favoritesManager,
+                            navController = navController,
+                            contentPadding = innerPadding
                         )
                     } else {
-                            // Fallback
-                            LaunchedEffect(Unit) { navController.navigate("discovery") }
+                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                    }
+                }
+
+                composable("library") {
+                    LaunchedEffect(Unit) {
+                        navController.navigate("main") {
+                            popUpTo("library") { inclusive = true }
+                        }
                     }
                 }
 
@@ -348,60 +357,33 @@ fun AppNavHost(
                     }
                 }
 
-                // Albums Tab - Full Grid View
+                // Albums Tab - Redirecting to main pager
                 composable("albums") {
-                    // Use shared LibraryViewModel
-                    
-                    if (libraryViewModel != null) {
-                        AlbumsGridScreen(
-                            viewModel = libraryViewModel,
-                            onBackClick = { navController.popBackStack() },
-                            onAlbumClick = { albumName -> navController.navigate("album/$albumName") },
-                            onPlayAlbum = { albumName -> 
-                                libraryViewModel.playAlbum(albumName)
-                                navController.navigate("now_playing")
-                            },
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    } else {
-                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                    LaunchedEffect(Unit) {
+                        navController.navigate("main") {
+                            popUpTo("albums") { inclusive = true }
+                        }
+                        pagerState.scrollToPage(1)
                     }
                 }
                 
-                // Search Tab - Full Search Screen
+                // Search Tab - Redirecting to main pager
                 composable("search") {
-                    // Use shared LibraryViewModel
-                    
-                    if (libraryViewModel != null) {
-                        SearchScreen(
-                            viewModel = libraryViewModel,
-                            onTrackSelected = { navController.navigate("now_playing") },
-                            onAlbumSelected = { albumName -> navController.navigate("album/$albumName") },
-                            onArtistSelected = { artistName -> navController.navigate("artist/$artistName") },
-                            contentPadding = innerPadding
-                        )
-                    } else {
-                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                    LaunchedEffect(Unit) {
+                        navController.navigate("main") {
+                            popUpTo("search") { inclusive = true }
+                        }
+                        pagerState.scrollToPage(2)
                     }
                 }
                 
-                // Artists Tab - Full List View
+                // Artists Tab - Redirecting to main pager
                 composable("artists") {
-                    // Use shared LibraryViewModel
-                    
-                    if (libraryViewModel != null) {
-                        ArtistsListScreen(
-                            viewModel = libraryViewModel,
-                            onBackClick = { navController.popBackStack() },
-                            onArtistClick = { artistName -> navController.navigate("artist/$artistName") },
-                            onPlayArtist = { artistName -> 
-                                libraryViewModel.playArtist(artistName)
-                                navController.navigate("now_playing")
-                            },
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    } else {
-                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                    LaunchedEffect(Unit) {
+                        navController.navigate("main") {
+                            popUpTo("artists") { inclusive = true }
+                        }
+                        pagerState.scrollToPage(3)
                     }
                 }
                 
@@ -417,6 +399,7 @@ fun AppNavHost(
                         AlbumDetailScreen(
                             albumName = albumName,
                             viewModel = libraryViewModel,
+                            navController = navController,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { navController.navigate("now_playing") },
                             contentPadding = innerPadding
@@ -435,6 +418,7 @@ fun AppNavHost(
                         ArtistDetailScreen(
                             artistName = artistName,
                             viewModel = libraryViewModel,
+                            navController = navController,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { navController.navigate("now_playing") },
                             contentPadding = innerPadding
@@ -444,11 +428,12 @@ fun AppNavHost(
                 // (Discovery, library, albums, search, artists, detail screens are above)
                 
                 composable("settings") {
-                    SettingsScreen(
-                        connectionViewModel = connectionViewModel,
-                        favoritesManager = favoritesManager,
-                        contentPadding = innerPadding
-                    )
+                    LaunchedEffect(Unit) {
+                        navController.navigate("main") {
+                            popUpTo("settings") { inclusive = true }
+                        }
+                        pagerState.scrollToPage(4)
+                    }
                 }
             }
         }
