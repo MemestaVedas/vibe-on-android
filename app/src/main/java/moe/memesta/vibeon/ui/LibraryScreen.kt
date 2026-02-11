@@ -48,13 +48,6 @@ fun LibraryScreen(
     
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
     
-    // Fling Awareness
-    val isFlinging by remember {
-        derivedStateOf { 
-            listState.isScrollInProgress && !isDragged
-        }
-    }
-    
     // Derived Data
     val displayedTracks = remember(tracks, searchQuery) {
         if (searchQuery.isNotEmpty()) {
@@ -136,8 +129,7 @@ fun LibraryScreen(
                             }
                             TrackListItem(
                                 track = track,
-                                onTrackClick = onTrackClick,
-                                allowImageLoad = !isFlinging
+                                onTrackClick = onTrackClick
                             )
                         }
                     }

@@ -11,6 +11,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.ui.text.font.FontWeight
@@ -61,35 +62,52 @@ fun QueueItemRow(item: QueueItem, isCurrent: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .bouncyClickable(onClick = {}, enabled = false) // Add bounce for consistency even if not clickable yet
+            .bouncyClickable(onClick = {}, enabled = false)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-         if (isCurrent) {
-             androidx.compose.material3.Icon(
-                 androidx.compose.material.icons.Icons.Rounded.GraphicEq, // Active indicator
-                 contentDescription = "Playing",
-                 tint = MaterialTheme.colorScheme.primary,
-                 modifier = Modifier.size(20.dp).padding(end = 8.dp)
-             )
-         } else {
-             Spacer(modifier = Modifier.width(28.dp)) // Indent non-active tracks to align titles
-         }
-         
-         Column(modifier = Modifier.weight(1f)) {
-             Text(
-                 text = item.title,
-                 color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                 style = MaterialTheme.typography.bodyLarge,
-                 maxLines = 1
-             )
-             Text(
-                 text = item.artist,
-                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                 style = MaterialTheme.typography.bodyMedium,
-                 maxLines = 1
-             )
-         }
+        if (isCurrent) {
+            androidx.compose.material3.Icon(
+                androidx.compose.material.icons.Icons.Rounded.GraphicEq,
+                contentDescription = "Playing",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(20.dp)
+                    .padding(end = 8.dp)
+            )
+        } else {
+            Spacer(modifier = Modifier.width(28.dp))
+        }
+
+        // Track Cover
+        coil.compose.AsyncImage(
+            model = item.coverUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Text(
+                text = item.artist,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        }
     }
 }

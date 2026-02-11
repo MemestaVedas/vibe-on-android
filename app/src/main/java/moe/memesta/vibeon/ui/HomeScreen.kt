@@ -56,15 +56,8 @@ fun HomeScreen(
     
     val listState = rememberLazyListState()
     
+    // listState tracking
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
-    
-    // Fling Awareness: Detect if scrolling is fast
-    val isFlinging by remember {
-        derivedStateOf { 
-            // Simple heuristic: if scroll is in progress and not dragged, it's a flung scroll
-            listState.isScrollInProgress && !isDragged
-        }
-    }
     
     // Pre-calculate chunks
     val recentChunks = remember(tracks) { 
@@ -105,24 +98,26 @@ fun HomeScreen(
                         )
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.StandardCardWidth - 140.dp + 16.dp) // Adjusted spacing for columns
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(items = recentChunks, key = { it.firstOrNull()?.path ?: "chunk_${it.hashCode()}" }) { columnTracks ->
+                            items(
+                                items = recentChunks, 
+                                key = { chunk -> 
+                                    // Combine paths of all tracks in chunk for a truly unique key
+                                    chunk.joinToString("-") { it.path }
+                                }
+                            ) { columnTracks ->
                                 Column(
-                                    modifier = Modifier.width(300.dp), // Fixed width for columns
+                                    modifier = Modifier.width(280.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     columnTracks.forEach { track ->
-                                        val onTrackClick = remember(track) {
-                                            {
+                                        GridTrackCard(
+                                            track = track,
+                                            onClick = {
                                                 viewModel.playTrack(track)
                                                 onTrackSelected(track)
                                             }
-                                        }
-                                        GridTrackCard(
-                                            track = track,
-                                            onClick = onTrackClick,
-                                            allowImageLoad = !isFlinging
                                         )
                                     }
                                 }
@@ -166,8 +161,7 @@ fun HomeScreen(
                                 AlbumCard(
                                     albumName = album.name,
                                     coverUrl = album.coverUrl,
-                                    onClick = onAlbumClick,
-                                    allowImageLoad = !isFlinging
+                                    onClick = onAlbumClick
                                 )
                             }
                         }
@@ -208,8 +202,7 @@ fun HomeScreen(
                                 ArtistPill(
                                     artistName = artist.name,
                                     photoUrl = artist.photoUrl,
-                                    onClick = onArtistClick,
-                                    allowImageLoad = !isFlinging
+                                    onClick = onArtistClick
                                 )
                             }
                         }
@@ -267,11 +260,13 @@ fun HeroHeader(
             while(true) {
                 delay(7000)
                 try {
-                    val nextPage = (pagerState.currentPage + 1) % albums.size
-                    pagerState.animateScrollToPage(
-                        nextPage, 
-                        animationSpec = tween(durationMillis = VibeAnimations.HeroDuration, easing = FastOutSlowInEasing)
-                    )
+                    if (albums.isNotEmpty()) {
+                        val nextPage = (pagerState.currentPage + 1) % albums.size
+                        pagerState.animateScrollToPage(
+                            nextPage, 
+                            animationSpec = tween(durationMillis = VibeAnimations.HeroDuration, easing = FastOutSlowInEasing)
+                        )
+                    }
                 } catch (e: Exception) {
                     // Handle potential cancellation or index issues safely
                 }

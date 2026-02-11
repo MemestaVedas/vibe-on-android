@@ -21,7 +21,8 @@ data class QueueItem(
     val title: String,
     val artist: String,
     val album: String,
-    val duration: Double
+    val duration: Double,
+    val coverUrl: String? = null
 )
 
 data class LyricsData(
@@ -349,13 +350,19 @@ class WebSocketClient {
                         for (i in 0 until queueArray.length()) {
                             val item = queueArray.getJSONObject(i)
                              
+                            var itemCoverUrl = item.optString("cover_url", null) ?: item.optString("coverUrl", null)
+                            if (itemCoverUrl != null && !itemCoverUrl.startsWith("http")) {
+                                itemCoverUrl = "${client.baseUrl}$itemCoverUrl"
+                            }
+
                             queueItems.add(
                                 QueueItem(
                                     path = item.getString("path"),
                                     title = item.getString("title"),
                                     artist = item.getString("artist"),
                                     album = item.getString("album"),
-                                    duration = item.getDouble("durationSecs")
+                                    duration = item.getDouble("durationSecs"),
+                                    coverUrl = itemCoverUrl
                                 )
                             )
                         }

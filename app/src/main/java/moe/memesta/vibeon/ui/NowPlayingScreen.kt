@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -211,9 +212,9 @@ fun NowPlayingView(
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(radius = 80.dp)
-                    .scale(1.2f)
-                    .alpha(0.5f), // Reduced alpha for better text contrast
+                    .blur(radius = 100.dp)
+                    .scale(1.5f)
+                    .alpha(0.6f),
                 contentScale = ContentScale.Crop
             )
             // Gradient overlay
@@ -223,10 +224,37 @@ fun NowPlayingView(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.4f),
-                                bgGradientStart,
+                                Color.Black.copy(alpha = 0.5f),
+                                bgGradientStart.copy(alpha = 0.6f),
                                 VibeBackground
                             )
+                        )
+                    )
+            )
+            
+            // Dynamic Glow Blobs (Simulated)
+            val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
+            val glowOffset by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                    animation = androidx.compose.animation.core.tween(20000, easing = androidx.compose.animation.core.LinearEasing),
+                    repeatMode = androidx.compose.animation.core.RepeatMode.Restart
+                )
+            )
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { 
+                        translationX = 100f * kotlin.math.cos(Math.toRadians(glowOffset.toDouble())).toFloat()
+                        translationY = 100f * kotlin.math.sin(Math.toRadians(glowOffset.toDouble())).toFloat()
+                    }
+                    .blur(120.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(vibrantColor.copy(alpha = 0.15f), Color.Transparent),
+                            radius = 2000f
                         )
                     )
             )
@@ -502,10 +530,11 @@ fun NowPlayingView(
             ) {
                  Row(
                    modifier = Modifier
-                       .clip(RoundedCornerShape(16.dp))
-                       .background(Color.White.copy(alpha = 0.1f))
+                       .clip(RoundedCornerShape(20.dp))
+                       .background(Color.White.copy(alpha = 0.05f))
+                       .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
                        .bouncyClickable(onClick = onTogglePlaybackLocation)
-                       .padding(horizontal = 16.dp, vertical = 12.dp),
+                       .padding(horizontal = 20.dp, vertical = 14.dp),
                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -517,18 +546,19 @@ fun NowPlayingView(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isMobilePlayback) "Mobile" else "PC",
-                        color = vibrantColor,
-                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 
                 Row(
                    modifier = Modifier
-                       .clip(RoundedCornerShape(16.dp))
-                       .background(Color.White.copy(alpha = 0.1f))
+                       .clip(RoundedCornerShape(20.dp))
+                       .background(Color.White.copy(alpha = 0.05f))
+                       .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
                        .bouncyClickable(onClick = onQueueClick)
-                       .padding(horizontal = 16.dp, vertical = 12.dp),
+                       .padding(horizontal = 20.dp, vertical = 14.dp),
                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -540,8 +570,8 @@ fun NowPlayingView(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Queue",
-                        color = vibrantColor,
-                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
