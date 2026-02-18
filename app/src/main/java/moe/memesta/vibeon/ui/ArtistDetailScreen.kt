@@ -45,6 +45,10 @@ import moe.memesta.vibeon.ui.utils.ThemeColors
 import androidx.navigation.NavController
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -56,6 +60,7 @@ fun ArtistDetailScreen(
     onTrackSelected: (TrackInfo) -> Unit,
     contentPadding: PaddingValues
 ) {
+    val displayLanguage = LocalDisplayLanguage.current
     val tracks by viewModel.tracks.collectAsState()
     val homeArtists by viewModel.homeArtists.collectAsState()
     
@@ -77,12 +82,14 @@ fun ArtistDetailScreen(
         homeArtists.find { it.name == decodedArtistName }
     }
     val photoUrl = artistInfo?.photoUrl ?: artistTracks.firstOrNull()?.coverUrl
+    val displayArtistName = artistTracks.firstOrNull()?.getDisplayArtist(displayLanguage) ?: decodedArtistName
     
     // Derived Albums
-    val artistAlbums = remember(artistTracks) {
+    val artistAlbums = remember(artistTracks, displayLanguage) {
         artistTracks.groupBy { it.album }
             .map { (albumName, tracks) ->
-                Pair(albumName, tracks.firstOrNull()?.coverUrl)
+                val first = tracks.firstOrNull()
+                Triple(albumName, first?.coverUrl, first?.getDisplayAlbum(displayLanguage) ?: albumName)
             }
             .distinctBy { it.first }
     }
@@ -204,7 +211,7 @@ fun ArtistDetailScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                     
                     Text(
-                        text = decodedArtistName,
+                        text = displayArtistName,
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onBackground,
@@ -370,12 +377,12 @@ fun ArtistDetailScreen(
                                  modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                                  horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                              ) {
-                                 rowAlbums.forEach { (albumName, cover) ->
+                                 rowAlbums.forEach { (albumId, cover, displayTitle) ->
                                      AlbumCard(
-                                         albumName = albumName,
+                                         albumName = displayTitle,
                                          coverUrl = cover,
                                          onClick = { 
-                                             navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
+                                             navController.navigate("album/${java.net.URLEncoder.encode(albumId, "UTF-8")}")
                                          },
                                          modifier = Modifier.weight(1f)
                                      )
@@ -425,7 +432,7 @@ fun ArtistDetailScreen(
                         exit = fadeOut()
                     ) {
                         Text(
-                            decodedArtistName, 
+                            displayArtistName, 
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1, 

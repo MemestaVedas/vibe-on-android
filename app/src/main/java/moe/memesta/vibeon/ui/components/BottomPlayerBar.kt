@@ -53,6 +53,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import kotlin.math.abs
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -74,11 +77,15 @@ fun BottomPlayerBar(
     val playbackState by playbackViewModel.playbackState.collectAsState()
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val isPlaying by connectionViewModel.isPlaying.collectAsState()
+    val displayLanguage = LocalDisplayLanguage.current
+    val title = currentTrack.getDisplayName(displayLanguage)
+    val artist = currentTrack.getDisplayArtist(displayLanguage)
     
     val progress = playbackState.progress
 
-    // Stitch Colors (Approximate from screenshot)
-    val accentColor = Color(0xFFE57373) // Salmon/Red
+    val accentColor = MaterialTheme.colorScheme.primary
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val bgColor = MaterialTheme.colorScheme.background
 
     Box(
         modifier = modifier
@@ -87,7 +94,7 @@ fun BottomPlayerBar(
             .clip(RoundedCornerShape(28.dp))
             .background(
                 androidx.compose.ui.graphics.Brush.verticalGradient(
-                    colors = listOf(Color(0xFF2E2E2E), Color(0xFF222222))
+                    colors = listOf(surfaceColor, bgColor)
                 )
             )
             .fillMaxWidth()
@@ -156,7 +163,7 @@ fun BottomPlayerBar(
                             
                             Column {
                                 Text(
-                                    text = currentTrack.title,
+                                    text = title,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
@@ -164,9 +171,9 @@ fun BottomPlayerBar(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = currentTrack.artist,
+                                    text = artist,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFFE57373),
+                                    color = accentColor,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -228,7 +235,7 @@ fun BottomPlayerBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(72.dp)
-                    .background(Color(0xFF1A1A1A)),
+                    .background(bgColor),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -277,7 +284,7 @@ fun BottomPlayerBar(
                                 .height(32.dp)
                                 .width(if (isSelected) 50.dp else 32.dp)
                                 .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
-                                .background(if (isSelected) Color(0xFF3E2C2C) else Color.Transparent)
+                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent)
                         ) {
                             Icon(
                                 imageVector = item.icon,

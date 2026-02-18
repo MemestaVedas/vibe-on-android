@@ -15,6 +15,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var connectionViewModel: ConnectionViewModel
     private lateinit var playbackViewModel: PlaybackViewModel
     private lateinit var favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager
+    private lateinit var playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
     private var streamRepository: StreamRepository? = null
@@ -50,6 +52,7 @@ class MainActivity : ComponentActivity() {
         
         discoveryRepository = DiscoveryRepository(this)
         favoritesManager = moe.memesta.vibeon.data.local.FavoritesManager(this)
+        playerSettingsRepository = moe.memesta.vibeon.data.local.PlayerSettingsRepository(this)
         connectionViewModel = ConnectionViewModel(discoveryRepository)
         // Initialize playbackViewModel immediately so it's ready for UI
         playbackViewModel = PlaybackViewModel(
@@ -76,9 +79,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Observe current track cover for dynamic theming
             val currentTrack by connectionViewModel.currentTrack.collectAsState()
+            val displayLanguage by playerSettingsRepository.displayLanguage.collectAsState()
             val coverBitmap = moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl(currentTrack.coverUrl)
             
-            moe.memesta.vibeon.ui.theme.DynamicTheme(seedBitmap = coverBitmap) {
+            CompositionLocalProvider(
+                moe.memesta.vibeon.ui.utils.LocalDisplayLanguage provides displayLanguage
+            ) {
+                moe.memesta.vibeon.ui.theme.DynamicTheme(seedBitmap = coverBitmap) {
                 // Initialize ViewModels or generic state if needed for global context
                 // But for now, AppNavHost handles navigation
                 
@@ -89,13 +96,18 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavHost(connectionViewModel, playbackViewModel, favoritesManager, trackDao)
+                    AppNavHost(
+                        connectionViewModel, 
+                        playbackViewModel, 
+                        favoritesManager, 
+                        playerSettingsRepository,
+                        trackDao
+                    )
                 }
-
             }
         }
     }
-
+}
     override fun onStart() {
         super.onStart()
         val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))

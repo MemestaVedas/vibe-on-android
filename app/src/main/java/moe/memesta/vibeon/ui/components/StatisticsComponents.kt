@@ -56,13 +56,13 @@ fun StatisticsSection(
                 StatisticsBadge(
                     label = "Total Songs",
                     value = stats.totalSongs.toString(),
-                    color = Color(0xFFE85D75), // Pink/Rose
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
                 StatisticsBadge(
                     label = "Times Played",
                     value = "—", // Placeholder
-                    color = Color(0xFF9B8B9E), // Mauve/Purple
+                    color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -73,13 +73,13 @@ fun StatisticsSection(
                 StatisticsBadge(
                     label = "Total Time",
                     value = "${stats.totalDurationHours.toInt()}h",
-                    color = Color(0xFFB8955C), // Gold
+                    color = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.weight(1f)
                 )
                 StatisticsBadge(
                     label = "Artists",
                     value = stats.totalArtists.toString(),
-                    color = Color(0xFFE8936B), // Coral/Salmon
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.weight(1f)
                 )
             }

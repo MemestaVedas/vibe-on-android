@@ -14,27 +14,26 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Box
+import androidx.navigation.compose.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.pager.rememberPagerState
-import moe.memesta.vibeon.ui.navigation.MainContentPager
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.currentBackStackEntryAsState
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.VibeAnimations
+import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.pairing.PairingScreen
-import moe.memesta.vibeon.ui.theme.VibeAnimations
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -42,6 +41,7 @@ fun AppNavHost(
     connectionViewModel: ConnectionViewModel,
     playbackViewModel: PlaybackViewModel,
     favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
+    playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     trackDao: moe.memesta.vibeon.data.local.TrackDao
 ) {
     val navController = rememberNavController()
@@ -121,7 +121,10 @@ fun AppNavHost(
             },
             containerColor = Color.Transparent
         ) { innerPadding ->
-            NavHost(
+            val syncStatus by libraryViewModel?.syncStatus?.collectAsState() ?: remember { mutableStateOf(SyncStatus()) }
+            
+            Box(modifier = Modifier.fillMaxSize()) {
+                NavHost(
                 navController = navController, 
                 startDestination = startDestination,
                 modifier = Modifier.fillMaxSize(),
@@ -321,6 +324,7 @@ fun AppNavHost(
                             libraryViewModel = libraryViewModel,
                             connectionViewModel = connectionViewModel,
                             favoritesManager = favoritesManager,
+                            playerSettingsRepository = playerSettingsRepository,
                             navController = navController,
                             contentPadding = innerPadding
                         )
@@ -435,6 +439,50 @@ fun AppNavHost(
                         pagerState.scrollToPage(4)
                     }
                 }
+            }
+            
+            // Global Sync Banner
+            AnimatedVisibility(
+                visible = syncStatus.isSyncing,
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(Dimens.ScreenPadding)
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
+                        .clickable {
+                            navController.navigate("settings")
+                        },
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 8.dp,
+                    shadowElevation = 4.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Syncing library: ${(syncStatus.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
             }
         }
     }

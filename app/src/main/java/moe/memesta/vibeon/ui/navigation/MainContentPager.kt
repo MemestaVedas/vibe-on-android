@@ -15,6 +15,7 @@ fun MainContentPager(
     libraryViewModel: LibraryViewModel,
     connectionViewModel: ConnectionViewModel,
     favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
+    playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     navController: NavController,
     contentPadding: PaddingValues
 ) {
@@ -63,7 +64,9 @@ fun MainContentPager(
             )
             4 -> SettingsScreen(
                 connectionViewModel = connectionViewModel,
+                libraryViewModel = libraryViewModel,
                 favoritesManager = favoritesManager,
+                playerSettingsRepository = playerSettingsRepository,
                 contentPadding = contentPadding
             )
         }

@@ -16,9 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import moe.memesta.vibeon.data.QueueItem
-import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
 
 @Composable
 fun QueueScreen(
@@ -58,7 +60,11 @@ fun QueueScreen(
 }
 
 @Composable
-fun QueueItemRow(item: QueueItem, isCurrent: Boolean) {
+fun QueueItemRow(item: moe.memesta.vibeon.data.QueueItem, isCurrent: Boolean) {
+    val displayLanguage = LocalDisplayLanguage.current
+    val title = item.getDisplayName(displayLanguage)
+    val artist = item.getDisplayArtist(displayLanguage)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -94,7 +100,7 @@ fun QueueItemRow(item: QueueItem, isCurrent: Boolean) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.title,
+                text = title,
                 color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                 style = MaterialTheme.typography.bodyLarge,
@@ -102,7 +108,7 @@ fun QueueItemRow(item: QueueItem, isCurrent: Boolean) {
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
             Text(
-                text = item.artist,
+                text = artist,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,

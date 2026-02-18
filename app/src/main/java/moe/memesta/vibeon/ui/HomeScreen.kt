@@ -31,6 +31,9 @@ import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.*
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -51,6 +54,7 @@ fun HomeScreen(
     val featuredAlbums by viewModel.featuredAlbums.collectAsState()
     val connectionState by connectionViewModel.connectionState.collectAsState()
     val stats by viewModel.stats.collectAsState()
+    val displayLanguage = LocalDisplayLanguage.current
     
     val isLoading = tracks.isEmpty() && connectionState == ConnectionState.CONNECTED
     
@@ -81,7 +85,8 @@ fun HomeScreen(
                          // Play first track of album (logic handled in VM usually, for now opening album)
                          onAlbumSelected(album.name)
                     },
-                    scrollState = listState
+                    scrollState = listState,
+                    displayLanguage = displayLanguage
                 )
             }
 
@@ -159,7 +164,7 @@ fun HomeScreen(
                                     { onAlbumSelected(album.name) }
                                 }
                                 AlbumCard(
-                                    albumName = album.name,
+                                    albumName = album.getDisplayName(displayLanguage),
                                     coverUrl = album.coverUrl,
                                     onClick = onAlbumClick
                                 )
@@ -200,7 +205,7 @@ fun HomeScreen(
                                     { onArtistSelected(artist.name) }
                                 }
                                 ArtistPill(
-                                    artistName = artist.name,
+                                    artistName = artist.getDisplayName(displayLanguage),
                                     photoUrl = artist.photoUrl,
                                     onClick = onArtistClick
                                 )
@@ -247,7 +252,8 @@ fun HomeScreen(
 fun HeroHeader(
     albums: List<AlbumInfo>,
     onPlayClick: (AlbumInfo) -> Unit,
-    scrollState: androidx.compose.foundation.lazy.LazyListState
+    scrollState: androidx.compose.foundation.lazy.LazyListState,
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage = moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL
 ) {
     if (albums.isEmpty()) return
 
@@ -340,14 +346,14 @@ fun HeroHeader(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = album.name,
+                        text = album.getDisplayName(displayLanguage),
                         style = MaterialTheme.typography.displayLarge.copy(fontSize = 40.sp), // Override for hero
                         maxLines = 2,
                         lineHeight = 48.sp,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = album.artist,
+                        text = album.getDisplayArtist(displayLanguage),
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

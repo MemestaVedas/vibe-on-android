@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,6 +22,8 @@ class LibraryViewModel(
     
     // Expose baseUrl for cover art loading
     val baseUrl: String = repository.baseUrl
+    
+    val syncStatus = repository.syncStatus
     
     private val _tracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     val tracks: StateFlow<List<TrackInfo>> = _tracks
@@ -94,7 +97,7 @@ class LibraryViewModel(
             wsClient.library.collect { tracks ->
                 if (tracks.isNotEmpty()) {
                     Log.i("LibraryViewModel", "📡 Received ${tracks.size} tracks from WebSocket -> Saving to DB")
-                    repository.saveTracks(tracks)
+                    repository.saveTracksToDb(tracks)
                 }
             }
         }
@@ -125,7 +128,11 @@ class LibraryViewModel(
                     AlbumInfo(
                         name = album,
                         artist = albumTracks.firstOrNull()?.artist ?: "",
-                        coverUrl = albumTracks.firstOrNull()?.coverUrl
+                        coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                        nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
+                        nameEn = albumTracks.firstOrNull()?.albumEn,
+                        artistRomaji = albumTracks.firstOrNull()?.artistRomaji,
+                        artistEn = albumTracks.firstOrNull()?.artistEn
                     )
                 }
                 .sortedBy { it.name }
@@ -135,7 +142,9 @@ class LibraryViewModel(
                     ArtistItemData(
                         name = artist,
                         followerCount = "${artistTracks.size} Tracks",
-                        photoUrl = artistTracks.firstOrNull()?.coverUrl
+                        photoUrl = artistTracks.firstOrNull()?.coverUrl,
+                        nameRomaji = artistTracks.firstOrNull()?.artistRomaji,
+                        nameEn = artistTracks.firstOrNull()?.artistEn
                     )
                 }
                 .sortedBy { it.name }
@@ -183,12 +192,26 @@ class LibraryViewModel(
              
              withContext(Dispatchers.Main) {
                  _songResults.value = filtered
-                 _albumResults.value = filtered.map { 
-                     AlbumInfo(it.album, it.artist, it.coverUrl) 
-                 }.distinctBy { it.name }
-                 _artistResults.value = filtered.map { 
-                     ArtistItemData(it.artist, "${filtered.count { t -> t.artist == it.artist }} Tracks", it.coverUrl) 
-                 }.distinctBy { it.name }
+                  _albumResults.value = filtered.map { 
+                      AlbumInfo(
+                          name = it.album, 
+                          artist = it.artist, 
+                          coverUrl = it.coverUrl,
+                          nameRomaji = it.albumRomaji,
+                          nameEn = it.albumEn,
+                          artistRomaji = it.artistRomaji,
+                          artistEn = it.artistEn
+                      ) 
+                  }.distinctBy { it.name }
+                  _artistResults.value = filtered.map { 
+                      ArtistItemData(
+                          name = it.artist, 
+                          followerCount = "${filtered.count { t -> t.artist == it.artist }} Tracks", 
+                          photoUrl = it.coverUrl,
+                          nameRomaji = it.artistRomaji,
+                          nameEn = it.artistEn
+                      ) 
+                  }.distinctBy { it.name }
              }
         }
     }
@@ -265,7 +288,11 @@ class LibraryViewModel(
                     AlbumInfo(
                         name = album,
                         artist = albumTracks.firstOrNull()?.artist ?: "",
-                        coverUrl = albumTracks.firstOrNull()?.coverUrl
+                        coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                        nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
+                        nameEn = albumTracks.firstOrNull()?.albumEn,
+                        artistRomaji = albumTracks.firstOrNull()?.artistRomaji,
+                        artistEn = albumTracks.firstOrNull()?.artistEn
                     )
                 }
                 .sortedBy { it.name }

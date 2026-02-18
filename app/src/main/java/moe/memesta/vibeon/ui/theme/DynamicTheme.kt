@@ -6,23 +6,22 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.palette.graphics.Palette
-import com.google.android.material.color.DynamicColors
-import com.google.android.material.color.DynamicColorsOptions
+import com.google.android.material.color.utilities.Hct
+import com.google.android.material.color.utilities.QuantizerCelebi
+import com.google.android.material.color.utilities.Score
+import com.google.android.material.color.utilities.SchemeTonalSpot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Dynamic theme with dual-source color generation:
- * 1. Primary: Album art colors (when seedBitmap is provided)
- * 2. Fallback: System wallpaper colors (Material You)
- * 
- * @param seedBitmap Album art bitmap for color extraction
- * @param darkTheme Force dark theme (defaults to system setting)
- * @param content Composable content
+ * Dynamic theme using Material Color Utilities (MCU) SchemeTonalSpot —
+ * the exact same algorithm as the PC app's useImageColors.ts.
+ *
+ * Both platforms:
+ *   1. Extract source color from album art (dominant hue via QuantizerCelebi + Score)
+ *   2. Build SchemeTonalSpot(hct, isDark=true, contrastLevel=0.0)
+ *   3. Map tones to ColorScheme roles using identical tone values
  */
 @Composable
 fun DynamicTheme(
@@ -31,33 +30,22 @@ fun DynamicTheme(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    
-    // State for color scheme
     var colorScheme by remember { mutableStateOf<ColorScheme?>(null) }
-    
-    // Generate color scheme from album art or wallpaper
+
     LaunchedEffect(seedBitmap, darkTheme) {
         colorScheme = if (seedBitmap != null) {
-            // Primary source: Album art colors
             withContext(Dispatchers.Default) {
-                generateColorSchemeFromBitmap(seedBitmap, darkTheme)
+                generateSchemeFromBitmap(seedBitmap, darkTheme)
             }
         } else {
-            // Fallback: System wallpaper colors (Material You)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (darkTheme) {
-                    dynamicDarkColorScheme(context)
-                } else {
-                    dynamicLightColorScheme(context)
-                }
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             } else {
-                // Pre-Android 12: Use static dark scheme
                 defaultDarkColorScheme()
             }
         }
     }
-    
-    // Show content when color scheme is ready
+
     colorScheme?.let { scheme ->
         MaterialTheme(
             colorScheme = scheme,
@@ -69,91 +57,106 @@ fun DynamicTheme(
 }
 
 /**
- * Generate ColorScheme from album art bitmap using Palette API
+ * Generates a ColorScheme from a bitmap using MCU SchemeTonalSpot.
+ * Tone values are identical to the PC app's useImageColors.ts:
+ *   primary = primaryPalette.tone(80), surface = neutralPalette.tone(6), etc.
  */
-private suspend fun generateColorSchemeFromBitmap(
-    bitmap: Bitmap,
-    darkTheme: Boolean
-): ColorScheme {
-    val palette = Palette.from(bitmap).generate()
-    
-    // Extract vibrant colors for primary, secondary, tertiary
-    val vibrant = palette.vibrantSwatch?.rgb ?: 0xFF6750A4.toInt()
-    val darkVibrant = palette.darkVibrantSwatch?.rgb ?: 0xFF381E72.toInt()
-    val lightVibrant = palette.lightVibrantSwatch?.rgb ?: 0xFFD0BCFF.toInt()
-    val muted = palette.mutedSwatch?.rgb ?: 0xFF625B71.toInt()
-    
-    val primaryColor = Color(vibrant)
-    val secondaryColor = Color(lightVibrant)
-    val tertiaryColor = Color(muted)
-    
+private fun generateSchemeFromBitmap(bitmap: Bitmap, darkTheme: Boolean): ColorScheme {
+    // Scale down for fast quantization (same as PC's sourceColorFromImage)
+    val scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, false)
+    val pixels = IntArray(scaled.width * scaled.height)
+    scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
+    if (scaled != bitmap) scaled.recycle()
+
+    // Quantize → score → pick dominant source color
+    val quantized = QuantizerCelebi.quantize(pixels, 128)
+    val scored = Score.score(quantized)
+    val sourceColor = if (scored.isNotEmpty()) scored[0] else FALLBACK_SEED
+
+    return buildScheme(sourceColor, darkTheme)
+}
+
+private fun buildScheme(sourceColor: Int, darkTheme: Boolean): ColorScheme {
+    val hct = Hct.fromInt(sourceColor)
+    val scheme = SchemeTonalSpot(hct, darkTheme, 0.0)
+
+    // Mirror PC tone values exactly
     return if (darkTheme) {
         darkColorScheme(
-            primary = primaryColor,
-            onPrimary = if (primaryColor.luminance() > 0.5f) Color.Black else Color.White,
-            primaryContainer = Color(darkVibrant),
-            onPrimaryContainer = primaryColor.ensureLuminance(0.8f),
-            
-            secondary = secondaryColor,
-            onSecondary = if (secondaryColor.luminance() > 0.5f) Color.Black else Color.White,
-            secondaryContainer = secondaryColor.copy(alpha = 0.3f).compositeOver(VibeBackground),
-            onSecondaryContainer = secondaryColor.ensureLuminance(0.7f),
-            
-            tertiary = tertiaryColor,
-            onTertiary = if (tertiaryColor.luminance() > 0.5f) Color.Black else Color.White,
-            tertiaryContainer = tertiaryColor.copy(alpha = 0.3f).compositeOver(VibeBackground),
-            onTertiaryContainer = tertiaryColor.ensureLuminance(0.7f),
-            
-            background = VibeBackground,
-            onBackground = Color(0xFFE6E1E5),
-            surface = VibeSurface,
-            onSurface = Color(0xFFE6E1E5),
-            surfaceVariant = VibeSurfaceContainer,
-            onSurfaceVariant = Color(0xFFCAC4D0),
-            
-            error = ErrorColor,
-            onError = OnErrorColor,
+            primary                = Color(scheme.primaryPalette.tone(80)),
+            onPrimary              = Color(scheme.primaryPalette.tone(20)),
+            primaryContainer       = Color(scheme.primaryPalette.tone(30)),
+            onPrimaryContainer     = Color(scheme.primaryPalette.tone(90)),
+
+            secondary              = Color(scheme.secondaryPalette.tone(80)),
+            onSecondary            = Color(scheme.secondaryPalette.tone(20)),
+            secondaryContainer     = Color(scheme.secondaryPalette.tone(30)),
+            onSecondaryContainer   = Color(scheme.secondaryPalette.tone(90)),
+
+            tertiary               = Color(scheme.tertiaryPalette.tone(80)),
+            onTertiary             = Color(scheme.tertiaryPalette.tone(20)),
+            tertiaryContainer      = Color(scheme.tertiaryPalette.tone(30)),
+            onTertiaryContainer    = Color(scheme.tertiaryPalette.tone(90)),
+
+            background             = Color(scheme.neutralPalette.tone(6)),
+            onBackground           = Color(scheme.neutralPalette.tone(90)),
+            surface                = Color(scheme.neutralPalette.tone(6)),
+            onSurface              = Color(scheme.neutralPalette.tone(90)),
+
+            surfaceVariant         = Color(scheme.neutralVariantPalette.tone(30)),
+            onSurfaceVariant       = Color(scheme.neutralVariantPalette.tone(80)),
+
+            surfaceContainerLowest = Color(scheme.neutralPalette.tone(4)),
+            surfaceContainerLow    = Color(scheme.neutralPalette.tone(10)),
+            surfaceContainer       = Color(scheme.neutralPalette.tone(12)),
+            surfaceContainerHigh   = Color(scheme.neutralPalette.tone(17)),
+            surfaceContainerHighest= Color(scheme.neutralPalette.tone(22)),
+
+            outline                = Color(scheme.neutralVariantPalette.tone(60)),
+            outlineVariant         = Color(scheme.neutralVariantPalette.tone(30)),
+
+            error                  = ErrorColor,
+            onError                = OnErrorColor,
         )
     } else {
         lightColorScheme(
-            primary = primaryColor,
-            onPrimary = if (primaryColor.luminance() > 0.5f) Color.Black else Color.White,
-            // Add light theme colors if needed
+            primary                = Color(scheme.primaryPalette.tone(40)),
+            onPrimary              = Color(scheme.primaryPalette.tone(100)),
+            primaryContainer       = Color(scheme.primaryPalette.tone(90)),
+            onPrimaryContainer     = Color(scheme.primaryPalette.tone(10)),
+
+            secondary              = Color(scheme.secondaryPalette.tone(40)),
+            onSecondary            = Color(scheme.secondaryPalette.tone(100)),
+            secondaryContainer     = Color(scheme.secondaryPalette.tone(90)),
+            onSecondaryContainer   = Color(scheme.secondaryPalette.tone(10)),
+
+            tertiary               = Color(scheme.tertiaryPalette.tone(40)),
+            onTertiary             = Color(scheme.tertiaryPalette.tone(100)),
+            tertiaryContainer      = Color(scheme.tertiaryPalette.tone(90)),
+            onTertiaryContainer    = Color(scheme.tertiaryPalette.tone(10)),
+
+            background             = Color(scheme.neutralPalette.tone(99)),
+            onBackground           = Color(scheme.neutralPalette.tone(10)),
+            surface                = Color(scheme.neutralPalette.tone(99)),
+            onSurface              = Color(scheme.neutralPalette.tone(10)),
+
+            surfaceVariant         = Color(scheme.neutralVariantPalette.tone(90)),
+            onSurfaceVariant       = Color(scheme.neutralVariantPalette.tone(30)),
+
+            outline                = Color(scheme.neutralVariantPalette.tone(50)),
+            outlineVariant         = Color(scheme.neutralVariantPalette.tone(80)),
+
+            error                  = ErrorColor,
+            onError                = OnErrorColor,
         )
     }
 }
 
-/**
- * Default dark color scheme (fallback for pre-Android 12)
- */
 private fun defaultDarkColorScheme(): ColorScheme {
-    return darkColorScheme(
-        primary = Color(0xFFD0BCFF),
-        onPrimary = Color(0xFF381E72),
-        primaryContainer = Color(0xFF4F378B),
-        onPrimaryContainer = Color(0xFFEADDFF),
-        
-        background = VibeBackground,
-        onBackground = Color(0xFFE6E1E5),
-        surface = VibeSurface,
-        onSurface = Color(0xFFE6E1E5),
-        surfaceVariant = VibeSurfaceContainer,
-        onSurfaceVariant = Color(0xFFCAC4D0),
-        
-        error = ErrorColor,
-        onError = OnErrorColor,
-    )
+    return buildScheme(FALLBACK_SEED, darkTheme = true)
 }
 
-// Helper extension for Color compositing
-private fun Color.compositeOver(background: Color): Color {
-    return Color(
-        red = red * alpha + background.red * (1 - alpha),
-        green = green * alpha + background.green * (1 - alpha),
-        blue = blue * alpha + background.blue * (1 - alpha),
-        alpha = 1f
-    )
-}
+private const val FALLBACK_SEED = 0xFF6366F1.toInt() // Same fallback as PC
 
 @Composable
 fun rememberBitmapFromUrl(url: String?): Bitmap? {
@@ -164,11 +167,11 @@ fun rememberBitmapFromUrl(url: String?): Bitmap? {
         val loader = coil.ImageLoader(context)
         val request = coil.request.ImageRequest.Builder(context)
             .data(url)
-            .allowHardware(false) // Palette needs software bitmap
+            .allowHardware(false) // Palette/MCU needs software bitmap
             .build()
         val result = loader.execute(request)
         if (result is coil.request.SuccessResult) {
-             bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+            bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
         }
     }
     return bitmap

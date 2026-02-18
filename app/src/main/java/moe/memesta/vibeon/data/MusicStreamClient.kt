@@ -22,7 +22,13 @@ data class TrackInfo(
     val artist: String,
     val album: String,
     val duration: Double,
-    val coverUrl: String? = null
+    val coverUrl: String? = null,
+    val titleRomaji: String? = null,
+    val titleEn: String? = null,
+    val artistRomaji: String? = null,
+    val artistEn: String? = null,
+    val albumRomaji: String? = null,
+    val albumEn: String? = null
 )
 
 @Immutable
@@ -131,9 +137,15 @@ class MusicStreamClient(
             
             for (i in 0 until tracksArray.length()) {
                 val track = tracksArray.getJSONObject(i)
-                var coverUrl = track.optString("coverUrl", null)
+                var coverUrl = track.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                    ?: track.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                
                 if (coverUrl != null && !coverUrl.startsWith("http")) {
-                    coverUrl = "$baseUrl$coverUrl"
+                    coverUrl = if (coverUrl.startsWith("/")) {
+                        "$baseUrl$coverUrl"
+                    } else {
+                        "$baseUrl/$coverUrl"
+                    }
                 }
                 tracks.add(
                     TrackInfo(
@@ -141,8 +153,14 @@ class MusicStreamClient(
                         title = track.getString("title"),
                         artist = track.getString("artist"),
                         album = track.getString("album"),
-                        duration = track.getDouble("durationSecs"),
-                        coverUrl = coverUrl
+                        duration = track.optDouble("durationSecs", 0.0),
+                        coverUrl = coverUrl,
+                        titleRomaji = track.optString("titleRomaji", null).takeIf { it != "null" },
+                        titleEn = track.optString("titleEn", null).takeIf { it != "null" },
+                        artistRomaji = track.optString("artistRomaji", null).takeIf { it != "null" },
+                        artistEn = track.optString("artistEn", null).takeIf { it != "null" },
+                        albumRomaji = track.optString("albumRomaji", null).takeIf { it != "null" },
+                        albumEn = track.optString("albumEn", null).takeIf { it != "null" }
                     )
                 )
             }
@@ -205,18 +223,21 @@ class MusicStreamClient(
             
             for (i in 0 until tracksArray.length()) {
                 val track = tracksArray.getJSONObject(i)
-                var coverUrl = track.optString("coverUrl", null)
-                if (coverUrl != null && !coverUrl.startsWith("http")) {
-                    coverUrl = "$baseUrl$coverUrl"
-                }
+                val coverUrl = track.optString("coverUrl", null)
                 tracks.add(
                     TrackInfo(
                         path = track.getString("path"),
                         title = track.getString("title"),
                         artist = track.getString("artist"),
                         album = track.getString("album"),
-                        duration = track.getDouble("durationSecs"),
-                        coverUrl = coverUrl
+                        duration = track.optDouble("durationSecs", 0.0),
+                        coverUrl = coverUrl,
+                        titleRomaji = track.optString("titleRomaji", null).takeIf { it != "null" },
+                        titleEn = track.optString("titleEn", null).takeIf { it != "null" },
+                        artistRomaji = track.optString("artistRomaji", null).takeIf { it != "null" },
+                        artistEn = track.optString("artistEn", null).takeIf { it != "null" },
+                        albumRomaji = track.optString("albumRomaji", null).takeIf { it != "null" },
+                        albumEn = track.optString("albumEn", null).takeIf { it != "null" }
                     )
                 )
             }
@@ -305,8 +326,14 @@ class MusicStreamClient(
                             title = track.getString("title"),
                             artist = track.getString("artist"),
                             album = track.getString("album"),
-                            duration = track.getDouble("durationSecs"),
-                            coverUrl = track.optString("coverUrl", null)
+                            duration = track.optDouble("durationSecs", 0.0),
+                            coverUrl = track.optString("coverUrl", null),
+                            titleRomaji = track.optString("titleRomaji", null).takeIf { it != "null" },
+                            titleEn = track.optString("titleEn", null).takeIf { it != "null" },
+                            artistRomaji = track.optString("artistRomaji", null).takeIf { it != "null" },
+                            artistEn = track.optString("artistEn", null).takeIf { it != "null" },
+                            albumRomaji = track.optString("albumRomaji", null).takeIf { it != "null" },
+                            albumEn = track.optString("albumEn", null).takeIf { it != "null" }
                         )
                         break
                     }

@@ -18,6 +18,12 @@ data class TrackEntity(
     val year: Int?,
     val genre: String?,
     val trackNumber: Int?,
+    val titleRomaji: String? = null,
+    val titleEn: String? = null,
+    val artistRomaji: String? = null,
+    val artistEn: String? = null,
+    val albumRomaji: String? = null,
+    val albumEn: String? = null,
     val lastUpdated: Long = System.currentTimeMillis()
 )
 

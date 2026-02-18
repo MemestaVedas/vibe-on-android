@@ -53,7 +53,6 @@ fun LyricsScreen(
     playbackViewModel: PlaybackViewModel,
     onBack: () -> Unit
 ) {
-    val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val playbackState by playbackViewModel.playbackState.collectAsState()
     val lyricsData by connectionViewModel.lyrics.collectAsState()
     
@@ -75,7 +74,7 @@ fun LyricsScreen(
     val isEmpty = lyrics.isEmpty()
     val isInstrumental = lyricsData?.instrumental == true
     
-    val currentTimeMs = (playbackState.progress * playbackState.duration).toLong()
+    val currentTimeMs = (playbackState.progress * playbackState.duration * 1000).toLong()
     val currentLineIndex = remember(currentTimeMs, lyrics) {
         if (isEmpty) -1 else lyrics.indexOfLast { it.timestamp <= currentTimeMs }.coerceAtLeast(0)
     }

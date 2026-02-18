@@ -13,7 +13,13 @@ data class MediaSessionData(
     val album: String = "",
     val duration: Double = 0.0,
     val coverUrl: String? = null,
-    val lyrics: String = ""
+    val lyrics: String = "",
+    val titleRomaji: String? = null,
+    val titleEn: String? = null,
+    val artistRomaji: String? = null,
+    val artistEn: String? = null,
+    val albumRomaji: String? = null,
+    val albumEn: String? = null
 )
 
 data class QueueItem(
@@ -22,7 +28,13 @@ data class QueueItem(
     val artist: String,
     val album: String,
     val duration: Double,
-    val coverUrl: String? = null
+    val coverUrl: String? = null,
+    val titleRomaji: String? = null,
+    val titleEn: String? = null,
+    val artistRomaji: String? = null,
+    val artistEn: String? = null,
+    val albumRomaji: String? = null,
+    val albumEn: String? = null
 )
 
 data class LyricsData(
@@ -292,11 +304,18 @@ class WebSocketClient {
                             client._lyrics.value = null
                             client.getLyrics()
                         }
-                        var coverUrl = json.optString("cover_url", null) ?: json.optString("coverUrl", null)
+                        var coverUrl = json.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                            ?: json.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
 
                         if (coverUrl != null && !coverUrl.startsWith("http")) {
-                            coverUrl = "${client.baseUrl}$coverUrl"
+                            coverUrl = if (coverUrl.startsWith("/")) {
+                                "${client.baseUrl}$coverUrl"
+                            } else {
+                                "${client.baseUrl}/$coverUrl"
+                            }
                         }
+                        
+                        Log.i("WebSocket", "🖼️ Resolved Cover URL: $coverUrl (Base: ${client.baseUrl}, Original: ${json.optString("cover_url") ?: json.optString("coverUrl")})")
                         
                         val hasLyrics = json.has("lyrics")
                         val lyricsLen = json.optString("lyrics", "").length
@@ -315,7 +334,13 @@ class WebSocketClient {
                             album = album,
                             duration = duration,
                             coverUrl = coverUrl,
-                            lyrics = newLyrics
+                            lyrics = newLyrics,
+                            titleRomaji = json.optString("titleRomaji", null).takeIf { it != "null" },
+                            titleEn = json.optString("titleEn", null).takeIf { it != "null" },
+                            artistRomaji = json.optString("artistRomaji", null).takeIf { it != "null" },
+                            artistEn = json.optString("artistEn", null).takeIf { it != "null" },
+                            albumRomaji = json.optString("albumRomaji", null).takeIf { it != "null" },
+                            albumEn = json.optString("albumEn", null).takeIf { it != "null" }
                         )
                         client._isPlaying.value = isPlaying
                         client._duration.value = duration
@@ -348,21 +373,31 @@ class WebSocketClient {
                         val queueItems = mutableListOf<QueueItem>()
 
                         for (i in 0 until queueArray.length()) {
-                            val item = queueArray.getJSONObject(i)
-                             
-                            var itemCoverUrl = item.optString("cover_url", null) ?: item.optString("coverUrl", null)
-                            if (itemCoverUrl != null && !itemCoverUrl.startsWith("http")) {
-                                itemCoverUrl = "${client.baseUrl}$itemCoverUrl"
+                            val trackObj = queueArray.getJSONObject(i)
+                            var qCoverUrl = trackObj.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                                ?: trackObj.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                            
+                            if (qCoverUrl != null && !qCoverUrl.startsWith("http")) {
+                                qCoverUrl = if (qCoverUrl.startsWith("/")) {
+                                    "${client.baseUrl}$qCoverUrl"
+                                } else {
+                                    "${client.baseUrl}/$qCoverUrl"
+                                }
                             }
-
                             queueItems.add(
                                 QueueItem(
-                                    path = item.getString("path"),
-                                    title = item.getString("title"),
-                                    artist = item.getString("artist"),
-                                    album = item.getString("album"),
-                                    duration = item.getDouble("durationSecs"),
-                                    coverUrl = itemCoverUrl
+                                    path = trackObj.getString("path"),
+                                    title = trackObj.getString("title"),
+                                    artist = trackObj.getString("artist"),
+                                    album = trackObj.getString("album"),
+                                    duration = trackObj.optDouble("durationSecs", 0.0),
+                                    coverUrl = qCoverUrl,
+                                    titleRomaji = trackObj.optString("titleRomaji", null).takeIf { it != "null" },
+                                    titleEn = trackObj.optString("titleEn", null).takeIf { it != "null" },
+                                    artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
+                                    artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
+                                    albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
+                                    albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" }
                                 )
                             )
                         }
@@ -425,6 +460,39 @@ class WebSocketClient {
                     "streamStopped" -> {
                         client._isMobilePlayback.value = false
                         client._streamUrl.value = null
+                    }
+                    "library" -> {
+                        // Handle library response from getLibrary request
+                        val tracksArray = json.optJSONArray("tracks") ?: return
+                        val tracks = mutableListOf<TrackInfo>()
+                        for (i in 0 until tracksArray.length()) {
+                            val t = tracksArray.getJSONObject(i)
+                            var coverUrl = t.optString("coverUrl", null)
+                                ?: t.optString("cover_url", null)
+                            
+                            if (coverUrl != null && !coverUrl.startsWith("http")) {
+                                coverUrl = "${client.baseUrl}$coverUrl"
+                            }
+
+                            tracks.add(
+                                TrackInfo(
+                                    path = t.optString("path", ""),
+                                    title = t.optString("title", "Unknown"),
+                                    artist = t.optString("artist", "Unknown Artist"),
+                                    album = t.optString("album", ""),
+                                    duration = t.optDouble("durationSecs", 0.0),
+                                    coverUrl = coverUrl,
+                                    titleRomaji = t.optString("titleRomaji", null).takeIf { it != "null" },
+                                    titleEn = t.optString("titleEn", null).takeIf { it != "null" },
+                                    artistRomaji = t.optString("artistRomaji", null).takeIf { it != "null" },
+                                    artistEn = t.optString("artistEn", null).takeIf { it != "null" },
+                                    albumRomaji = t.optString("albumRomaji", null).takeIf { it != "null" },
+                                    albumEn = t.optString("albumEn", null).takeIf { it != "null" }
+                                )
+                            )
+                        }
+                        client._library.value = tracks
+                        Log.i("WebSocket", "📚 Library received: ${tracks.size} tracks via WebSocket")
                     }
                 }
             } catch (e: Exception) {

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,9 +14,14 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.DiscoveredDevice
+import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.local.FavoriteDevice
 import moe.memesta.vibeon.data.local.FavoritesManager
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -24,7 +30,9 @@ import moe.memesta.vibeon.ui.theme.bouncyClickable
 @Composable
 fun SettingsScreen(
     connectionViewModel: ConnectionViewModel,
+    libraryViewModel: LibraryViewModel?,
     favoritesManager: FavoritesManager,
+    playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val discoveredDevices by connectionViewModel.discoveredDevices.collectAsState()
@@ -34,6 +42,9 @@ fun SettingsScreen(
     
     val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
     val isConnected by connectionViewModel.wsIsConnected.collectAsState()
+    val syncStatusState = libraryViewModel?.syncStatus?.collectAsState(initial = SyncStatus())
+    val syncStatus = syncStatusState?.value ?: SyncStatus()
+    val displayLanguage by playerSettingsRepository.displayLanguage.collectAsState()
     
     LazyColumn(
         modifier = Modifier
@@ -174,6 +185,84 @@ fun SettingsScreen(
         
         // Spacer
         item { Spacer(modifier = Modifier.height(16.dp)) }
+
+        // Section: Player Settings
+        item {
+            Text(
+                text = "Player Settings",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Display Language",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Choose which metadata to show (Original, Romaji, English)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    // Language Selection Pills
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        moe.memesta.vibeon.data.local.DisplayLanguage.entries.forEach { language ->
+                            val isSelected = displayLanguage == language
+                            val title = language.name.lowercase().replaceFirstChar { it.uppercase() }
+                            
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { playerSettingsRepository.setDisplayLanguage(language) },
+                                label = { Text(title) },
+                                leadingIcon = if (isSelected) {
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                } else null,
+                                modifier = Modifier.weight(1f),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Spacer
+        item { Spacer(modifier = Modifier.height(16.dp)) }
         
         // Section: Quick Actions
         item {
@@ -190,35 +279,55 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .bouncyClickable {
+                    .bouncyClickable(enabled = !syncStatus.isSyncing) {
                         // Trigger manual library refresh
-                        // TODO: Call library refresh function
+                        libraryViewModel?.viewModelScope?.launch {
+                            libraryViewModel.fetchStats() // refresh stats too
+                        }
                     },
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = if (syncStatus.isSyncing) 
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    else 
+                        MaterialTheme.colorScheme.primaryContainer
                 )
             ) {
-                Row(
-                    modifier = Modifier.padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh Library",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = "Refresh Library",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (syncStatus.isSyncing) Icons.Default.Sync else Icons.Default.Refresh,
+                            contentDescription = "Refresh Library",
+                            tint = if (syncStatus.isSyncing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        Text(
-                            text = "Sync tracks from server",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (syncStatus.isSyncing) "Syncing Library..." else "Refresh Library",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (syncStatus.isSyncing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = if (syncStatus.isSyncing) syncStatus.statusText else "Sync tracks from server",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = (if (syncStatus.isSyncing) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer).copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    
+                    if (syncStatus.isSyncing) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        LinearProgressIndicator(
+                            progress = { syncStatus.progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(50)),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                         )
                     }
                 }

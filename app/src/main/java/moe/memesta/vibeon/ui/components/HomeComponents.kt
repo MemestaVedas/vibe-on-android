@@ -22,6 +22,9 @@ import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.theme.shimmerEffect
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
 
 @Composable
 fun SquareTrackCard(
@@ -30,6 +33,9 @@ fun SquareTrackCard(
     modifier: Modifier = Modifier,
     allowImageLoad: Boolean = true
 ) {
+    val displayLanguage = LocalDisplayLanguage.current
+    val title = track.getDisplayName(displayLanguage)
+    val artist = track.getDisplayArtist(displayLanguage)
     Column(
         modifier = modifier
             .width(Dimens.StandardCardWidth) // 160.dp
@@ -60,13 +66,13 @@ fun SquareTrackCard(
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = track.title,
+            text = title,
             style = MaterialTheme.typography.bodyMedium, // 15sp Medium
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = track.artist,
+            text = artist,
             style = MaterialTheme.typography.bodySmall, // 13sp Normal
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -82,6 +88,10 @@ fun GridTrackCard(
     modifier: Modifier = Modifier,
     allowImageLoad: Boolean = true
 ) {
+    val displayLanguage = LocalDisplayLanguage.current
+    val title = track.getDisplayName(displayLanguage)
+    val artist = track.getDisplayArtist(displayLanguage)
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -120,7 +130,7 @@ fun GridTrackCard(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = track.title,
+                text = title,
                 style = MaterialTheme.typography.bodyMedium, // 15sp Medium
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -128,7 +138,7 @@ fun GridTrackCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = track.artist,
+                text = artist,
                 style = MaterialTheme.typography.bodySmall, // 13sp
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

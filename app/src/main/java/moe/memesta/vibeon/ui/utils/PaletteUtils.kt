@@ -4,7 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.ui.graphics.Color
-import androidx.palette.graphics.Palette
+import com.google.android.material.color.utilities.*
 
 /**
  * Data class to hold extracted theme colors.
@@ -19,7 +19,7 @@ data class ThemeColors(
 object PaletteUtils {
     
     /**
-     * Extracts vibrant and muted colors from a Coil Drawable.
+     * Extracts vibrant and muted colors using MCU from a Coil Drawable.
      */
     fun extractColors(drawable: Drawable?): ThemeColors {
         if (drawable == null || drawable !is BitmapDrawable) {
@@ -29,19 +29,29 @@ object PaletteUtils {
         var bitmap = drawable.bitmap
         
         // Handle Hardware Bitmaps (Android 8+)
-        // Palette cannot access pixels of hardware bitmaps directly
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
             bitmap.config == Bitmap.Config.HARDWARE) {
             bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
         }
         
-        val palette = Palette.from(bitmap).generate()
+        // Match logic in DynamicTheme.kt
+        val scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, false)
+        val pixels = IntArray(scaled.width * scaled.height)
+        scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
+        if (scaled != bitmap) scaled.recycle()
+
+        val quantized = QuantizerCelebi.quantize(pixels, 128)
+        val scored = Score.score(quantized)
+        val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF121113.toInt()
+
+        val hct = Hct.fromInt(sourceColor)
+        val scheme = SchemeTonalSpot(hct, true, 0.0)
         
-        val vibrant = palette.vibrantSwatch?.let { Color(it.rgb) } ?: palette.darkVibrantSwatch?.let { Color(it.rgb) } ?: Color.Transparent
-        val muted = palette.mutedSwatch?.let { Color(it.rgb) } ?: palette.darkMutedSwatch?.let { Color(it.rgb) } ?: Color.Transparent
+        val vibrant = Color(scheme.primaryPalette.tone(80))
+        val muted = Color(scheme.secondaryPalette.tone(80))
         
-        val onVibrant = palette.vibrantSwatch?.let { Color(it.titleTextColor) } ?: Color.White
-        val onMuted = palette.mutedSwatch?.let { Color(it.titleTextColor) } ?: Color.White
+        val onVibrant = Color(scheme.primaryPalette.tone(20))
+        val onMuted = Color(scheme.secondaryPalette.tone(20))
         
         return ThemeColors(
             vibrant = vibrant,

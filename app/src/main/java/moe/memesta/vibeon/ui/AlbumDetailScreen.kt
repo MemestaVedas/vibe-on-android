@@ -45,6 +45,10 @@ import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +60,7 @@ fun AlbumDetailScreen(
     onTrackSelected: (TrackInfo) -> Unit,
     contentPadding: PaddingValues
 ) {
+    val displayLanguage = LocalDisplayLanguage.current
     val tracks by viewModel.tracks.collectAsState()
     
     // Decode URL-encoded album name
@@ -73,8 +78,10 @@ fun AlbumDetailScreen(
     
     val scrollState = rememberLazyListState()
     val firstTrack = albumTracks.firstOrNull()
+    val displayAlbumName = firstTrack?.getDisplayAlbum(displayLanguage) ?: decodedAlbumName
     val coverUrl = firstTrack?.coverUrl
     val artistName = firstTrack?.artist ?: "Unknown Artist"
+    val displayArtistName = firstTrack?.getDisplayArtist(displayLanguage) ?: artistName
     
     // Dynamic Theming
     var themeColors by remember { mutableStateOf(ThemeColors()) }
@@ -188,7 +195,7 @@ fun AlbumDetailScreen(
                     
                     // Text Info
                     Text(
-                        text = decodedAlbumName,
+                        text = displayAlbumName,
                         style = MaterialTheme.typography.displayMedium,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onBackground,
@@ -202,7 +209,7 @@ fun AlbumDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     Text(
-                        text = artistName,
+                        text = displayArtistName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = animatedVibrant,
@@ -335,7 +342,7 @@ fun AlbumDetailScreen(
                         exit = fadeOut()
                     ) {
                         Text(
-                            decodedAlbumName, 
+                            displayAlbumName, 
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1, 
@@ -354,6 +361,10 @@ fun AlbumTrackRow(
     track: TrackInfo,
     onClick: () -> Unit
 ) {
+    val displayLanguage = LocalDisplayLanguage.current
+    val title = track.getDisplayName(displayLanguage)
+    val artist = track.getDisplayArtist(displayLanguage)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -372,7 +383,7 @@ fun AlbumTrackRow(
         // Title & Artist
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = track.title,
+                text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -381,7 +392,7 @@ fun AlbumTrackRow(
             // Artist name is redundant if it's the same as album artist, but sometimes it differs (compilations)
             // Keeping it subtle
             Text(
-                text = track.artist,
+                text = artist,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

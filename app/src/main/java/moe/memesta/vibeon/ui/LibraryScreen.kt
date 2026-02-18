@@ -29,6 +29,9 @@ import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 
 @Composable
 fun LibraryScreen(
@@ -179,6 +182,11 @@ fun TrackListItem(
     onTrackClick: () -> Unit,
     allowImageLoad: Boolean = true
 ) {
+    val displayLanguage = moe.memesta.vibeon.ui.utils.LocalDisplayLanguage.current
+    val title = track.getDisplayName(displayLanguage)
+    val artist = track.getDisplayArtist(displayLanguage)
+    val album = track.getDisplayAlbum(displayLanguage)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -207,7 +215,7 @@ fun TrackListItem(
                 }
                 AsyncImage(
                     model = request,
-                    contentDescription = track.title,
+                    contentDescription = title,
                     modifier = Modifier
                         .size(56.dp)
                         .clip(RoundedCornerShape(Dimens.CornerRadiusSmall)),
@@ -244,14 +252,14 @@ fun TrackListItem(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = track.title,
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    text = "${track.artist} • ${track.album}",
+                    text = "$artist • $album",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

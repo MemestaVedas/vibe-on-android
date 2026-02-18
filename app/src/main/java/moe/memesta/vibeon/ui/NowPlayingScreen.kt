@@ -46,14 +46,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.palette.graphics.Palette
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.launch
+import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.*
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlin.math.abs
@@ -68,6 +73,7 @@ fun NowPlayingScreen(
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val playbackState by playbackViewModel.playbackState.collectAsState()
+    val displayLanguage = LocalDisplayLanguage.current
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val isPlaying by connectionViewModel.isPlaying.collectAsState()
     val isMobilePlayback by playbackViewModel.isMobilePlayback.collectAsState()
@@ -94,9 +100,9 @@ fun NowPlayingScreen(
                 0 -> QueueScreen(connectionViewModel)
                 1 -> {
                     // Main Player - No gesture wrapper that would block buttons
-                    NowPlayingView(
-                        title = currentTrack.title,
-                        artist = currentTrack.artist,
+                    NowPlayingContent(
+                        title = currentTrack.getDisplayName(displayLanguage),
+                        artist = currentTrack.getDisplayArtist(displayLanguage),
                         isPlaying = isPlaying,
                         progress = playbackState.progress,
                         duration = playbackState.duration,
@@ -114,9 +120,9 @@ fun NowPlayingScreen(
                             connectionViewModel.previous() 
                         },
                         onSeek = { progress -> 
-                            // Duration is in MS, seek expects S
-                            val positionSecs = (progress * playbackState.duration) / 1000.0
-                            connectionViewModel.seek(positionSecs)
+                            // Duration is in SECONDS, seek expects progress 0f-1f
+                            val positionSecs = (progress * playbackState.duration)
+                            connectionViewModel.seek(positionSecs.toDouble())
                         },
                         onBackToLibrary = onBackPressed,
                         onTogglePlaybackLocation = {
@@ -166,7 +172,7 @@ fun NowPlayingScreen(
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun NowPlayingView(
+fun NowPlayingContent(
     title: String,
     artist: String,
     isPlaying: Boolean,
@@ -386,14 +392,6 @@ fun NowPlayingView(
                 
                 // Badges
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // FLAC Badge should use prominent color but ensure it's visible
-                    Badge(text = "FLAC", color = vibrantColor)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "44.1 kHz • 16 bit",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.6f)
-                    )
                     Spacer(modifier = Modifier.weight(1f))
                     // Lyrics Button
                     Box(
@@ -443,7 +441,7 @@ fun NowPlayingView(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = formatTime((progress * duration).toLong()),
+                        text = formatTime(progress.toLong()),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.5f)
                     )
@@ -733,9 +731,9 @@ fun Color.lighter(factor: Float = 1.1f): Color {
     return Color(red = r, green = g, blue = b, alpha = this.alpha)
 }
 
-// Helper to format time
-private fun formatTime(milliseconds: Long): String {
-    val totalSeconds = milliseconds / 1000
+// Helper to format time (Input is SECONDS)
+private fun formatTime(seconds: Long): String {
+    val totalSeconds = seconds
     val minutes = totalSeconds / 60
     val secs = totalSeconds % 60
     return String.format("%d:%02d", minutes, secs)

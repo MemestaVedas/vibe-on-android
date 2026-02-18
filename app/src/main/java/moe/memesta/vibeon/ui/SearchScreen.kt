@@ -42,6 +42,8 @@ import moe.memesta.vibeon.ui.components.SkeletonAlbumCard
 import moe.memesta.vibeon.ui.components.SkeletonArtistPill
 import moe.memesta.vibeon.ui.components.SkeletonSquareCard
 import moe.memesta.vibeon.ui.components.SquareTrackCard
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
 
 @Composable
 fun SearchScreen(
@@ -63,12 +65,12 @@ fun SearchScreen(
     val artistResults by viewModel.artistResults.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val displayLanguage = LocalDisplayLanguage.current
     
     val hasResults = songResults.isNotEmpty() || albumResults.isNotEmpty() || artistResults.isNotEmpty()
     val hasSearched = searchQuery.isNotBlank()
 
-    // Accent color matching the app theme
-    val accentColor = Color(0xFFE57373) // Salmon/Red
+    val accentColor = MaterialTheme.colorScheme.primary
 
     // Edge-to-edge layout: No statusBarsPadding on outer Column
     Column(
@@ -271,7 +273,7 @@ fun SearchScreen(
                                         ) {
                                             items(albumResults) { album ->
                                                 AlbumCard(
-                                                    albumName = album.name,
+                                                    albumName = album.getDisplayName(displayLanguage),
                                                     coverUrl = album.coverUrl,
                                                     onClick = { onAlbumSelected(album.name) }
                                                 )
@@ -294,7 +296,7 @@ fun SearchScreen(
                                         ) {
                                             items(artistResults) { artist ->
                                                 ArtistPill(
-                                                    artistName = artist.name,
+                                                    artistName = artist.getDisplayName(displayLanguage),
                                                     photoUrl = artist.photoUrl,
                                                     onClick = { onArtistSelected(artist.name) }
                                                 )
@@ -308,11 +310,11 @@ fun SearchScreen(
                 }
                 
                 "empty" -> {
-                    EmptySearchState(query = searchQuery, accentColor = accentColor)
+                    EmptySearchState(query = searchQuery)
                 }
                 
                 "error" -> {
-                    ErrorSearchState(error = error ?: "Something went wrong", accentColor = accentColor)
+                    ErrorSearchState(error = error ?: "Something went wrong")
                 }
                 
                 else -> {
@@ -376,7 +378,7 @@ private fun InitialSearchState(accentColor: Color) {
 }
 
 @Composable
-private fun EmptySearchState(query: String, accentColor: Color) {
+private fun EmptySearchState(query: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -413,7 +415,7 @@ private fun EmptySearchState(query: String, accentColor: Color) {
 }
 
 @Composable
-private fun ErrorSearchState(error: String, accentColor: Color) {
+private fun ErrorSearchState(error: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
