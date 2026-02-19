@@ -3,11 +3,14 @@ package moe.memesta.vibeon.ui
 
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -39,12 +43,14 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -103,6 +109,10 @@ fun NowPlayingScreen(
                     NowPlayingContent(
                         title = currentTrack.getDisplayName(displayLanguage),
                         artist = currentTrack.getDisplayArtist(displayLanguage),
+                        titleRomaji = currentTrack.titleRomaji,
+                        artistRomaji = currentTrack.artistRomaji,
+                        originalTitle = currentTrack.title,
+                        originalArtist = currentTrack.artist,
                         isPlaying = isPlaying,
                         progress = playbackState.progress,
                         duration = playbackState.duration,
@@ -119,10 +129,10 @@ fun NowPlayingScreen(
                             android.util.Log.i("NowPlayingScreen", "⏮️ Skip Previous button pressed")
                             connectionViewModel.previous() 
                         },
-                        onSeek = { progress -> 
-                            // Duration is in SECONDS, seek expects progress 0f-1f
-                            val positionSecs = (progress * playbackState.duration)
-                            connectionViewModel.seek(positionSecs.toDouble())
+                        onSeek = { progress ->
+                            // Duration is in milliseconds, convert to seconds for seek
+                            val positionSecs = (progress * playbackState.duration / 1000.0)
+                            connectionViewModel.seek(positionSecs)
                         },
                         onBackToLibrary = onBackPressed,
                         onTogglePlaybackLocation = {
@@ -175,6 +185,10 @@ fun NowPlayingScreen(
 fun NowPlayingContent(
     title: String,
     artist: String,
+    titleRomaji: String? = null,
+    artistRomaji: String? = null,
+    originalTitle: String = "",
+    originalArtist: String = "",
     isPlaying: Boolean,
     progress: Float,
     duration: Long = 0,
@@ -196,74 +210,83 @@ fun NowPlayingContent(
     
     // Derived Colors from MaterialTheme (set by DynamicTheme in MainActivity)
     val vibrantColor = MaterialTheme.colorScheme.primary
-    val bgGradientStart = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
     val primaryControlColor = vibrantColor
     val onPrimaryControlColor = MaterialTheme.colorScheme.onPrimary
+    val hapticFeedback = LocalHapticFeedback.current
     
-    // Main Container with Background
+    // Heart/Like state
+    var isLiked by remember { mutableStateOf(false) }
+    
+    // Shuffle/Repeat state
+    var isShuffleActive by remember { mutableStateOf(false) }
+    var isRepeatActive by remember { mutableStateOf(false) }
+    
+    // Breathing animation for album art — pauses when not playing
+    val breathingTransition = rememberInfiniteTransition(label = "breathing")
+    val breathingScale by breathingTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.02f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathScale"
+    )
+    val albumScale = if (isPlaying) breathingScale else 1f
+
+    // Pulse halo visualizer around album art
+    val haloTransition = rememberInfiniteTransition(label = "halo")
+    val haloScaleOuter by haloTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.14f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "haloScaleOuter"
+    )
+    val haloScaleInner by haloTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+            initialStartOffset = StartOffset(1100)
+        ),
+        label = "haloScaleInner"
+    )
+    val haloAlphaOuter by haloTransition.animateFloat(
+        initialValue = 0.28f,
+        targetValue = 0.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "haloAlphaOuter"
+    )
+    val haloAlphaInner by haloTransition.animateFloat(
+        initialValue = 0.22f,
+        targetValue = 0.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+            initialStartOffset = StartOffset(1100)
+        ),
+        label = "haloAlphaInner"
+    )
+    
+    // Japanese dual-text: show romaji subtitle if the display title differs from original
+    val showRomajiSubtitle = titleRomaji != null && titleRomaji != originalTitle && title != originalTitle
+    val romajiSubtitle = if (showRomajiSubtitle) titleRomaji else null
+    val showArtistRomajiSubtitle = artistRomaji != null && artistRomaji != originalArtist && artist != originalArtist
+    val artistRomajiSubtitle = if (showArtistRomajiSubtitle) artistRomaji else null
+    
+    // Main Container with standard app background
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(VibeBackground)
     ) {
-        // blurred background
-        if (!coverUrl.isNullOrEmpty()) {
-             val context = LocalContext.current
-             val request = remember(coverUrl) {
-                 ImageRequest.Builder(context)
-                     .data(coverUrl)
-                     .crossfade(true)
-                     .build()
-             }
-             AsyncImage(
-                model = request,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(radius = 100.dp)
-                    .scale(1.5f)
-                    .alpha(0.6f),
-                contentScale = ContentScale.Crop
-            )
-            // Background overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                bgGradientStart.copy(alpha = 0.8f),
-                                VibeBackground
-                            )
-                        )
-                    )
-            )
-            
-            // Dynamic Glow Blobs (Simulated)
-            val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
-            val glowOffset by infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                    animation = androidx.compose.animation.core.tween(20000, easing = androidx.compose.animation.core.LinearEasing),
-                    repeatMode = androidx.compose.animation.core.RepeatMode.Restart
-                )
-            )
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { 
-                        translationX = 100f * kotlin.math.cos(Math.toRadians(glowOffset.toDouble())).toFloat()
-                        translationY = 100f * kotlin.math.sin(Math.toRadians(glowOffset.toDouble())).toFloat()
-                    }
-                    .blur(120.dp)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(vibrantColor.copy(alpha = 0.15f), Color.Transparent),
-                            radius = 2000f
-                        )
-                    )
-            )
-        }
 
         // Content
         Column(
@@ -311,21 +334,47 @@ fun NowPlayingContent(
                             }
                         )
                         .graphicsLayer {
+                            scaleX = albumScale
+                            scaleY = albumScale
                             shadowElevation = 24.dp.toPx()
-                            shape = RoundedCornerShape(32.dp) // Hero radius
-                            clip = true
+                            clip = false
                         }
                         .background(Color.Transparent),
                     contentAlignment = Alignment.Center
                 ) {
-                     // Glow effect behind
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .offset(y = 12.dp)
-                            .blur(32.dp)
-                            .background(vibrantColor.copy(alpha = 0.3f))
-                    )
+                    // Pulse halo visualizer around album art
+                    if (isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .scale(haloScaleOuter)
+                                .border(
+                                    width = 2.dp,
+                                    color = vibrantColor.copy(alpha = haloAlphaOuter),
+                                    shape = RoundedCornerShape(36.dp)
+                                )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .scale(haloScaleInner)
+                                .border(
+                                    width = 1.5.dp,
+                                    color = vibrantColor.copy(alpha = haloAlphaInner),
+                                    shape = RoundedCornerShape(36.dp)
+                                )
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .border(
+                                    width = 1.dp,
+                                    color = vibrantColor.copy(alpha = 0.14f),
+                                    shape = RoundedCornerShape(34.dp)
+                                )
+                        )
+                    }
                     
                     if (!coverUrl.isNullOrEmpty()) {
                         val context = LocalContext.current
@@ -370,22 +419,82 @@ fun NowPlayingContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start
             ) {
-                Text(
-                    text = title.ifEmpty { "No Track" },
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = title.ifEmpty { "No Track" },
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    animationMode = MarqueeAnimationMode.Immediately,
+                                    velocity = 30.dp
+                                )
+                        )
+                        // Romaji subtitle for Japanese titles
+                        if (romajiSubtitle != null) {
+                            Text(
+                                text = romajiSubtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.45f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    // Heart/Like Button
+                    IconButton(
+                        onClick = {
+                            isLiked = !isLiked
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            if (isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = "Like",
+                            tint = if (isLiked) vibrantColor else Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                
                 Spacer(modifier = Modifier.height(4.dp))
+                
                 Text(
                     text = artist.ifEmpty { "Unknown Artist" },
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White.copy(alpha = 0.7f),
                     maxLines = 1,
-                    modifier = Modifier.fillMaxWidth()
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            animationMode = MarqueeAnimationMode.Immediately,
+                            velocity = 30.dp
+                        )
                 )
+                // Romaji subtitle for Japanese artist names
+                if (artistRomajiSubtitle != null) {
+                    Text(
+                        text = artistRomajiSubtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.35f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -435,17 +544,22 @@ fun NowPlayingContent(
                 
                 Spacer(modifier = Modifier.height(6.dp))
                 
+                // Duration is in milliseconds — convert to seconds for display
+                val durationSecs = duration / 1000L
+                val elapsedSecs = (progress * durationSecs).toLong().coerceIn(0L, durationSecs.coerceAtLeast(0L))
+                val totalSecs = durationSecs.coerceAtLeast(0L)
+                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = formatTime(progress.toLong()),
+                        text = formatTime(elapsedSecs),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.5f)
                     )
                     Text(
-                        text = formatTime(duration),
+                        text = formatTime(totalSecs),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.5f)
                     )
@@ -460,8 +574,15 @@ fun NowPlayingContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                IconButton(onClick = { /* Shuffle */ }) {
-                    Icon(Icons.Rounded.Shuffle, null, tint = Color.White.copy(alpha = 0.6f))
+                IconButton(onClick = {
+                    isShuffleActive = !isShuffleActive
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }) {
+                    Icon(
+                        Icons.Rounded.Shuffle,
+                        null,
+                        tint = if (isShuffleActive) vibrantColor else Color.White.copy(alpha = 0.6f)
+                    )
                 }
                 
                 // Previous
@@ -512,8 +633,15 @@ fun NowPlayingContent(
                     )
                 }
                 
-                IconButton(onClick = { /* Repeat */ }) {
-                    Icon(Icons.Rounded.Repeat, null, tint = Color.White.copy(alpha = 0.6f))
+                IconButton(onClick = {
+                    isRepeatActive = !isRepeatActive
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }) {
+                    Icon(
+                        if (isRepeatActive) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                        null,
+                        tint = if (isRepeatActive) vibrantColor else Color.White.copy(alpha = 0.6f)
+                    )
                 }
             }
 

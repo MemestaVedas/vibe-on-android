@@ -33,9 +33,9 @@ fun VibeonTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> darkColorScheme(
-            background = VibeBackground,
-            surface = VibeSurface,
-            surfaceVariant = VibeSurfaceContainer,
+            background = VibeBackground,  // #0A0A0C
+            surface = VibeSurface,  // #111116
+            surfaceVariant = VibeSurfaceContainer,  // #1A1A1F
             onSurface = Color(0xFFE6E1E5),
             onSurfaceVariant = Color(0xFFCAC4D0),
             error = ErrorColor,

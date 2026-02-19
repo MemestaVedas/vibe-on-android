@@ -3,40 +3,60 @@ package moe.memesta.vibeon.ui
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import kotlinx.coroutines.delay
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.*
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
-import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import moe.memesta.vibeon.ui.utils.getDisplayName
+
+// Accent color — now uses MaterialTheme.colorScheme.primary for dynamic theming
 
 @Composable
 fun HomeScreen(
@@ -44,6 +64,7 @@ fun HomeScreen(
     onTrackSelected: (TrackInfo) -> Unit,
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
+    onSearchClick: () -> Unit,
     onViewAllSongs: () -> Unit,
     contentPadding: PaddingValues,
     connectionViewModel: ConnectionViewModel
@@ -55,17 +76,22 @@ fun HomeScreen(
     val connectionState by connectionViewModel.connectionState.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val displayLanguage = LocalDisplayLanguage.current
-    
+
     val isLoading = tracks.isEmpty() && connectionState == ConnectionState.CONNECTED
-    
+
     val listState = rememberLazyListState()
-    
-    // listState tracking
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
-    
-    // Pre-calculate chunks
-    val recentChunks = remember(tracks) { 
-        tracks.take(20).chunked(4) 
+
+    // Pre-calculate chunks for Recently Added grid
+    val recentChunks = remember(tracks) {
+        tracks.take(20).chunked(4)
+    }
+
+    // Page-load entrance animation
+    var pageVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(50)
+        pageVisible = true
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -73,44 +99,29 @@ fun HomeScreen(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(
+                top = 72.dp,
                 bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
             ),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // Hero Header
-            item(key = "hero_header") {
-                HeroHeader(
-                    albums = featuredAlbums,
-                    onPlayClick = { album ->
-                         // Play first track of album (logic handled in VM usually, for now opening album)
-                         onAlbumSelected(album.name)
-                    },
-                    scrollState = listState,
-                    displayLanguage = displayLanguage
-                )
-            }
-
             // Section: Recently Added
             item(key = "section_recent") {
                 AnimatedVisibility(
-                    visible = !isLoading,
-                    enter = fadeIn(animationSpec = tween(300))
+                    visible = pageVisible && !isLoading,
+                    enter = fadeIn(tween(300, delayMillis = 80)) + slideInHorizontally(
+                        initialOffsetX = { -80 },
+                        animationSpec = tween(350, delayMillis = 80)
+                    )
                 ) {
-                    Column {
-                        SectionHeader(
-                            title = "Recently Added",
-                            onSeeAllClick = onViewAllSongs
-                        )
-                        LazyRow(
+                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
+                        SectionHeader(title = "Recently Added", onSeeAllClick = onViewAllSongs)
+                        FadeEdgeLazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(
-                                items = recentChunks, 
-                                key = { chunk -> 
-                                    // Combine paths of all tracks in chunk for a truly unique key
-                                    chunk.joinToString("-") { it.path }
-                                }
+                                items = recentChunks,
+                                key = { chunk -> chunk.joinToString("-") { it.path } }
                             ) { columnTracks ->
                                 Column(
                                     modifier = Modifier.width(280.dp),
@@ -130,9 +141,9 @@ fun HomeScreen(
                         }
                     }
                 }
-                
+
                 if (isLoading) {
-                    Column {
+                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
                         SectionHeader("Recently Added")
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
@@ -144,20 +155,34 @@ fun HomeScreen(
                 }
             }
 
-            // Section: Albums
+            // Section: Featured Carousel (16:9 Hero - Unblurred)
+            item(key = "section_featured_carousel") {
+                if (featuredAlbums.isNotEmpty() && !isLoading) {
+                    HeroHeader(
+                        albums = featuredAlbums,
+                        onPlayClick = { album -> onAlbumSelected(album.name) },
+                        displayLanguage = displayLanguage
+                    )
+                }
+            }
+
+            // Section: Albums (5 items + See All)
             item(key = "section_albums") {
                 AnimatedVisibility(
-                    visible = !isLoading,
-                    enter = fadeIn(animationSpec = tween(300, delayMillis = 100))
+                    visible = pageVisible && !isLoading,
+                    enter = fadeIn(tween(300, delayMillis = 160)) + slideInHorizontally(
+                        initialOffsetX = { -80 },
+                        animationSpec = tween(350, delayMillis = 160)
+                    )
                 ) {
-                    Column {
-                        SectionHeader("Albums")
-                        LazyRow(
+                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
+                        SectionHeader("Albums", onSeeAllClick = { /* Navigate to albums page */ })
+                        FadeEdgeLazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
-                                items = albums,
+                                items = albums.take(5),  // Limit to 5 albums
                                 key = { "album_${it.name}" }
                             ) { album ->
                                 val onAlbumClick = remember(album.name) {
@@ -173,7 +198,7 @@ fun HomeScreen(
                     }
                 }
                 if (isLoading) {
-                    Column {
+                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
                         SectionHeader("Albums")
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
@@ -185,20 +210,23 @@ fun HomeScreen(
                 }
             }
 
-            // Section: Artists
+            // Section: Artists (5 items + See All)
             item(key = "section_artists") {
                 AnimatedVisibility(
-                    visible = !isLoading,
-                    enter = fadeIn(animationSpec = tween(300, delayMillis = 200))
+                    visible = pageVisible && !isLoading,
+                    enter = fadeIn(tween(300, delayMillis = 240)) + slideInHorizontally(
+                        initialOffsetX = { -80 },
+                        animationSpec = tween(350, delayMillis = 240)
+                    )
                 ) {
-                    Column {
-                        SectionHeader("Artists")
-                        LazyRow(
+                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
+                        SectionHeader("Artists", onSeeAllClick = { /* Navigate to artists page */ })
+                        FadeEdgeLazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
-                                items = artists,
+                                items = artists.take(5),  // Limit to 5 artists
                                 key = { "artist_${it.name}" }
                             ) { artist ->
                                 val onArtistClick = remember(artist.name) {
@@ -210,11 +238,12 @@ fun HomeScreen(
                                     onClick = onArtistClick
                                 )
                             }
+
                         }
                     }
                 }
                 if (isLoading) {
-                    Column {
+                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
                         SectionHeader("Artists")
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
@@ -225,25 +254,90 @@ fun HomeScreen(
                     }
                 }
             }
-            
+
             // Section: Statistics
             item(key = "section_stats") {
                 AnimatedVisibility(
-                    visible = !isLoading,
-                    enter = fadeIn(animationSpec = tween(300, delayMillis = 300))
+                    visible = pageVisible && !isLoading,
+                    enter = fadeIn(tween(300, delayMillis = 320)) + slideInHorizontally(
+                        initialOffsetX = { -80 },
+                        animationSpec = tween(350, delayMillis = 320)
+                    )
                 ) {
-                    StatisticsSection(stats = stats)
+                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
+                        StatisticsSection(stats = stats)
+                    }
                 }
             }
         }
-        
-        // Connection Status Indicator (Top-Right)
-        ConnectionStatusIndicator(
-            connectionState = connectionState,
+
+        // Top-right: Connection Status + Search Icon (glassmorphic pill)
+        Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = Dimens.ScreenPadding, end = Dimens.ScreenPadding + 8.dp)
+                .padding(top = Dimens.ScreenPadding, end = Dimens.ScreenPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ConnectionStatusIndicator(
+                connectionState = connectionState,
+                modifier = Modifier
+            )
+
+            // Search Icon — glassmorphic button
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Color(0xFF0F0F14).copy(alpha = 0.75f)
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(
+                    onClick = onSearchClick
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Custom easing
+private val EaseOutCubic = CubicBezierEasing(0.33f, 1f, 0.68f, 1f)
+
+@Composable
+fun FadeEdgeLazyRow(
+    contentPadding: PaddingValues,
+    horizontalArrangement: Arrangement.Horizontal,
+    content: LazyListScope.() -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        LazyRow(
+            contentPadding = contentPadding,
+            horizontalArrangement = horizontalArrangement,
+            content = content,
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawWithContent {
+                    drawContent()
+                    // Fade-out mask on right edge
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color.Transparent, Color(0xFF0A0A0C)),
+                            startX = size.width * 0.82f,
+                            endX = size.width
+                        )
+                    )
+                }
         )
     }
 }
@@ -252,30 +346,27 @@ fun HomeScreen(
 fun HeroHeader(
     albums: List<AlbumInfo>,
     onPlayClick: (AlbumInfo) -> Unit,
-    scrollState: androidx.compose.foundation.lazy.LazyListState,
     displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage = moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL
 ) {
     if (albums.isEmpty()) return
 
     val pagerState = rememberPagerState(pageCount = { albums.size })
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
-    
-    // Auto-scroll logic optimized
+
+    // Auto-scroll
     LaunchedEffect(pagerState, isDragged) {
         if (!isDragged && albums.isNotEmpty()) {
-            while(true) {
+            while (true) {
                 delay(7000)
                 try {
                     if (albums.isNotEmpty()) {
                         val nextPage = (pagerState.currentPage + 1) % albums.size
                         pagerState.animateScrollToPage(
-                            nextPage, 
+                            nextPage,
                             animationSpec = tween(durationMillis = VibeAnimations.HeroDuration, easing = FastOutSlowInEasing)
                         )
                     }
-                } catch (e: Exception) {
-                    // Handle potential cancellation or index issues safely
-                }
+                } catch (_: Exception) { }
             }
         }
     }
@@ -283,21 +374,27 @@ fun HeroHeader(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(450.dp) // Slightly taller for more impact
-            .graphicsLayer {
-                val scrollOffset = if (scrollState.firstVisibleItemIndex == 0) scrollState.firstVisibleItemScrollOffset else 0
-                translationY = scrollOffset * 0.5f // Parallax
-                alpha = 1f - (scrollOffset / 800f).coerceIn(0f, 1f)
-            }
+            .padding(horizontal = Dimens.ScreenPadding)
+            .padding(top = 64.dp) // Space for the search button overlay
     ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         ) { page ->
             val album = albums.getOrNull(page) ?: return@HorizontalPager
-            
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Blurred Background Image (High Res)
+
+            // 16:9 card, full-width with rounded corners
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .border(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+            ) {
                 val context = LocalContext.current
                 val request = remember(album.coverUrl) {
                     ImageRequest.Builder(context)
@@ -305,89 +402,192 @@ fun HeroHeader(
                         .crossfade(true)
                         .build()
                 }
+
+                // Album art background - NO BLUR for featured section
                 AsyncImage(
                     modifier = Modifier
                         .fillMaxSize()
-                        .alpha(0.7f),
+                        .alpha(0.85f),
                     contentScale = ContentScale.Crop,
                     model = request,
                     contentDescription = null
                 )
 
-                // Gradient Overlay
+                // Dark overlay for legibility
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(
-                                     MaterialTheme.colorScheme.background.copy(alpha = 0.1f),
-                                     MaterialTheme.colorScheme.background.copy(alpha = 0.4f),
-                                     MaterialTheme.colorScheme.background
+                                colorStops = arrayOf(
+                                    0.0f to Color(0xFF0A0A0C).copy(alpha = 0.2f),
+                                    0.5f to Color(0xFF0A0A0C).copy(alpha = 0.35f),
+                                    1.0f to Color(0xFF0A0A0C).copy(alpha = 0.88f)
                                 )
                             )
                         )
                 )
 
-                // Text Content
+                // Inner glow accent
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                    Color.Transparent
+                                ),
+                                radius = 500f
+                            )
+                        )
+                )
+
+                // Content
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(Dimens.ScreenPadding)
-                        .padding(bottom = 24.dp)
+                        .padding(horizontal = 20.dp, vertical = 18.dp)
                 ) {
-                    Text(
-                        text = "Featured Album",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
+                    // "New for you" badge
+                    Box(
                         modifier = Modifier
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha=0.1f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(50))
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "✦  New for you",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
+
                     Text(
                         text = album.getDisplayName(displayLanguage),
-                        style = MaterialTheme.typography.displayLarge.copy(fontSize = 40.sp), // Override for hero
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.6f),
+                                blurRadius = 8f
+                            )
+                        ),
                         maxLines = 2,
-                        lineHeight = 48.sp,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.White
                     )
+
                     Text(
                         text = album.getDisplayArtist(displayLanguage),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.65f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Play button
                     Button(
                         onClick = { onPlayClick(album) },
-                        modifier = Modifier.height(Dimens.ButtonHeight),
-                        shape = RoundedCornerShape(50)
+                        modifier = Modifier.height(44.dp),
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.White
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp
+                        )
                     ) {
-                        Text("Play Now")
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Play Now",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
         }
-        
-        // Pager Indicator
+
+        // Pager dots
         Row(
             Modifier
                 .wrapContentHeight()
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp),
+                .padding(bottom = 16.dp),
             horizontalArrangement = Arrangement.Center
         ) {
             repeat(pagerState.pageCount) { iteration ->
-                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                val isActive = pagerState.currentPage == iteration
+                val dotWidth by animateDpAsState(
+                    targetValue = if (isActive) 20.dp else 6.dp,
+                    animationSpec = tween(250),
+                    label = "dotWidth"
+                )
+                val dotColor by animateColorAsState(
+                    targetValue = if (isActive) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.25f),
+                    animationSpec = tween(250),
+                    label = "dotColor"
+                )
                 Box(
                     modifier = Modifier
-                        .padding(4.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .size(if (pagerState.currentPage == iteration) 10.dp else 8.dp)
+                        .padding(horizontal = 3.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(dotColor)
+                        .height(6.dp)
+                        .width(dotWidth)
                 )
             }
+        }
+    }
+}
+/**
+ * "See All" button to show more items in a horizontal scrollable list
+ */
+@Composable
+fun SeeAllButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Color.White.copy(alpha = 0.06f),
+                RoundedCornerShape(16.dp)
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "→",
+                style = MaterialTheme.typography.displaySmall,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+            Text(
+                text = "See\nAll",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.6f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }

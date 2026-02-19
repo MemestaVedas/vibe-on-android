@@ -17,7 +17,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.theme.Dimens
-import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 @Composable
 fun ArtistListItem(
@@ -31,7 +30,7 @@ fun ArtistListItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .bouncyClickable(onClick = onClick, scaleDown = 0.98f)
+            .clickable(onClick = onClick)
             .padding(horizontal = Dimens.ScreenPadding, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

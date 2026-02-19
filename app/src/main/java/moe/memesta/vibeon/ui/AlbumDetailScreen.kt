@@ -96,47 +96,7 @@ fun AlbumDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // --- 1. Immersive Background (Blurred) ---
-        if (coverUrl != null) {
-            val context = LocalContext.current
-            val request = remember(coverUrl) {
-                ImageRequest.Builder(context)
-                    .data(coverUrl)
-                    .crossfade(true)
-                    .build()
-            }
-            AsyncImage(
-                model = request,
-                contentDescription = null,
-                onSuccess = { result ->
-                    themeColors = PaletteUtils.extractColors(result.result.drawable)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(440.dp)
-                    .alpha(0.35f)
-                    .blur(60.dp),
-                contentScale = ContentScale.Crop
-            )
-            
-            // Gradient Overlay to fade into background
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(440.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.1f),
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
-                                MaterialTheme.colorScheme.background
-                            )
-                        )
-                    )
-            )
-        }
-
-        // --- 2. Content ---
+        // --- Content ---
         LazyColumn(
             state = scrollState,
             modifier = Modifier.fillMaxSize(),
@@ -148,19 +108,15 @@ fun AlbumDetailScreen(
             // Header Space
             item {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 100.dp, bottom = 24.dp), // Space for status bar + top content
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Album Art
+                    // Album Art Card with overlays - Edge to edge square
                     Box(
                         modifier = Modifier
-                            .size(260.dp)
-                            .shadow(32.dp, RoundedCornerShape(Dimens.CornerRadiusLarge))
-                            .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
+                            .fillMaxWidth()
+                            .aspectRatio(1f) // Square aspect ratio
+                            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            // Basic clickable for now, maybe expand later
                     ) {
                         if (coverUrl != null) {
                             val context = LocalContext.current
@@ -174,104 +130,113 @@ fun AlbumDetailScreen(
                                 model = request,
                                 contentDescription = decodedAlbumName,
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Fit
                             )
-                        } else {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Rounded.PlayArrow, // Fallback icon
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        }
+                        
+                        // Gradient overlay for better button visibility
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Black.copy(alpha = 0.3f),
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.4f)
+                                        )
+                                    )
                                 )
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Text Info
-                    Text(
-                        text = displayAlbumName,
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = Dimens.ScreenPadding),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        letterSpacing = (-1).sp
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Text(
-                        text = displayArtistName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = animatedVibrant,
-                        modifier = Modifier.bouncyClickable(onClick = { 
-                            navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
-                        })
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Surface(
-                        color = animatedVibrant.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, animatedVibrant.copy(alpha = 0.3f))
-                    ) {
-                        Text(
-                            text = "Album • ${albumTracks.size} Songs",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = animatedVibrant,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Action Buttons
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Shuffle Button
-                        OutlinedButton(
-                            onClick = { 
-                                if (albumTracks.isNotEmpty()) {
-                                    viewModel.playTrack(albumTracks.random(), albumTracks)
-                                    onTrackSelected(albumTracks.first())
-                                }
-                            },
+                        
+                        // Back button (top left)
+                        IconButton(
+                            onClick = onBackClick,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(start = 10.dp, top = 20.dp)
+                                .size(40.dp)
+                                .background(
+                                    Color.Black.copy(alpha = 0.3f),
+                                    CircleShape
+                                )
                         ) {
-                            Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Shuffle")
+                            Icon(
+                                Icons.Rounded.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
                         }
                         
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
-                        // Play Button
-                        Button(
+                        // Play button (bottom right)
+                        FloatingActionButton(
                             onClick = {
                                 if (albumTracks.isNotEmpty()) {
                                     viewModel.playAlbum(decodedAlbumName)
                                     onTrackSelected(albumTracks.first())
                                 }
                             },
-                            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
+                                .size(56.dp),
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = Color.White
                         ) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Play")
+                            Icon(
+                                Icons.Rounded.PlayArrow,
+                                contentDescription = "Play",
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
+                    }
+                    
+                    // Text content with padding
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Dimens.ScreenPadding)
+                    ) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        
+                        // Album Title
+                        Text(
+                            text = displayAlbumName,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Artist Name (clickable)
+                        Text(
+                            text = displayArtistName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.bouncyClickable(onClick = {
+                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
+                            })
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Metadata row: Album • Year    Songs • Duration
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Album • ${albumTracks.size} songs",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -305,53 +270,7 @@ fun AlbumDetailScreen(
             }
         }
 
-        // --- 3. Glassmorphic Top Bar ---
-        val showTitle by remember {
-            derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 400 }
-        }
-        
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding(),
-            color = Color.Transparent
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
-                    .then(
-                        if (showTitle) Modifier
-                            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.85f))
-                            .blur(25.dp)
-                        else Modifier
-                    ),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
-                    }
-                    
-                    AnimatedVisibility(
-                        visible = showTitle,
-                        enter = fadeIn() + slideInVertically { 20 },
-                        exit = fadeOut()
-                    ) {
-                        Text(
-                            displayAlbumName, 
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1, 
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
+        // No top bar needed since back button is on the card
     }
 }
 

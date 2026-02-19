@@ -8,127 +8,84 @@ import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.local.DisplayLanguage
 import moe.memesta.vibeon.data.local.TrackEntity
 
-fun TrackInfo.getDisplayName(language: DisplayLanguage): String {
+private fun pickText(vararg candidates: String?): String {
+    return candidates.firstOrNull { !it.isNullOrBlank() } ?: ""
+}
+
+private fun selectByLanguage(
+    language: DisplayLanguage,
+    original: String?,
+    romaji: String?,
+    english: String?
+): String {
     return when (language) {
-        DisplayLanguage.ROMAJI -> titleRomaji ?: title
-        DisplayLanguage.ENGLISH -> titleEn ?: title
-        else -> title
+        DisplayLanguage.ROMAJI -> pickText(romaji, english, original)
+        DisplayLanguage.ENGLISH -> pickText(english, romaji, original)
+        else -> pickText(original, english, romaji)
     }
+}
+
+fun TrackInfo.getDisplayName(language: DisplayLanguage): String {
+    return selectByLanguage(language, title, titleRomaji, titleEn)
 }
 
 fun TrackInfo.getDisplayArtist(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> artistRomaji ?: artist
-        DisplayLanguage.ENGLISH -> artistEn ?: artist
-        else -> artist
-    }
+    return selectByLanguage(language, artist, artistRomaji, artistEn)
 }
 
 fun TrackInfo.getDisplayAlbum(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> albumRomaji ?: album
-        DisplayLanguage.ENGLISH -> albumEn ?: album
-        else -> album
-    }
+    return selectByLanguage(language, album, albumRomaji, albumEn)
 }
 
 // MediaSessionData
 fun MediaSessionData.getDisplayName(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> titleRomaji ?: title
-        DisplayLanguage.ENGLISH -> titleEn ?: title
-        else -> title
-    }
+    return selectByLanguage(language, title, titleRomaji, titleEn)
 }
 
 fun MediaSessionData.getDisplayArtist(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> artistRomaji ?: artist
-        DisplayLanguage.ENGLISH -> artistEn ?: artist
-        else -> artist
-    }
+    return selectByLanguage(language, artist, artistRomaji, artistEn)
 }
 
 fun MediaSessionData.getDisplayAlbum(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> albumRomaji ?: album
-        DisplayLanguage.ENGLISH -> albumEn ?: album
-        else -> album
-    }
+    return selectByLanguage(language, album, albumRomaji, albumEn)
 }
 
 // QueueItem
 fun QueueItem.getDisplayName(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> titleRomaji ?: title
-        DisplayLanguage.ENGLISH -> titleEn ?: title
-        else -> title
-    }
+    return selectByLanguage(language, title, titleRomaji, titleEn)
 }
 
 fun QueueItem.getDisplayArtist(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> artistRomaji ?: artist
-        DisplayLanguage.ENGLISH -> artistEn ?: artist
-        else -> artist
-    }
+    return selectByLanguage(language, artist, artistRomaji, artistEn)
 }
 
 fun QueueItem.getDisplayAlbum(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> albumRomaji ?: album
-        DisplayLanguage.ENGLISH -> albumEn ?: album
-        else -> album
-    }
+    return selectByLanguage(language, album, albumRomaji, albumEn)
 }
 
 // TrackEntity
 fun TrackEntity.getDisplayName(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> titleRomaji ?: title
-        DisplayLanguage.ENGLISH -> titleEn ?: title
-        else -> title
-    }
+    return selectByLanguage(language, title, titleRomaji, titleEn)
 }
 
 fun TrackEntity.getDisplayArtist(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> artistRomaji ?: artist
-        DisplayLanguage.ENGLISH -> artistEn ?: artist
-        else -> artist
-    }
+    return selectByLanguage(language, artist, artistRomaji, artistEn)
 }
 
 fun TrackEntity.getDisplayAlbum(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> albumRomaji ?: album
-        DisplayLanguage.ENGLISH -> albumEn ?: album
-        else -> album
-    }
+    return selectByLanguage(language, album, albumRomaji, albumEn)
 }
 
 // AlbumInfo Helpers
 fun AlbumInfo.getDisplayName(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> nameRomaji ?: name
-        DisplayLanguage.ENGLISH -> nameEn ?: name
-        else -> name
-    }
+    return selectByLanguage(language, name, nameRomaji, nameEn)
 }
 
 fun AlbumInfo.getDisplayArtist(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> artistRomaji ?: artist
-        DisplayLanguage.ENGLISH -> artistEn ?: artist
-        else -> artist
-    }
+    return selectByLanguage(language, artist, artistRomaji, artistEn)
 }
 
 // ArtistItemData Helpers
 fun ArtistItemData.getDisplayName(language: DisplayLanguage): String {
-    return when (language) {
-        DisplayLanguage.ROMAJI -> nameRomaji ?: name
-        DisplayLanguage.ENGLISH -> nameEn ?: name
-        else -> name
-    }
+    return selectByLanguage(language, name, nameRomaji, nameEn)
 }

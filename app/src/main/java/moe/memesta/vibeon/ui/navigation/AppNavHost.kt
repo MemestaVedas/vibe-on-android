@@ -371,13 +371,22 @@ fun AppNavHost(
                     }
                 }
                 
-                // Search Tab - Redirecting to main pager
+                // Search Screen - Dedicated full search page
                 composable("search") {
-                    LaunchedEffect(Unit) {
-                        navController.navigate("main") {
-                            popUpTo("search") { inclusive = true }
-                        }
-                        pagerState.scrollToPage(2)
+                    if (libraryViewModel != null) {
+                        SearchScreen(
+                            viewModel = libraryViewModel,
+                            onTrackSelected = { navController.navigate("now_playing") },
+                            onAlbumSelected = { albumName ->
+                                navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
+                            },
+                            onArtistSelected = { artistName ->
+                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
+                            },
+                            contentPadding = innerPadding
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navController.navigate("discovery") }
                     }
                 }
                 

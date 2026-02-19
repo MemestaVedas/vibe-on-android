@@ -5,10 +5,11 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import kotlin.math.pow
 
-// Vibe-On Design System Colors (Static)
-val VibeBackground = Color(0xFF121113) // Night Owl Deep Charcoal - always consistent
-val VibeSurface = Color(0xFF1E1C20)    // Tonal Surface
-val VibeSurfaceContainer = Color(0xFF252329) // Slightly lighter surface
+// Vibe-On Design System Colors (Static) - Redesigned 2026
+// Deep blacks from new design system
+val VibeBackground = Color(0xFF0A0A0C)    // Ultra-deep black - primary background
+val VibeSurface = Color(0xFF111116)       // Deep charcoal - card/surface color
+val VibeSurfaceContainer = Color(0xFF1A1A1F) // Slightly elevated surface
 
 // Dynamic colors removed - will be generated from album art or wallpaper
 // VibePrimary, VibeSecondary, etc. are now generated dynamically

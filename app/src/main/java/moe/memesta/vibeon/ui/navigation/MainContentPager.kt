@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import moe.memesta.vibeon.ui.*
+import java.net.URLEncoder
 
 @Composable
 fun MainContentPager(
@@ -29,8 +30,9 @@ fun MainContentPager(
             0 -> HomeScreen(
                 viewModel = libraryViewModel,
                 onTrackSelected = { navController.navigate("now_playing") },
-                onAlbumSelected = { albumName -> navController.navigate("album/$albumName") },
-                onArtistSelected = { artistName -> navController.navigate("artist/$artistName") },
+                onAlbumSelected = { albumName -> navController.navigate("album/${URLEncoder.encode(albumName, "UTF-8")}") },
+                onArtistSelected = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
+                onSearchClick = { navController.navigate("search") },
                 onViewAllSongs = { navController.navigate("all_songs") },
                 contentPadding = contentPadding,
                 connectionViewModel = connectionViewModel
@@ -38,24 +40,21 @@ fun MainContentPager(
             1 -> AlbumsGridScreen(
                 viewModel = libraryViewModel,
                 onBackClick = { /* Pager handles back in Activity if needed, but here we stay */ },
-                onAlbumClick = { albumName -> navController.navigate("album/$albumName") },
+                onAlbumClick = { albumName -> navController.navigate("album/${URLEncoder.encode(albumName, "UTF-8")}") },
                 onPlayAlbum = { albumName -> 
                     libraryViewModel.playAlbum(albumName)
                     navController.navigate("now_playing")
                 },
                 contentPadding = contentPadding
             )
-            2 -> SearchScreen(
-                viewModel = libraryViewModel,
-                onTrackSelected = { navController.navigate("now_playing") },
-                onAlbumSelected = { albumName -> navController.navigate("album/$albumName") },
-                onArtistSelected = { artistName -> navController.navigate("artist/$artistName") },
+            2 -> PlaylistsScreen(
+                viewModel = connectionViewModel,
                 contentPadding = contentPadding
             )
             3 -> ArtistsListScreen(
                 viewModel = libraryViewModel,
                 onBackClick = { },
-                onArtistClick = { artistName -> navController.navigate("artist/$artistName") },
+                onArtistClick = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
                 onPlayArtist = { artistName -> 
                     libraryViewModel.playArtist(artistName)
                     navController.navigate("now_playing")
