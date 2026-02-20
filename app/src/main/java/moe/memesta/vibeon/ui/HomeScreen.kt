@@ -2,6 +2,7 @@ package moe.memesta.vibeon.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +34,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -44,9 +46,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
+import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.*
@@ -69,7 +73,7 @@ fun HomeScreen(
     contentPadding: PaddingValues,
     connectionViewModel: ConnectionViewModel
 ) {
-    val tracks: List<TrackInfo> by viewModel.tracks.collectAsState()
+    val tracks by viewModel.tracks.collectAsState()
     val albums by viewModel.homeAlbums.collectAsState()
     val artists by viewModel.homeArtists.collectAsState()
     val featuredAlbums by viewModel.featuredAlbums.collectAsState()
@@ -78,6 +82,10 @@ fun HomeScreen(
     val displayLanguage = LocalDisplayLanguage.current
 
     val isLoading = tracks.isEmpty() && connectionState == ConnectionState.CONNECTED
+
+    // Define a lighter surface color to make wavy separator transitions distinct
+    val sectionSurface = Color.White.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surface)
+    val appBackground = MaterialTheme.colorScheme.background
 
     val listState = rememberLazyListState()
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
@@ -94,7 +102,18 @@ fun HomeScreen(
         pageVisible = true
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val infiniteTransition = rememberInfiniteTransition(label = "logo_rotation")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(20000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "logo_angle"
+    )
+
+    Box(modifier = Modifier.fillMaxSize().background(sectionSurface)) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
@@ -113,8 +132,16 @@ fun HomeScreen(
                         animationSpec = tween(350, delayMillis = 80)
                     )
                 ) {
-                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
-                        SectionHeader(title = "Recently Added", onSeeAllClick = onViewAllSongs)
+                    Column(
+                        modifier = Modifier
+                            .background(sectionSurface)
+                            .padding(bottom = 24.dp)
+                    ) {
+                        SectionHeader(
+                            title = "Your Songs", 
+                            onSeeAllClick = onViewAllSongs,
+                            modifier = Modifier.padding(top = Dimens.SectionPadding)
+                        )
                         FadeEdgeLazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -144,7 +171,7 @@ fun HomeScreen(
 
                 if (isLoading) {
                     Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
-                        SectionHeader("Recently Added")
+                        SectionHeader("Your Songs")
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
@@ -155,18 +182,34 @@ fun HomeScreen(
                 }
             }
 
-            // Section: Featured Carousel (16:9 Hero - Unblurred)
+            item(key = "sep_recent_hero") {
+                WavySeparator(
+                    colorTop = sectionSurface,
+                    colorBottom = appBackground
+                )
+            }
+
+            // Section: Featured Carousel
             item(key = "section_featured_carousel") {
                 if (featuredAlbums.isNotEmpty() && !isLoading) {
-                    HeroHeader(
-                        albums = featuredAlbums,
-                        onPlayClick = { album -> onAlbumSelected(album.name) },
-                        displayLanguage = displayLanguage
-                    )
+                    Box(modifier = Modifier.background(appBackground).padding(vertical = 12.dp)) {
+                        HeroHeader(
+                            albums = featuredAlbums,
+                            onPlayClick = { album -> onAlbumSelected(album.name) },
+                            displayLanguage = displayLanguage
+                        )
+                    }
                 }
             }
 
-            // Section: Albums (5 items + See All)
+            item(key = "sep_hero_albums") {
+                WavySeparator(
+                    colorTop = appBackground,
+                    colorBottom = sectionSurface
+                )
+            }
+
+            // Section: Albums
             item(key = "section_albums") {
                 AnimatedVisibility(
                     visible = pageVisible && !isLoading,
@@ -175,23 +218,28 @@ fun HomeScreen(
                         animationSpec = tween(350, delayMillis = 160)
                     )
                 ) {
-                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
-                        SectionHeader("Albums", onSeeAllClick = { /* Navigate to albums page */ })
+                    Column(
+                        modifier = Modifier
+                            .background(sectionSurface)
+                            .padding(bottom = 24.dp)
+                    ) {
+                        SectionHeader(
+                            "Albums", 
+                            onSeeAllClick = { /* Navigate */ },
+                            modifier = Modifier.padding(top = Dimens.SectionPadding)
+                        )
                         FadeEdgeLazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
-                                items = albums.take(5),  // Limit to 5 albums
+                                items = albums.take(5),
                                 key = { "album_${it.name}" }
                             ) { album ->
-                                val onAlbumClick = remember(album.name) {
-                                    { onAlbumSelected(album.name) }
-                                }
                                 AlbumCard(
                                     albumName = album.getDisplayName(displayLanguage),
                                     coverUrl = album.coverUrl,
-                                    onClick = onAlbumClick
+                                    onClick = { onAlbumSelected(album.name) }
                                 )
                             }
                         }
@@ -210,7 +258,14 @@ fun HomeScreen(
                 }
             }
 
-            // Section: Artists (5 items + See All)
+            item(key = "sep_albums_artists") {
+                WavySeparator(
+                    colorTop = sectionSurface,
+                    colorBottom = appBackground
+                )
+            }
+
+            // Section: Artists
             item(key = "section_artists") {
                 AnimatedVisibility(
                     visible = pageVisible && !isLoading,
@@ -219,26 +274,30 @@ fun HomeScreen(
                         animationSpec = tween(350, delayMillis = 240)
                     )
                 ) {
-                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
-                        SectionHeader("Artists", onSeeAllClick = { /* Navigate to artists page */ })
+                    Column(
+                        modifier = Modifier
+                            .background(appBackground)
+                            .padding(bottom = 24.dp)
+                    ) {
+                        SectionHeader(
+                            "Artists", 
+                            onSeeAllClick = { /* Navigate */ },
+                            modifier = Modifier.padding(top = Dimens.SectionPadding)
+                        )
                         FadeEdgeLazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
-                                items = artists.take(5),  // Limit to 5 artists
+                                items = artists.take(5),
                                 key = { "artist_${it.name}" }
                             ) { artist ->
-                                val onArtistClick = remember(artist.name) {
-                                    { onArtistSelected(artist.name) }
-                                }
                                 ArtistPill(
                                     artistName = artist.getDisplayName(displayLanguage),
                                     photoUrl = artist.photoUrl,
-                                    onClick = onArtistClick
+                                    onClick = { onArtistSelected(artist.name) }
                                 )
                             }
-
                         }
                     }
                 }
@@ -255,6 +314,13 @@ fun HomeScreen(
                 }
             }
 
+            item(key = "sep_artists_stats") {
+                WavySeparator(
+                    colorTop = appBackground,
+                    colorBottom = sectionSurface
+                )
+            }
+
             // Section: Statistics
             item(key = "section_stats") {
                 AnimatedVisibility(
@@ -264,19 +330,38 @@ fun HomeScreen(
                         animationSpec = tween(350, delayMillis = 320)
                     )
                 ) {
-                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
-                        StatisticsSection(stats = stats)
+                    Column(
+                        modifier = Modifier
+                            .background(sectionSurface)
+                            .fillMaxWidth()
+                            .padding(bottom = 40.dp)
+                    ) {
+                        Box(modifier = Modifier.padding(top = Dimens.SectionPadding)) {
+                            StatisticsSection(stats = stats)
+                        }
                     }
                 }
             }
         }
 
-        // Top-right: Connection Status + Search Icon (glassmorphic pill)
+        // Rotating Logo Overlay
+        Image(
+            painter = painterResource(id = R.drawable.ic_vibe_logo),
+            contentDescription = "Vibe-On Logo",
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(Dimens.ScreenPadding)
+                .size(40.dp)
+                .graphicsLayer { rotationZ = rotationAngle }
+        )
+
+        // Search + Connection Status Overlay
         Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = Dimens.ScreenPadding, end = Dimens.ScreenPadding),
+                .padding(Dimens.ScreenPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -285,7 +370,6 @@ fun HomeScreen(
                 modifier = Modifier
             )
 
-            // Search Icon — glassmorphic button
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -294,9 +378,7 @@ fun HomeScreen(
                     .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onSearchClick
-                ) {
+                IconButton(onClick = onSearchClick) {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",

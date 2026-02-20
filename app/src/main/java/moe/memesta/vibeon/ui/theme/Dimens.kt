@@ -6,6 +6,7 @@ object Dimens {
     // Padding
     val ScreenPadding = 16.dp
     val SectionSpacing = 24.dp
+    val SectionPadding = 24.dp
     val ItemSpacing = 12.dp
     
     // Components
