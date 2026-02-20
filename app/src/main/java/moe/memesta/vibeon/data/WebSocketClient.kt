@@ -19,7 +19,8 @@ data class MediaSessionData(
     val artistRomaji: String? = null,
     val artistEn: String? = null,
     val albumRomaji: String? = null,
-    val albumEn: String? = null
+    val albumEn: String? = null,
+    val path: String = ""
 )
 
 data class QueueItem(
@@ -41,8 +42,17 @@ data class LyricsData(
     val trackPath: String = "",
     val hasSynced: Boolean = false,
     val syncedLyrics: String? = null,
+    val syncedLyricsRomaji: String? = null,
     val plainLyrics: String? = null,
     val instrumental: Boolean = false
+)
+
+data class PlaylistInfo(
+    val id: String,
+    val name: String,
+    val trackCount: Int,
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )
 
 class WebSocketClient {
@@ -83,6 +93,9 @@ class WebSocketClient {
     private val _streamUrl = MutableStateFlow<String?>(null)
     val streamUrl: StateFlow<String?> = _streamUrl.asStateFlow()
     
+    private val _handoffPosition = MutableStateFlow(0.0)
+    val handoffPosition: StateFlow<Double> = _handoffPosition.asStateFlow()
+    
     private val _isMobilePlayback = MutableStateFlow(false)
     val isMobilePlayback: StateFlow<Boolean> = _isMobilePlayback.asStateFlow()
 
@@ -96,6 +109,26 @@ class WebSocketClient {
     val isLoadingLyrics: StateFlow<Boolean> = _isLoadingLyrics.asStateFlow()
     
     private var lastTrackId: String? = null
+    
+    // Shuffle, Repeat, Volume, Favorites
+    private val _isShuffled = MutableStateFlow(false)
+    val isShuffled: StateFlow<Boolean> = _isShuffled.asStateFlow()
+    
+    private val _repeatMode = MutableStateFlow("off")
+    val repeatMode: StateFlow<String> = _repeatMode.asStateFlow()
+    
+    private val _volume = MutableStateFlow(0.5)
+    val volume: StateFlow<Double> = _volume.asStateFlow()
+    
+    private val _favorites = MutableStateFlow<Set<String>>(emptySet())
+    val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
+    
+    // Playlists
+    private val _playlists = MutableStateFlow<List<PlaylistInfo>>(emptyList())
+    val playlists: StateFlow<List<PlaylistInfo>> = _playlists.asStateFlow()
+    
+    private val _currentPlaylistTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
+    val currentPlaylistTracks: StateFlow<List<TrackInfo>> = _currentPlaylistTracks.asStateFlow()
     
     fun connect(host: String, port: Int, clientName: String = "Android") {
         this.host = host
@@ -266,6 +299,60 @@ class WebSocketClient {
         sendMessage(message)
     }
     
+    // Shuffle, Repeat, Favorites
+    fun sendToggleShuffle() {
+        val message = JSONObject().apply {
+            put("type", "toggleShuffle")
+        }
+        Log.i("WebSocket", "🔀 Toggling shuffle")
+        sendMessage(message)
+    }
+    
+    fun sendToggleRepeat() {
+        val message = JSONObject().apply {
+            put("type", "toggleRepeat")
+        }
+        Log.i("WebSocket", "🔁 Toggling repeat")
+        sendMessage(message)
+    }
+    
+    fun sendToggleFavorite(trackPath: String) {
+        val message = JSONObject().apply {
+            put("type", "toggleFavorite")
+            put("path", trackPath)
+        }
+        Log.i("WebSocket", "❤️ Toggling favorite for: $trackPath")
+        sendMessage(message)
+    }
+    
+    // Playlists
+    fun sendGetPlaylists() {
+        val message = JSONObject().apply {
+            put("type", "getPlaylists")
+        }
+        Log.i("WebSocket", "📚 Requesting playlists")
+        sendMessage(message)
+    }
+    
+    fun sendGetPlaylistTracks(playlistId: String) {
+        val message = JSONObject().apply {
+            put("type", "getPlaylistTracks")
+            put("playlistId", playlistId)
+        }
+        Log.i("WebSocket", "📜 Requesting tracks for playlist: $playlistId")
+        sendMessage(message)
+    }
+    
+    fun sendAddToPlaylist(playlistId: String, trackPath: String) {
+        val message = JSONObject().apply {
+            put("type", "addToPlaylist")
+            put("playlistId", playlistId)
+            put("trackPath", trackPath)
+        }
+        Log.i("WebSocket", "➕ Adding track to playlist")
+        sendMessage(message)
+    }
+    
     private inner class VibeonWebSocketListener(
         private val client: WebSocketClient,
         private val clientName: String
@@ -340,7 +427,8 @@ class WebSocketClient {
                             artistRomaji = json.optString("artistRomaji", null).takeIf { it != "null" },
                             artistEn = json.optString("artistEn", null).takeIf { it != "null" },
                             albumRomaji = json.optString("albumRomaji", null).takeIf { it != "null" },
-                            albumEn = json.optString("albumEn", null).takeIf { it != "null" }
+                            albumEn = json.optString("albumEn", null).takeIf { it != "null" },
+                            path = trackId
                         )
                         client._isPlaying.value = isPlaying
                         client._duration.value = duration
@@ -348,10 +436,28 @@ class WebSocketClient {
                         Log.i("WebSocket", "📀 Now playing: $title by $artist (Playing: $isPlaying) - ${position}s / ${duration}s")
                     }
                     "status" -> {
-                        // Update status (doesn't include isPlaying state)
-                        val volume = json.optDouble("volume")
-                        val shuffle = json.optBoolean("shuffle")
-                        Log.i("WebSocket", "📊 Volume: $volume, Shuffle: $shuffle, Playing: ${client._isPlaying.value}")
+                        // Update status (volume, shuffle, repeat, favorites)
+                        val volume = json.optDouble("volume", 0.5)
+                        val isShuffled = json.optBoolean("shuffle", false) || json.optBoolean("isShuffled", false)
+                        val repeatMode = json.optString("repeat", "off").takeIf { it.isNotEmpty() } ?: "off"
+                        
+                        client._volume.value = volume
+                        client._isShuffled.value = isShuffled
+                        client._repeatMode.value = repeatMode
+                        
+                        // Parse favorites if included
+                        if (json.has("favorites")) {
+                            val favoritesArray = json.optJSONArray("favorites")
+                            val favSet = mutableSetOf<String>()
+                            if (favoritesArray != null) {
+                                for (i in 0 until favoritesArray.length()) {
+                                    favSet.add(favoritesArray.getString(i))
+                                }
+                            }
+                            client._favorites.value = favSet
+                        }
+                        
+                        Log.i("WebSocket", "📊 Status - Volume: ${(volume * 100).toInt()}%, Shuffle: $isShuffled, Repeat: $repeatMode, Playing: ${client._isPlaying.value}")
                     }
                     "PlaybackState" -> {
                         // Update playback state
@@ -409,8 +515,9 @@ class WebSocketClient {
                         // Server is ready to stream to mobile
                         val url = json.optString("url")
                         val sample = json.optLong("sample", 0)
-                        val positionSecs = sample / 44100.0
+                        val positionSecs = (sample / 44100.0).coerceAtLeast(0.0)
                         client._streamUrl.value = url
+                        client._handoffPosition.value = positionSecs
                         client._isMobilePlayback.value = true
                         Log.i("WebSocket", "🎵 Received stream URL: $url at position ${String.format("%.2f", positionSecs)}s")
                     }
@@ -426,6 +533,9 @@ class WebSocketClient {
                         val syncedLyrics = json.optString("syncedLyrics", "").ifEmpty {
                             json.optString("synced_lyrics", "")
                         }.takeIf { it != "null" && it.isNotEmpty() }
+                        val syncedLyricsRomaji = json.optString("syncedLyricsRomaji", "").ifEmpty {
+                            json.optString("synced_lyrics_romaji", "")
+                        }.takeIf { it != "null" && it.isNotEmpty() }
                         val instrumental = json.optBoolean("instrumental")
 
                         // Update dedicated lyrics state
@@ -433,6 +543,7 @@ class WebSocketClient {
                             trackPath = trackPath,
                             hasSynced = hasSynced,
                             syncedLyrics = syncedLyrics,
+                            syncedLyricsRomaji = syncedLyricsRomaji,
                             plainLyrics = plainLyrics,
                             instrumental = instrumental
                         )
@@ -442,7 +553,71 @@ class WebSocketClient {
                         val current = client._currentTrack.value
                         client._currentTrack.value = current.copy(lyrics = finalLyricsText)
                         
-                        Log.i("WebSocket", "📜 Lyrics received for $trackPath (Synced: $hasSynced, Length: ${finalLyricsText.length})")
+                        Log.i("WebSocket", "📜 Lyrics received for $trackPath (Synced: $hasSynced, Romaji: ${!syncedLyricsRomaji.isNullOrEmpty()}, Length: ${finalLyricsText.length})")
+                    }
+                    "playlists" -> {
+                        // Handle playlists list
+                        val playlistsArray = json.optJSONArray("playlists")
+                        val playlistsList = mutableListOf<PlaylistInfo>()
+                        
+                        if (playlistsArray != null) {
+                            for (i in 0 until playlistsArray.length()) {
+                                val playlistObj = playlistsArray.getJSONObject(i)
+                                playlistsList.add(
+                                    PlaylistInfo(
+                                        id = playlistObj.getString("id"),
+                                        name = playlistObj.getString("name"),
+                                        trackCount = playlistObj.optInt("trackCount", 0),
+                                        createdAt = playlistObj.optString("createdAt", ""),
+                                        updatedAt = playlistObj.optString("updatedAt", "")
+                                    )
+                                )
+                            }
+                        }
+                        
+                        client._playlists.value = playlistsList
+                        Log.i("WebSocket", "📚 Received ${playlistsList.size} playlists")
+                    }
+                    "library" -> {
+                        // Handle library update
+                        val tracksArray = json.optJSONArray("tracks")
+                        val tracksList = mutableListOf<TrackInfo>()
+                        
+                        if (tracksArray != null) {
+                            for (i in 0 until tracksArray.length()) {
+                                val trackObj = tracksArray.getJSONObject(i)
+                                var libCoverUrl = trackObj.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                                    ?: trackObj.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                                
+                                if (libCoverUrl != null && !libCoverUrl.startsWith("http")) {
+                                    libCoverUrl = if (libCoverUrl.startsWith("/")) {
+                                        "${client.baseUrl}$libCoverUrl"
+                                    } else {
+                                        "${client.baseUrl}/$libCoverUrl"
+                                    }
+                                }
+                                
+                                tracksList.add(
+                                    TrackInfo(
+                                        path = trackObj.getString("path"),
+                                        title = trackObj.getString("title"),
+                                        artist = trackObj.getString("artist"),
+                                        album = trackObj.getString("album"),
+                                        duration = trackObj.optDouble("durationSecs", 0.0),
+                                        coverUrl = libCoverUrl,
+                                        titleRomaji = trackObj.optString("titleRomaji", null).takeIf { it != "null" },
+                                        titleEn = trackObj.optString("titleEn", null).takeIf { it != "null" },
+                                        artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
+                                        artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
+                                        albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
+                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" }
+                                    )
+                                )
+                            }
+                        }
+                        
+                        client._library.value = tracksList
+                        Log.i("WebSocket", "📚 Library updated with ${tracksList.size} tracks")
                     }
                     "error" -> {
                         val message = json.optString("message")
@@ -461,38 +636,43 @@ class WebSocketClient {
                         client._isMobilePlayback.value = false
                         client._streamUrl.value = null
                     }
-                    "library" -> {
-                        // Handle library response from getLibrary request
-                        val tracksArray = json.optJSONArray("tracks") ?: return
-                        val tracks = mutableListOf<TrackInfo>()
-                        for (i in 0 until tracksArray.length()) {
-                            val t = tracksArray.getJSONObject(i)
-                            var coverUrl = t.optString("coverUrl", null)
-                                ?: t.optString("cover_url", null)
-                            
-                            if (coverUrl != null && !coverUrl.startsWith("http")) {
-                                coverUrl = "${client.baseUrl}$coverUrl"
-                            }
-
-                            tracks.add(
-                                TrackInfo(
-                                    path = t.optString("path", ""),
-                                    title = t.optString("title", "Unknown"),
-                                    artist = t.optString("artist", "Unknown Artist"),
-                                    album = t.optString("album", ""),
-                                    duration = t.optDouble("durationSecs", 0.0),
-                                    coverUrl = coverUrl,
-                                    titleRomaji = t.optString("titleRomaji", null).takeIf { it != "null" },
-                                    titleEn = t.optString("titleEn", null).takeIf { it != "null" },
-                                    artistRomaji = t.optString("artistRomaji", null).takeIf { it != "null" },
-                                    artistEn = t.optString("artistEn", null).takeIf { it != "null" },
-                                    albumRomaji = t.optString("albumRomaji", null).takeIf { it != "null" },
-                                    albumEn = t.optString("albumEn", null).takeIf { it != "null" }
+                    "playlistTracks" -> {
+                        // Handle playlist tracks response
+                        val tracksArray = json.optJSONArray("tracks")
+                        val playlistId = json.optString("playlistId", "")
+                        val tracksList = mutableListOf<TrackInfo>()
+                        
+                        if (tracksArray != null) {
+                            for (i in 0 until tracksArray.length()) {
+                                val trackObj = tracksArray.getJSONObject(i)
+                                var coverUrl = trackObj.optString("coverUrl", null)
+                                    ?: trackObj.optString("cover_url", null)
+                                
+                                if (coverUrl != null && !coverUrl.startsWith("http")) {
+                                    coverUrl = "${client.baseUrl}$coverUrl"
+                                }
+                                
+                                tracksList.add(
+                                    TrackInfo(
+                                        path = trackObj.getString("path"),
+                                        title = trackObj.getString("title"),
+                                        artist = trackObj.getString("artist"),
+                                        album = trackObj.getString("album"),
+                                        duration = trackObj.optDouble("durationSecs", 0.0),
+                                        coverUrl = coverUrl,
+                                        titleRomaji = trackObj.optString("titleRomaji", null).takeIf { it != "null" },
+                                        titleEn = trackObj.optString("titleEn", null).takeIf { it != "null" },
+                                        artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
+                                        artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
+                                        albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
+                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" }
+                                    )
                                 )
-                            )
+                            }
                         }
-                        client._library.value = tracks
-                        Log.i("WebSocket", "📚 Library received: ${tracks.size} tracks via WebSocket")
+                        
+                        client._currentPlaylistTracks.value = tracksList
+                        Log.i("WebSocket", "📚 Playlist $playlistId received ${tracksList.size} tracks")
                     }
                 }
             } catch (e: Exception) {

@@ -6,19 +6,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeBackground
@@ -28,20 +34,23 @@ import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 
 /**
- * PlaylistsScreen - Displays the queue as playlists (upcoming feature: user-created playlists)
- * Currently shows "Up Next" queue with track details and playing indicator
- * 
- * Future: This will be extended to show user-created playlists when playlist management is added
+ * PlaylistsScreen - Displays user-created playlists from the PC
+ * Shows playlist cards with track count and allows navigation to view tracks
  */
 @Composable
 fun PlaylistsScreen(
     viewModel: ConnectionViewModel,
-    contentPadding: PaddingValues = PaddingValues()
+    contentPadding: PaddingValues = PaddingValues(),
+    onPlaylistSelected: (String) -> Unit = {}
 ) {
-    val queue by viewModel.wsClient.queue.collectAsState()
-    val currentIndex by viewModel.wsClient.currentIndex.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
+    
+    // Fetch playlists when screen loads
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.getPlaylists()
+    }
 
-    if (queue.isEmpty()) {
+    if (playlists.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -55,12 +64,12 @@ fun PlaylistsScreen(
             ) {
                 androidx.compose.material3.Icon(
                     imageVector = Icons.Filled.QueueMusic,
-                    contentDescription = "Empty queue",
+                    contentDescription = "No playlists",
                     tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                     modifier = Modifier.size(64.dp)
                 )
                 Text(
-                    "Queue is empty",
+                    "No playlists",
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     fontSize = 16.sp
                 )
@@ -77,7 +86,7 @@ fun PlaylistsScreen(
         ) {
             item {
                 Text(
-                    text = "Up Next",
+                    text = "Playlists",
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Bold,
@@ -85,8 +94,11 @@ fun PlaylistsScreen(
                 )
             }
             
-            itemsIndexed(queue) { index, item ->
-                PlaylistQueueItemRow(item, isCurrent = index == currentIndex)
+            itemsIndexed(playlists) { index, playlist ->
+                PlaylistCard(
+                    playlist = playlist,
+                    onPlaylistClick = { onPlaylistSelected(playlist.id) }
+                )
             }
             
             // Bottom padding for floating nav bar
@@ -97,66 +109,67 @@ fun PlaylistsScreen(
     }
 }
 
-@Composable
-fun PlaylistQueueItemRow(item: moe.memesta.vibeon.data.QueueItem, isCurrent: Boolean) {
-    val displayLanguage = LocalDisplayLanguage.current
-    val title = item.getDisplayName(displayLanguage)
-    val artist = item.getDisplayArtist(displayLanguage)
 
+@Composable
+fun PlaylistCard(
+    playlist: moe.memesta.vibeon.data.PlaylistInfo,
+    onPlaylistClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .bouncyClickable(onClick = {}, enabled = false)
+            .bouncyClickable(onClick = onPlaylistClick)
             .padding(vertical = 12.dp)
             .background(
-                color = if (isCurrent) VibeSurface.copy(alpha = 0.8f) else Color.Transparent,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                color = VibeSurface.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(12.dp)
             )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        if (isCurrent) {
-            androidx.compose.material3.Icon(
-                androidx.compose.material.icons.Icons.Rounded.GraphicEq,
-                contentDescription = "Playing",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .size(20.dp)
-                    .padding(end = 12.dp)
-            )
-        } else {
-            Spacer(modifier = Modifier.width(28.dp))
-        }
-
-        // Track Cover
-        coil.compose.AsyncImage(
-            model = item.coverUrl,
-            contentDescription = null,
+        // Album Art Placeholder for Playlist
+        Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-        )
+                .size(56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.QueueMusic,
+                contentDescription = "Playlist",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = title,
-                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                text = playlist.name,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = artist,
+                text = "${playlist.trackCount} tracks",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
+        
+        androidx.compose.material3.Icon(
+            androidx.compose.material.icons.Icons.Rounded.GraphicEq,
+            contentDescription = "View playlist",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }

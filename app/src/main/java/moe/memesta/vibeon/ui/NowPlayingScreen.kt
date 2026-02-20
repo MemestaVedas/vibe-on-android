@@ -68,6 +68,8 @@ import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import kotlin.math.abs
+import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.data.MediaSessionData
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -83,6 +85,12 @@ fun NowPlayingScreen(
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val isPlaying by connectionViewModel.isPlaying.collectAsState()
     val isMobilePlayback by playbackViewModel.isMobilePlayback.collectAsState()
+    
+    // Shuffle and Repeat from server state
+    val isShuffled by connectionViewModel.isShuffled.collectAsState()
+    val repeatMode by connectionViewModel.repeatMode.collectAsState()
+    val volume by connectionViewModel.volume.collectAsState()
+    val favorites by connectionViewModel.favorites.collectAsState()
 
     // 3 Pages: 0=Queue, 1=NowPlaying, 2=Lyrics
     val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
@@ -118,6 +126,12 @@ fun NowPlayingScreen(
                         duration = playbackState.duration,
                         coverUrl = currentTrack.coverUrl,
                         isMobilePlayback = isMobilePlayback,
+                        currentTrack = currentTrack,
+                        favorites = favorites,
+                        connectionViewModel = connectionViewModel,
+                        isShuffled = isShuffled,
+                        repeatMode = repeatMode,
+                        volume = volume,
                         onPlayPauseToggle = {
                             if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
                         },
@@ -194,6 +208,12 @@ fun NowPlayingContent(
     duration: Long = 0,
     coverUrl: String? = null,
     isMobilePlayback: Boolean = false,
+    currentTrack: MediaSessionData,
+    favorites: Set<String>,
+    connectionViewModel: ConnectionViewModel,
+    isShuffled: Boolean,
+    repeatMode: String,
+    volume: Double,
     onPlayPauseToggle: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -217,9 +237,12 @@ fun NowPlayingContent(
     // Heart/Like state
     var isLiked by remember { mutableStateOf(false) }
     
-    // Shuffle/Repeat state
-    var isShuffleActive by remember { mutableStateOf(false) }
-    var isRepeatActive by remember { mutableStateOf(false) }
+    // Note: Shuffle/Repeat state now comes from connectionViewModel
+    
+    // Check if current track is in favorites
+    LaunchedEffect(currentTrack, favorites) {
+        isLiked = currentTrack.path.let { favorites.contains(it) }
+    }
     
     // Breathing animation for album art — pauses when not playing
     val breathingTransition = rememberInfiniteTransition(label = "breathing")
@@ -276,9 +299,9 @@ fun NowPlayingContent(
     )
     
     // Japanese dual-text: show romaji subtitle if the display title differs from original
-    val showRomajiSubtitle = titleRomaji != null && titleRomaji != originalTitle && title != originalTitle
+    val showRomajiSubtitle = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true) && !titleRomaji.equals(originalTitle, ignoreCase = true)
     val romajiSubtitle = if (showRomajiSubtitle) titleRomaji else null
-    val showArtistRomajiSubtitle = artistRomaji != null && artistRomaji != originalArtist && artist != originalArtist
+    val showArtistRomajiSubtitle = !artistRomaji.isNullOrBlank() && !artistRomaji.equals(artist, ignoreCase = true) && !artistRomaji.equals(originalArtist, ignoreCase = true)
     val artistRomajiSubtitle = if (showArtistRomajiSubtitle) artistRomaji else null
     
     // Main Container with standard app background
@@ -294,7 +317,8 @@ fun NowPlayingContent(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .padding(horizontal = Dimens.SectionSpacing) // 24.dp
-                .padding(bottom = 80.dp),
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header (Minimal/Floating)
@@ -325,14 +349,8 @@ fun NowPlayingContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(1f) // Max width
+                        .weight(1f, fill = false)
                         .aspectRatio(1f)
-                        .sharedElement(
-                            state = rememberSharedContentState(key = "album_art_shared"),
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            boundsTransform = { _, _ ->
-                                androidx.compose.animation.core.tween(durationMillis = 500)
-                            }
-                        )
                         .graphicsLayer {
                             scaleX = albumScale
                             scaleY = albumScale
@@ -455,7 +473,7 @@ fun NowPlayingContent(
                     // Heart/Like Button
                     IconButton(
                         onClick = {
-                            isLiked = !isLiked
+                            connectionViewModel.toggleFavorite(currentTrack.path)
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         },
                         modifier = Modifier.size(40.dp)
@@ -575,13 +593,13 @@ fun NowPlayingContent(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 IconButton(onClick = {
-                    isShuffleActive = !isShuffleActive
+                    connectionViewModel.toggleShuffle()
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }) {
                     Icon(
                         Icons.Rounded.Shuffle,
                         null,
-                        tint = if (isShuffleActive) vibrantColor else Color.White.copy(alpha = 0.6f)
+                        tint = if (isShuffled) vibrantColor else Color.White.copy(alpha = 0.6f)
                     )
                 }
                 
@@ -634,15 +652,56 @@ fun NowPlayingContent(
                 }
                 
                 IconButton(onClick = {
-                    isRepeatActive = !isRepeatActive
+                    connectionViewModel.toggleRepeat()
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }) {
                     Icon(
-                        if (isRepeatActive) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                        if (repeatMode != "off") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                         null,
-                        tint = if (isRepeatActive) vibrantColor else Color.White.copy(alpha = 0.6f)
+                        tint = if (repeatMode != "off") vibrantColor else Color.White.copy(alpha = 0.6f)
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Volume Control
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.VolumeDown,
+                    contentDescription = "Volume Down",
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+                
+                Slider(
+                    value = volume.toFloat(),
+                    onValueChange = { newVolume ->
+                        connectionViewModel.setVolume(newVolume.toDouble())
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(4.dp),
+                    colors = SliderDefaults.colors(
+                        thumbColor = vibrantColor,
+                        activeTrackColor = vibrantColor,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.1f)
+                    ),
+                    valueRange = 0f..1f
+                )
+                
+                Icon(
+                    Icons.Rounded.VolumeUp,
+                    contentDescription = "Volume Up",
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

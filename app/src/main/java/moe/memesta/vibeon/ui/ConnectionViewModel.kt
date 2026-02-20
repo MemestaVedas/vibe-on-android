@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.DiscoveredDevice
+import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.data.WebSocketClient
 
 enum class ConnectionState {
@@ -29,6 +30,16 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     val lyrics = wsClient.lyrics
     val isLoadingLyrics = wsClient.isLoadingLyrics
     
+    // Shuffle, Repeat, Volume, Favorites, Playlists
+    val isShuffled: StateFlow<Boolean> = wsClient.isShuffled
+    val repeatMode: StateFlow<String> = wsClient.repeatMode
+    val volume: StateFlow<Double> = wsClient.volume
+    val favorites: StateFlow<Set<String>> = wsClient.favorites
+    val playlists: StateFlow<List<moe.memesta.vibeon.data.PlaylistInfo>> = wsClient.playlists
+    val currentPlaylistTracks: StateFlow<List<moe.memesta.vibeon.data.TrackInfo>> = wsClient.currentPlaylistTracks
+    val queue: StateFlow<List<moe.memesta.vibeon.data.QueueItem>> = wsClient.queue
+    val library: StateFlow<List<moe.memesta.vibeon.data.TrackInfo>> = wsClient.library
+    
     private val _connectionState = MutableStateFlow(ConnectionState.IDLE)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
     
@@ -38,6 +49,9 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     private var hasAutoConnected = false
 
     init {
+        // Wire WebSocketClient into the notification manager so it tracks PC state
+        MediaNotificationManager.attach(wsClient)
+
         // Observe discovered devices and auto-connect to favorites
         viewModelScope.launch {
             discoveredDevices.collect { devices ->
@@ -108,6 +122,34 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     
     fun getLyrics() {
         wsClient.sendGetLyrics()
+    }
+    
+    fun toggleShuffle() {
+        wsClient.sendToggleShuffle()
+    }
+    
+    fun toggleRepeat() {
+        wsClient.sendToggleRepeat()
+    }
+    
+    fun toggleFavorite(trackPath: String) {
+        wsClient.sendToggleFavorite(trackPath)
+    }
+    
+    fun setVolume(volume: Double) {
+        wsClient.sendSetVolume(volume)
+    }
+    
+    fun getPlaylists() {
+        wsClient.sendGetPlaylists()
+    }
+    
+    fun getPlaylistTracks(playlistId: String) {
+        wsClient.sendGetPlaylistTracks(playlistId)
+    }
+    
+    fun addToPlaylist(playlistId: String, trackPath: String) {
+        wsClient.sendAddToPlaylist(playlistId, trackPath)
     }
     
     override fun onCleared() {

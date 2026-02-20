@@ -23,6 +23,8 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.SpeakerGroup
 import androidx.compose.material3.*
 import androidx.compose.foundation.pager.PagerState
 import kotlinx.coroutines.launch
@@ -86,6 +88,7 @@ fun BottomPlayerBar(
     val playbackState by playbackViewModel.playbackState.collectAsState()
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val isPlaying by connectionViewModel.isPlaying.collectAsState()
+    val isMobilePlayback by playbackViewModel.isMobilePlayback.collectAsState()
     val displayLanguage = LocalDisplayLanguage.current
     val title = currentTrack.getDisplayName(displayLanguage)
     val artist = currentTrack.getDisplayArtist(displayLanguage)
@@ -177,6 +180,29 @@ fun BottomPlayerBar(
                                         )
                                     }
                                 }
+
+                                // Playback Location Toggle
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.05f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                                        .clickable {
+                                            if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
+                                            else playbackViewModel.requestMobilePlayback()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isMobilePlayback) Icons.Rounded.Smartphone else Icons.Rounded.SpeakerGroup,
+                                        contentDescription = "Toggle Playback Location",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.width(8.dp))
 
                                 // Play/Pause Button
                                 Box(
@@ -401,13 +427,6 @@ private fun AlbumArtWithPulse(
             Box(
                 modifier = Modifier
                     .size(46.dp)
-                    .sharedElement(
-                        state = rememberSharedContentState(key = "album_art_shared"),
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        boundsTransform = { _, _ ->
-                            androidx.compose.animation.core.tween(durationMillis = 500)
-                        }
-                    )
                     .clip(CircleShape)
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), CircleShape)
                     .background(Color.DarkGray)

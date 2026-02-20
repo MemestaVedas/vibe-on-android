@@ -62,7 +62,26 @@ fun LyricsScreen(
     // Parse lyrics
     val lyrics = remember(lyricsData) {
         if (lyricsData?.hasSynced == true && !lyricsData?.syncedLyrics.isNullOrEmpty()) {
-            parseLrc(lyricsData!!.syncedLyrics!!)
+            val jpLyrics = parseLrc(lyricsData!!.syncedLyrics!!)
+            
+            // If Romaji lyrics available, merge them
+            if (!lyricsData?.syncedLyricsRomaji.isNullOrEmpty()) {
+                val romajiLyrics = parseLrc(lyricsData!!.syncedLyricsRomaji!!)
+                
+                // Merge: combine corresponding lines from both
+                jpLyrics.mapIndexed { index, jpGroup ->
+                    val romajiGroup = romajiLyrics.getOrNull(index)
+                    if (romajiGroup != null && jpGroup.timestamp == romajiGroup.timestamp) {
+                        // Merge both lines
+                        LyricGroup(jpGroup.timestamp, jpGroup.lines + romajiGroup.lines)
+                    } else {
+                        // Just JP line if no matching Romaji
+                        jpGroup
+                    }
+                }
+            } else {
+                jpLyrics
+            }
         } else if (!lyricsData?.plainLyrics.isNullOrEmpty()) {
              // Fallback for plain text
              lyricsData!!.plainLyrics!!.lines().map { LyricGroup(0, listOf(it)) }
@@ -74,7 +93,7 @@ fun LyricsScreen(
     val isEmpty = lyrics.isEmpty()
     val isInstrumental = lyricsData?.instrumental == true
     
-    val currentTimeMs = (playbackState.progress * playbackState.duration * 1000).toLong()
+    val currentTimeMs = (playbackState.progress * playbackState.duration).toLong()
     val currentLineIndex = remember(currentTimeMs, lyrics) {
         if (isEmpty) -1 else lyrics.indexOfLast { it.timestamp <= currentTimeMs }.coerceAtLeast(0)
     }

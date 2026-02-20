@@ -3,6 +3,7 @@ package moe.memesta.vibeon.ui
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.WebSocketClient
+import moe.memesta.vibeon.MediaNotificationManager
 import uniffi.vibe_on_core.StreamHeader
 
 class PlaybackViewModel(
@@ -57,13 +59,13 @@ class PlaybackViewModel(
         }
         
         // Listen for playback state from WebSocket
-        viewModelScope.launch {
+         viewModelScope.launch {
             webSocketClient.isPlaying.collect { isPlaying ->
                 _playbackState.value = _playbackState.value.copy(
                     isPlaying = isPlaying
                 )
                 
-                // Sync local player if streaming
+                // Only sync local player if actually mobile streaming (not silent notification mode)
                 if (_isMobilePlayback.value) {
                     if (isPlaying) {
                         if (player?.isPlaying == false) player?.play()
@@ -86,27 +88,52 @@ class PlaybackViewModel(
         }
     }
     
+    private var streamingListener: Player.Listener? = null
+
     private fun startMobileStreaming(url: String) {
-        player?.let {
+        // Exit silent notification mode before loading real audio
+        MediaNotificationManager.exitSilentMode()
+
+        player?.let { p ->
             Log.i("PlaybackViewModel", "🎵 Starting mobile streaming: $url")
-            val mediaItem = MediaItem.fromUri(url)
-            it.setMediaItem(mediaItem)
-            it.prepare()
-            it.play()
+            
+            // Build metadata for the MediaItem
+            val state = _playbackState.value
+            val metadata = MediaMetadata.Builder()
+                .setTitle(state.title)
+                .setArtist(state.artist)
+                // We could add artwork here if we have it, but MNM handles it separately
+                .build()
+
+            val mediaItem = MediaItem.Builder()
+                .setUri(url)
+                .setMediaMetadata(metadata)
+                .build()
+
+            p.setMediaItem(mediaItem)
+            p.prepare()
+
+            val handoffSecs = webSocketClient.handoffPosition.value
+            if (handoffSecs > 0) {
+                Log.i("PlaybackViewModel", "⏭️ Fast-forwarding to handoff position: ${handoffSecs}s")
+                p.seekTo((handoffSecs * 1000).toLong())
+            }
+
+            p.play()
             
             // Start polling for progress
             startProgressPolling()
             
             // Add listener to sync position
-            it.addListener(object : Player.Listener {
+            streamingListener = object : Player.Listener {
                 override fun onPositionDiscontinuity(
                     oldPosition: Player.PositionInfo,
                     newPosition: Player.PositionInfo,
                     reason: Int
                 ) {
-                    val positionSecs = it.currentPosition / 1000.0
+                    val positionSecs = p.currentPosition / 1000.0
                     webSocketClient.sendMobilePositionUpdate(positionSecs)
-                    updateProgress(it.currentPosition)
+                    updateProgress(p.currentPosition)
                 }
                 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -116,7 +143,7 @@ class PlaybackViewModel(
                 }
                 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) {
+                    if (playbackState == Player.STATE_ENDED && _isMobilePlayback.value) {
                         Log.i("PlaybackViewModel", "🎵 Track ended, auto-skipping to next")
                         webSocketClient.sendNext()
                     }
@@ -124,12 +151,19 @@ class PlaybackViewModel(
                 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     Log.e("PlaybackViewModel", "❌ ExoPlayer Error: ${error.message}", error)
-                    Log.e("PlaybackViewModel", "❌ Error Code: ${error.errorCodeName}")
-                    if (error.cause != null) {
-                        Log.e("PlaybackViewModel", "❌ Cause: ${error.cause?.message}", error.cause)
+                    if (_isMobilePlayback.value) {
+                         // Maybe handle error or fallback
                     }
                 }
-            })
+            }.also { p.addListener(it) }
+        }
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        progressJob?.cancel()
+        player?.let { p ->
+            streamingListener?.let { p.removeListener(it) }
         }
     }
     
@@ -150,11 +184,15 @@ class PlaybackViewModel(
     
     private fun stopMobileStreaming() {
         progressJob?.cancel()
-        player?.let {
+        player?.let { p ->
             Log.i("PlaybackViewModel", "⏹️ Stopping mobile streaming")
-            it.stop()
-            it.clearMediaItems()
+            streamingListener?.let { p.removeListener(it) }
+            streamingListener = null
+            p.stop()
+            p.clearMediaItems()
         }
+        // DO NOT clear media items from the service player — MediaNotificationManager
+        // will handle re-entering silent mode via the isMobilePlayback flow observer.
     }
     
     fun requestMobilePlayback() {
