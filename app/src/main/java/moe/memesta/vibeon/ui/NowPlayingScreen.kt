@@ -327,8 +327,8 @@ fun NowPlayingContent(
             ) {
                 Box(
                     modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
-                        .size(32.dp)
+                        .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                        .size(36.dp)
                         .bouncyClickable(onClick = onBackToLibrary),
                     contentAlignment = Alignment.Center
                 ) {
@@ -354,13 +354,14 @@ fun NowPlayingContent(
                         .graphicsLayer {
                             scaleX = albumScale
                             scaleY = albumScale
-                            shadowElevation = 24.dp.toPx()
+                            shadowElevation = 0.dp.toPx()
                             clip = false
                         }
                         .background(Color.Transparent),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Pulse halo visualizer around album art
+                    // Halo visualizers removed for matte look
+                    /*
                     if (isPlaying) {
                         Box(
                             modifier = Modifier
@@ -393,6 +394,7 @@ fun NowPlayingContent(
                                 )
                         )
                     }
+                    */
                     
                     if (!coverUrl.isNullOrEmpty()) {
                         val context = LocalContext.current
@@ -522,7 +524,7 @@ fun NowPlayingContent(
                     // Lyrics Button
                     Box(
                         modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                             .bouncyClickable(onClick = onLyricsClick)
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
@@ -607,7 +609,7 @@ fun NowPlayingContent(
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+                        .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
                         .bouncyClickable(onClick = onSkipPrevious),
                     contentAlignment = Alignment.Center
                 ) {
@@ -639,7 +641,7 @@ fun NowPlayingContent(
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+                        .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
                         .bouncyClickable(onClick = onSkipNext),
                     contentAlignment = Alignment.Center
                 ) {

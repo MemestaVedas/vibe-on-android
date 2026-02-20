@@ -133,25 +133,16 @@ fun ArtistDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(440.dp)
-                    .alpha(0.35f)
-                    .blur(60.dp),
+                    .alpha(0.35f),
                 contentScale = ContentScale.Crop
             )
             
-            // Gradient Overlay
+            // Solid Overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(440.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.1f),
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
-                                MaterialTheme.colorScheme.background
-                            )
-                        )
-                    )
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.65f))
             )
         }
 
@@ -176,7 +167,6 @@ fun ArtistDetailScreen(
                     Box(
                         modifier = Modifier
                             .size(200.dp)
-                            .shadow(24.dp, RoundedCornerShape(100.dp)) // Circle
                             .clip(RoundedCornerShape(100.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
@@ -289,12 +279,10 @@ fun ArtistDetailScreen(
                 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = if (isAtTop) MaterialTheme.colorScheme.background.copy(alpha = 0.85f) else Color.Transparent,
-                    tonalElevation = if (isAtTop) 4.dp else 0.dp
+                    color = if (isAtTop) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    tonalElevation = 0.dp
                 ) {
-                    Box(modifier = Modifier.then(
-                        if (isAtTop) Modifier.blur(20.dp) else Modifier
-                    )) {
+                    Box(modifier = Modifier) {
                         TabRow(
                             selectedTabIndex = selectedTab,
                             containerColor = Color.Transparent,
@@ -413,7 +401,7 @@ fun ArtistDetailScreen(
                     .fillMaxWidth()
                     .height(64.dp)
                     .then(
-                        if (showTitle) Modifier.blur(20.dp).background(MaterialTheme.colorScheme.background.copy(alpha = 0.7f))
+                        if (showTitle) Modifier.background(MaterialTheme.colorScheme.surface)
                         else Modifier
                     ),
                 contentAlignment = Alignment.CenterStart

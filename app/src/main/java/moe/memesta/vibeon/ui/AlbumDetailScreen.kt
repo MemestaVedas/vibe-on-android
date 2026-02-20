@@ -134,19 +134,11 @@ fun AlbumDetailScreen(
                             )
                         }
                         
-                        // Gradient overlay for better button visibility
+                        // Dark overlay for better button visibility - Solid Matte
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Black.copy(alpha = 0.3f),
-                                            Color.Transparent,
-                                            Color.Black.copy(alpha = 0.4f)
-                                        )
-                                    )
-                                )
+                                .background(Color.Black.copy(alpha = 0.35f))
                         )
                         
                         // Back button (top left)
@@ -157,7 +149,7 @@ fun AlbumDetailScreen(
                                 .padding(start = 10.dp, top = 20.dp)
                                 .size(40.dp)
                                 .background(
-                                    Color.Black.copy(alpha = 0.3f),
+                                    Color.White.copy(alpha = 0.15f),
                                     CircleShape
                                 )
                         ) {

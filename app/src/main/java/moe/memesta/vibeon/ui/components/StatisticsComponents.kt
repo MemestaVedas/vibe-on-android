@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -55,10 +54,6 @@ fun StatisticsSection(
                 label = "Total Songs",
                 value = stats.totalSongs.toString(),
                 icon = Icons.Rounded.MusicNote,
-                gradientColors = listOf(
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                ),
                 accentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
@@ -66,10 +61,6 @@ fun StatisticsSection(
                 label = "Albums",
                 value = stats.totalAlbums.toString(),
                 icon = Icons.Rounded.Album,
-                gradientColors = listOf(
-                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
-                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f)
-                ),
                 accentColor = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.weight(1f)
             )
@@ -83,10 +74,6 @@ fun StatisticsSection(
                 label = "Artists",
                 value = stats.totalArtists.toString(),
                 icon = Icons.Rounded.Person,
-                gradientColors = listOf(
-                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
-                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f)
-                ),
                 accentColor = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.weight(1f)
             )
@@ -94,10 +81,6 @@ fun StatisticsSection(
                 label = "Hours",
                 value = formatDurationHours(stats.totalDurationHours),
                 icon = Icons.Rounded.Schedule,
-                gradientColors = listOf(
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f)
-                ),
                 accentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
@@ -110,7 +93,6 @@ private fun BentoCard(
     label: String,
     value: String,
     icon: ImageVector,
-    gradientColors: List<Color>,
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
@@ -122,10 +104,7 @@ private fun BentoCard(
     ) {
         Box(
             modifier = Modifier
-                .background(
-                    Brush.verticalGradient(gradientColors),
-                    RoundedCornerShape(20.dp)
-                )
+                .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
                 .padding(16.dp)
         ) {
             Column(

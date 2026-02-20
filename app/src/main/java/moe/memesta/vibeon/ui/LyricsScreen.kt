@@ -130,7 +130,7 @@ fun LyricsScreen(
             // Back Button
             Box(
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
                     .bouncyClickable { onBack() }
                     .padding(8.dp),
                 contentAlignment = Alignment.Center
@@ -143,23 +143,7 @@ fun LyricsScreen(
             }
         }
 
-        // Top gradient fade
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            VibeBackground,
-                            VibeBackground.copy(alpha = 0.9f),
-                            Color.Transparent
-                        )
-                    )
-                )
-                .align(Alignment.TopCenter)
-                .zIndex(1f)
-        )
+        /* Top gradient fade removed for matte look */
         
         // --- 2. Lyrics List ---
         if (!isEmpty && !isInstrumental) {
@@ -183,23 +167,7 @@ fun LyricsScreen(
             }
         }
         
-        // Bottom gradient fade
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            VibeBackground.copy(alpha = 0.9f),
-                            VibeBackground
-                        )
-                    )
-                )
-                .align(Alignment.BottomCenter)
-                .zIndex(1f)
-        )
+        /* Bottom gradient fade removed for matte look */
         
         // --- 3. Bottom Toggle (Floating Pill) ---
         if (!isEmpty && !isInstrumental) {
@@ -211,8 +179,8 @@ fun LyricsScreen(
             ) {
                 Row(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                        .background(MaterialTheme.colorScheme.surface, CircleShape)
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {

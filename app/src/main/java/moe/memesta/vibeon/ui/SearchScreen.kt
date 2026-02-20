@@ -82,14 +82,7 @@ fun SearchScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            accentColor.copy(alpha = 0.15f),
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
+                .background(accentColor.copy(alpha = 0.1f))
                 .statusBarsPadding() // Apply padding here to avoid notch
                 .padding(horizontal = Dimens.SectionSpacing)
                 .padding(top = 16.dp, bottom = 12.dp)

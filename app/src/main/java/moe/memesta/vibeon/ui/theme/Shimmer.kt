@@ -39,7 +39,7 @@ fun Modifier.shimmerEffect(
     val shimmerColors = remember(baseContentColor, tintColor) {
         listOf(
             baseContentColor.copy(alpha = 0.0f),
-            baseContentColor.copy(alpha = if (tintColor != null) 0.25f else 0.15f), 
+            baseContentColor.copy(alpha = if (tintColor != null) 0.15f else 0.08f), 
             baseContentColor.copy(alpha = 0.0f),
         )
     }

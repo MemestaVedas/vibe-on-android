@@ -100,17 +100,17 @@ private fun buildScheme(sourceColor: Int, darkTheme: Boolean): ColorScheme {
 
             background             = Color(scheme.neutralPalette.tone(10)),
             onBackground           = Color(scheme.neutralPalette.tone(90)),
-            surface                = Color(scheme.neutralPalette.tone(10)),
+            surface                = Color(scheme.neutralPalette.tone(12)),
             onSurface              = Color(scheme.neutralPalette.tone(90)),
 
             surfaceVariant         = Color(scheme.neutralVariantPalette.tone(30)),
             onSurfaceVariant       = Color(scheme.neutralVariantPalette.tone(80)),
 
-            surfaceContainerLowest = Color(scheme.neutralPalette.tone(6)),
+            surfaceContainerLowest = Color(scheme.neutralPalette.tone(8)),
             surfaceContainerLow    = Color(scheme.neutralPalette.tone(10)),
             surfaceContainer       = Color(scheme.neutralPalette.tone(12)),
-            surfaceContainerHigh   = Color(scheme.neutralPalette.tone(17)),
-            surfaceContainerHighest= Color(scheme.neutralPalette.tone(22)),
+            surfaceContainerHigh   = Color(scheme.neutralPalette.tone(14)),
+            surfaceContainerHighest= Color(scheme.neutralPalette.tone(16)),
 
             outline                = Color(scheme.neutralVariantPalette.tone(60)),
             outlineVariant         = Color(scheme.neutralVariantPalette.tone(30)),

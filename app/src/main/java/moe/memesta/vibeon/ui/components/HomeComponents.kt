@@ -84,11 +84,6 @@ fun GridTrackCard(
         Box(
             modifier = Modifier
                 .size(46.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    shape = RoundedCornerShape(Dimens.CornerRadiusSmall),
-                    ambientColor = Color.Black.copy(alpha = 0.5f)
-                )
                 .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         ) {
@@ -159,12 +154,6 @@ fun SquareTrackCard(
         Box(
             modifier = Modifier
                 .size(Dimens.StandardCardWidth)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
-                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                    spotColor = Color.Black.copy(alpha = 0.4f)
-                )
                 .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                 .border(1.dp, CardBorderColor, RoundedCornerShape(Dimens.CornerRadiusLarge))
@@ -224,12 +213,6 @@ fun AlbumCard(
         Box(
             modifier = Modifier
                 .size(Dimens.StandardCardWidth)
-                .shadow(
-                    elevation = 10.dp,
-                    shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
-                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    spotColor = Color.Black.copy(alpha = 0.5f)
-                )
                 .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                 .border(1.dp, CardBorderColor, RoundedCornerShape(Dimens.CornerRadiusLarge)),
@@ -249,19 +232,7 @@ fun AlbumCard(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                // Subtle inner top glow
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.04f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
+                /* Subtle inner top glow removed for matte look */
             } else if (coverUrl != null && !allowImageLoad) {
                 Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
             } else {
@@ -315,11 +286,6 @@ fun ArtistPill(
                 modifier = Modifier
                     .size(40.dp)
                     .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), CircleShape)
-                    .shadow(
-                        elevation = 4.dp,
-                        shape = CircleShape,
-                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                    )
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center

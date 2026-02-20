@@ -290,9 +290,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(
-                        Color(0xFF0F0F14).copy(alpha = 0.75f)
-                    )
+                    .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -327,17 +325,6 @@ fun FadeEdgeLazyRow(
             content = content,
             modifier = Modifier
                 .fillMaxWidth()
-                .drawWithContent {
-                    drawContent()
-                    // Fade-out mask on right edge
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Color.Transparent, Color(0xFF0A0A0C)),
-                            startX = size.width * 0.82f,
-                            endX = size.width
-                        )
-                    )
-                }
         )
     }
 }
@@ -413,35 +400,14 @@ fun HeroHeader(
                     contentDescription = null
                 )
 
-                // Dark overlay for legibility
+                // Dark overlay for legibility - Solid Matte
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color(0xFF0A0A0C).copy(alpha = 0.2f),
-                                    0.5f to Color(0xFF0A0A0C).copy(alpha = 0.35f),
-                                    1.0f to Color(0xFF0A0A0C).copy(alpha = 0.88f)
-                                )
-                            )
-                        )
+                        .background(Color(0xFF0A0A0C).copy(alpha = 0.65f))
                 )
 
-                // Inner glow accent
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                    Color.Transparent
-                                ),
-                                radius = 500f
-                            )
-                        )
-                )
+                /* Inner glow accent removed for matte look */
 
                 // Content
                 Column(
@@ -470,11 +436,7 @@ fun HeroHeader(
                     Text(
                         text = album.getDisplayName(displayLanguage),
                         style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            shadow = Shadow(
-                                color = Color.Black.copy(alpha = 0.6f),
-                                blurRadius = 8f
-                            )
+                            fontWeight = FontWeight.Bold
                         ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
