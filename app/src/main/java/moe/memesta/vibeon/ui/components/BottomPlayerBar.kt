@@ -96,206 +96,144 @@ fun BottomPlayerBar(
 
     val progress = playbackState.progress
 
+    // Determine effective route for the nav button
+    val effectiveRoute = if (currentRoute == "main" && pagerState != null) {
+        when (pagerState.currentPage) {
+            0 -> "library"
+            1 -> "albums"
+            2 -> "playlists"
+            3 -> "artists"
+            4 -> "settings"
+            else -> "library"
+        }
+    } else {
+        currentRoute
+    }
+
     // --- Unified Bottom Bar: Player + Navigation in One Pill ---
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+        // --- Left Pill: Now Playing Info ---
+        AnimatedVisibility(
+            visible = currentTrack.title != "No Track",
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.weight(1f)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // --- Top Section: Now Playing Info ---
-                AnimatedVisibility(
-                    visible = currentTrack.title != "No Track",
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    Box(
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(40.dp))
+                    .clickable { onNavigateToPlayer() }
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures { change, dragAmount ->
+                            val threshold = 20.dp.toPx()
+                            if (dragAmount < -threshold) {
+                                change.consume()
+                                onNavigateToPlayer()
+                            }
+                        }
+                    }
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Player Content
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onNavigateToPlayer() }
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures { change, dragAmount ->
-                                    val threshold = 20.dp.toPx()
-                                    if (dragAmount < -threshold) {
-                                        change.consume()
-                                        onNavigateToPlayer()
-                                    }
-                                }
-                            }
+                            .height(80.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // Player Content
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp)
-                                    .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                // Album Art + Info
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    with(sharedTransitionScope) {
-                                        AlbumArtWithPulse(
-                                            coverUrl = currentTrack.coverUrl,
-                                            isPlaying = isPlaying,
-                                            sharedTransitionScope = sharedTransitionScope,
-                                            animatedVisibilityScope = animatedVisibilityScope
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = title,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color.White,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = artist,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
-
-                                // Playback Location Toggle
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.05f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                                        .clickable {
-                                            if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
-                                            else playbackViewModel.requestMobilePlayback()
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isMobilePlayback) Icons.Rounded.Smartphone else Icons.Rounded.SpeakerGroup,
-                                        contentDescription = "Toggle Playback Location",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                // Play/Pause Button
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IconButton(
-                                        onClick = { if (isPlaying) connectionViewModel.pause() else connectionViewModel.play() },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                            contentDescription = "Play/Pause",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Progress bar
-                            val animatedProgress by animateFloatAsState(
-                                targetValue = progress,
-                                animationSpec = VibeAnimations.SpringStandard,
-                                label = "progressAnimation"
-                            )
-                            val primaryColor = MaterialTheme.colorScheme.primary
-
-                            Canvas(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(2.dp)
-                            ) {
-                                drawRect(Color.White.copy(alpha = 0.06f))
-                                drawRect(
-                                    color = primaryColor,
-                                    size = androidx.compose.ui.geometry.Size(
-                                        width = size.width * animatedProgress,
-                                        height = size.height
-                                    )
+                        // Album Art + Info
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            with(sharedTransitionScope) {
+                                AlbumArtWithPulse(
+                                    coverUrl = currentTrack.coverUrl,
+                                    isPlaying = isPlaying,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
                                 )
                             }
 
-                            Divider(
-                                color = Color.White.copy(alpha = 0.05f),
-                                thickness = 1.dp,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 8.dp)
-                            )
-                        }
-                    }
-                }
+                            Spacer(modifier = Modifier.width(16.dp))
 
-                // --- Bottom Section: Navigation Tabs ---
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val items = listOf(
-                        NavigationItem("library", "Home", Icons.Filled.Home, 0),
-                        NavigationItem("albums", "Albums", Icons.Filled.Album, 1),
-                        NavigationItem("search", "Playlists", Icons.Rounded.QueueMusic, 2),
-                        NavigationItem("artists", "Artist", Icons.Filled.Person, 3),
-                        NavigationItem("settings", "Settings", Icons.Filled.Settings, 4)
-                    )
-
-                    items.forEach { item ->
-                        val isSelected = if (pagerState != null && currentRoute == "main") {
-                            pagerState.currentPage == item.pageIndex
-                        } else {
-                            currentRoute == item.route || (item.route == "library" && currentRoute == "discovery")
-                        }
-
-                        NavTabItem(
-                            item = item,
-                            isSelected = isSelected,
-                            onClick = {
-                                if (pagerState != null && currentRoute == "main") {
-                                    scope.launch { pagerState.animateScrollToPage(item.pageIndex) }
-                                } else if (currentRoute != item.route) {
-                                    navController.navigate(if (item.route == "library") "main" else item.route) {
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = artist,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                        )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Play/Pause Button
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconButton(
+                                onClick = { if (isPlaying) connectionViewModel.pause() else connectionViewModel.play() },
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                    contentDescription = "Play/Pause",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
+
+        // --- Right Pill: Dynamic Nav Button ---
+        DynamicNavButton(
+            currentRoute = effectiveRoute,
+            onNavigate = { route ->
+                val pageIndex = NavPages.find { it.route == route }?.pageIndex ?: 0
+                if (pagerState != null && currentRoute == "main") {
+                    scope.launch { pagerState.animateScrollToPage(pageIndex) }
+                } else if (currentRoute != route) {
+                    navController.navigate(if (route == "library") "main" else route) {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            },
+            onSearchTap = {
+                navController.navigate("search") {
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        )
     }
 }
 
@@ -402,7 +340,7 @@ private fun AlbumArtWithPulse(
 
     Box(
         modifier = Modifier
-            .size(48.dp)
+            .size(52.dp)
             .scale(glowScale),
         contentAlignment = Alignment.Center
     ) {
@@ -423,9 +361,9 @@ private fun AlbumArtWithPulse(
         with(sharedTransitionScope) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), CircleShape)
+                    .size(52.dp)
+                    .clip(moe.memesta.vibeon.ui.components.AlbumArtStarShape)
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), moe.memesta.vibeon.ui.components.AlbumArtStarShape)
                     .background(Color.DarkGray)
             ) {
                 if (coverUrl != null) {

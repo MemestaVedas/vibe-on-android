@@ -31,6 +31,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.SongCoverShape
 import moe.memesta.vibeon.ui.theme.shimmerEffect
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
@@ -152,9 +153,9 @@ fun SquareTrackCard(
         Box(
             modifier = Modifier
                 .size(Dimens.StandardCardWidth)
-                .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
+                .clip(SongCoverShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                .border(1.dp, CardBorderColor, RoundedCornerShape(Dimens.CornerRadiusLarge))
+                .border(1.dp, CardBorderColor, SongCoverShape)
         ) {
             if (track.coverUrl != null && allowImageLoad) {
                 val context = LocalContext.current

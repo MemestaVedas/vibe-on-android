@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import moe.memesta.vibeon.ui.theme.ArtistCoverShape
 import moe.memesta.vibeon.ui.theme.Dimens
 
 @Composable
@@ -39,7 +40,7 @@ fun ArtistListItem(
             contentDescription = artistName,
             modifier = Modifier
                 .size(64.dp)
-                .clip(CircleShape),
+                .clip(ArtistCoverShape),
             contentScale = ContentScale.Crop
         )
         

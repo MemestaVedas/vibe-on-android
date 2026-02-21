@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,7 +92,7 @@ fun QueueItemRow(item: moe.memesta.vibeon.data.QueueItem, isCurrent: Boolean) {
             contentDescription = null,
             modifier = Modifier
                 .size(48.dp)
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentScale = androidx.compose.ui.layout.ContentScale.Crop
         )

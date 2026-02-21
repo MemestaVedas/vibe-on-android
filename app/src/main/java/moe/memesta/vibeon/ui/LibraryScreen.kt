@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import moe.memesta.vibeon.ui.theme.shimmerEffect
+import moe.memesta.vibeon.ui.theme.SongCoverShape
 import androidx.compose.ui.Alignment
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
@@ -218,7 +219,7 @@ fun TrackListItem(
                     contentDescription = title,
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(Dimens.CornerRadiusSmall)),
+                        .clip(SongCoverShape),
                     contentScale = ContentScale.Crop
                 )
             } else if (track.coverUrl != null && !allowImageLoad) {
@@ -226,14 +227,14 @@ fun TrackListItem(
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
+                        .clip(SongCoverShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
+                        .clip(SongCoverShape)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
