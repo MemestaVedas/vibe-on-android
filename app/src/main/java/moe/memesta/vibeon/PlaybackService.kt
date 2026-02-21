@@ -68,6 +68,7 @@ class PlaybackService : MediaSessionService() {
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
             .build()
 
         // Wrap in a ForwardingPlayer that sends all controls to PC via WebSocket

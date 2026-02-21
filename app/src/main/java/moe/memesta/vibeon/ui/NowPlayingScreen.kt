@@ -14,6 +14,8 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -77,6 +79,7 @@ fun NowPlayingScreen(
     playbackViewModel: PlaybackViewModel,
     connectionViewModel: ConnectionViewModel,
     onBackPressed: () -> Unit,
+    onNavigateToAlbum: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
@@ -159,6 +162,7 @@ fun NowPlayingScreen(
                         onQueueClick = {
                             scope.launch { pagerState.animateScrollToPage(0) }
                         },
+                        onNavigateToAlbum = { onNavigateToAlbum(currentTrack.album.ifEmpty { currentTrack.artist }) },
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope,
                         onSeekDragStart = { isDraggingSeek = true },
@@ -222,6 +226,7 @@ fun NowPlayingContent(
     onTogglePlaybackLocation: () -> Unit,
     onLyricsClick: () -> Unit,
     onQueueClick: () -> Unit,
+    onNavigateToAlbum: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onSeekDragStart: () -> Unit = {},
@@ -236,6 +241,7 @@ fun NowPlayingContent(
     
     // Heart/Like state
     var isLiked by remember { mutableStateOf(false) }
+    var showPlaylistDialog by remember { mutableStateOf(false) }
     
     // Note: Shuffle/Repeat state now comes from connectionViewModel
     
@@ -322,8 +328,10 @@ fun NowPlayingContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header (Minimal/Floating)
-            Box(
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
@@ -335,6 +343,21 @@ fun NowPlayingContent(
                     Icon(
                         Icons.Rounded.KeyboardArrowDown,
                         contentDescription = "Dismiss",
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                        .size(36.dp)
+                        .bouncyClickable(onClick = { showPlaylistDialog = true }),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.PlaylistAdd,
+                        contentDescription = "Add to Playlist",
                         tint = Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.size(24.dp)
                     )
@@ -356,6 +379,17 @@ fun NowPlayingContent(
                             scaleY = albumScale
                             shadowElevation = 0.dp.toPx()
                             clip = false
+                        }
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    connectionViewModel.toggleFavorite(currentTrack.path)
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                },
+                                onTap = {
+                                    onNavigateToAlbum()
+                                }
+                            )
                         }
                         .background(Color.Transparent),
                     contentAlignment = Alignment.Center
@@ -763,6 +797,49 @@ fun NowPlayingContent(
                 }
             }
         }
+    }
+
+    if (showPlaylistDialog) {
+        val playlists by connectionViewModel.playlists.collectAsState()
+        
+        LaunchedEffect(Unit) {
+            connectionViewModel.getPlaylists()
+        }
+
+        AlertDialog(
+            onDismissRequest = { showPlaylistDialog = false },
+            title = { Text("Add to Playlist", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(playlists) { playlist ->
+                        Text(
+                            text = playlist.name,
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    connectionViewModel.addToPlaylist(playlist.id, currentTrack.path)
+                                    showPlaylistDialog = false
+                                }
+                                .padding(16.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showPlaylistDialog = false }) {
+                    Text("Cancel", color = vibrantColor)
+                }
+            },
+            containerColor = VibeSurfaceContainer,
+            titleContentColor = Color.White
+        )
     }
 }
 

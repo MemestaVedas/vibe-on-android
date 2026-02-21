@@ -56,7 +56,9 @@ data class PlaylistInfo(
 )
 
 class WebSocketClient {
-    private val okHttpClient = OkHttpClient()
+    private val okHttpClient = OkHttpClient.Builder()
+        .pingInterval(15, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
     private var webSocket: WebSocket? = null
     
     private val _isConnected = MutableStateFlow(false)
@@ -310,7 +312,7 @@ class WebSocketClient {
     
     fun sendToggleRepeat() {
         val message = JSONObject().apply {
-            put("type", "toggleRepeat")
+            put("type", "cycleRepeat")
         }
         Log.i("WebSocket", "🔁 Toggling repeat")
         sendMessage(message)
@@ -350,6 +352,29 @@ class WebSocketClient {
             put("trackPath", trackPath)
         }
         Log.i("WebSocket", "➕ Adding track to playlist")
+        sendMessage(message)
+    }
+    
+    fun sendRemoveFromPlaylist(playlistId: String, playlistTrackId: Long) {
+        val message = JSONObject().apply {
+            put("type", "removeFromPlaylist")
+            put("playlistId", playlistId)
+            put("playlistTrackId", playlistTrackId)
+        }
+        Log.i("WebSocket", "➖ Removing track from playlist")
+        sendMessage(message)
+    }
+    
+    fun sendReorderPlaylistTracks(playlistId: String, trackIds: List<Long>) {
+        val trackIdsArray = org.json.JSONArray()
+        trackIds.forEach { trackIdsArray.put(it) }
+        
+        val message = JSONObject().apply {
+            put("type", "reorderPlaylistTracks")
+            put("playlistId", playlistId)
+            put("trackIds", trackIdsArray)
+        }
+        Log.i("WebSocket", "↕️ Reordering playlist tracks")
         sendMessage(message)
     }
     
@@ -610,7 +635,8 @@ class WebSocketClient {
                                         artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
                                         artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
                                         albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
-                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" }
+                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" },
+                                        playlistTrackId = trackObj.optLong("playlistTrackId", -1L).takeIf { it != -1L }
                                     )
                                 )
                             }
@@ -665,7 +691,8 @@ class WebSocketClient {
                                         artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
                                         artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
                                         albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
-                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" }
+                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" },
+                                        playlistTrackId = trackObj.optLong("playlistTrackId", -1L).takeIf { it != -1L }
                                     )
                                 )
                             }

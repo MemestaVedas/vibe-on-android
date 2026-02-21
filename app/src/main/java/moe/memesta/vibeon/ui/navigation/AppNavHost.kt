@@ -194,6 +194,10 @@ fun AppNavHost(
                         playbackViewModel = playbackViewModel,
                         connectionViewModel = connectionViewModel,
                         onBackPressed = { navController.popBackStack() },
+                        onNavigateToAlbum = { albumName ->
+                            navController.popBackStack()
+                            navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
+                        },
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this
                     )
@@ -370,19 +374,32 @@ fun AppNavHost(
                         pagerState.scrollToPage(1)
                     }
                 }
-                
-                // Search Screen - Dedicated full search page
-                composable("search") {
+                // Search Screen - Global Overlay Dialog
+                dialog(
+                    route = "search",
+                    dialogProperties = androidx.compose.ui.window.DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = true,
+                        decorFitsSystemWindows = false
+                    )
+                ) {
                     if (libraryViewModel != null) {
                         SearchScreen(
                             viewModel = libraryViewModel,
-                            onTrackSelected = { navController.navigate("now_playing") },
+                            onTrackSelected = {
+                                navController.popBackStack()
+                                navController.navigate("now_playing")
+                            },
                             onAlbumSelected = { albumName ->
+                                navController.popBackStack()
                                 navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
                             },
                             onArtistSelected = { artistName ->
+                                navController.popBackStack()
                                 navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
                             },
+                            onClose = { navController.popBackStack() },
                             contentPadding = innerPadding
                         )
                     } else {
@@ -434,6 +451,27 @@ fun AppNavHost(
                             navController = navController,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { navController.navigate("now_playing") },
+                            contentPadding = innerPadding
+                        )
+                    }
+                }
+                
+                composable(
+                    route = "playlist/{playlistId}",
+                    arguments = listOf(androidx.navigation.navArgument("playlistId") { type = androidx.navigation.NavType.StringType })
+                ) { backStackEntry ->
+                    val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
+
+                    if (libraryViewModel != null) {
+                        PlaylistDetailScreen(
+                            playlistId = playlistId,
+                            viewModel = libraryViewModel,
+                            connectionViewModel = connectionViewModel,
+                            onBackClick = { navController.popBackStack() },
+                            onTrackSelected = {
+                                navController.popBackStack()
+                                navController.navigate("now_playing")
+                            },
                             contentPadding = innerPadding
                         )
                     }

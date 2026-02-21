@@ -237,9 +237,16 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        moe.memesta.vibeon.data.local.DisplayLanguage.entries.forEach { language ->
+                        listOf(
+                            moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL,
+                            moe.memesta.vibeon.data.local.DisplayLanguage.ROMAJI
+                        ).forEach { language ->
                             val isSelected = displayLanguage == language
-                            val title = language.name.lowercase().replaceFirstChar { it.uppercase() }
+                            val title = if (language == moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL) {
+                                "Japanese"
+                            } else {
+                                language.name.lowercase().replaceFirstChar { it.uppercase() }
+                            }
                             
                             FilterChip(
                                 selected = isSelected,

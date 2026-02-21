@@ -74,8 +74,6 @@ fun GridTrackCard(
             .height(Dimens.ListItemHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(Dimens.CornerRadiusMedium))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-            .border(1.dp, CardBorderColor, RoundedCornerShape(Dimens.CornerRadiusMedium))
             .clickable(interactionSource = interactionSource, indication = null) { onClick() }
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically

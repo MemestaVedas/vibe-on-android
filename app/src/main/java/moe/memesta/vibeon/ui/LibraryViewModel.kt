@@ -104,10 +104,20 @@ class LibraryViewModel(
         
         // 3. Trigger initial refresh
         viewModelScope.launch {
-            _isLoading.value = true
+            // Wait briefly for Room DB to emit initial cached tracks
+            kotlinx.coroutines.delay(150)
+            val hasTracks = _tracks.value.isNotEmpty()
+            
+            if (!hasTracks) {
+                _isLoading.value = true
+            }
+            
             repository.refreshLibrary()
             fetchStats()
-            _isLoading.value = false
+            
+            if (!hasTracks) {
+                _isLoading.value = false
+            }
         }
         
         // 4. Listen for connection to retry

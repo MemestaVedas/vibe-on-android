@@ -103,9 +103,8 @@ class LibraryRepository(
         )
 
         val total = tracks.size
-        trackDao.clearAll() // Simple sync strategy: replace all
-
-        // Process in chunks of 100 for better UI feedback and DB performance
+        // We don't call clearAll() here because insertTracks uses REPLACE strategy, 
+        // and clearing would cause the UI to blink empty while inserting.
         tracks.chunked(100).forEachIndexed { index, chunk ->
             val entities = chunk.map { track ->
                 // Ensure we store relative paths in DB to handle base URL changes

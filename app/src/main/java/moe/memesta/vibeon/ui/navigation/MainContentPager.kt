@@ -49,7 +49,8 @@ fun MainContentPager(
             )
             2 -> PlaylistsScreen(
                 viewModel = connectionViewModel,
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                onPlaylistSelected = { playlistId -> navController.navigate("playlist/${URLEncoder.encode(playlistId, "UTF-8")}") }
             )
             3 -> ArtistsListScreen(
                 viewModel = libraryViewModel,

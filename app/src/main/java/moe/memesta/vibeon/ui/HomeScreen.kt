@@ -182,31 +182,18 @@ fun HomeScreen(
                 }
             }
 
-            item(key = "sep_recent_hero") {
-                WavySeparator(
-                    colorTop = sectionSurface,
-                    colorBottom = appBackground
-                )
-            }
-
             // Section: Featured Carousel
             item(key = "section_featured_carousel") {
                 if (featuredAlbums.isNotEmpty() && !isLoading) {
-                    Box(modifier = Modifier.background(appBackground).padding(vertical = 12.dp)) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
                         HeroHeader(
                             albums = featuredAlbums,
                             onPlayClick = { album -> onAlbumSelected(album.name) },
-                            displayLanguage = displayLanguage
+                            displayLanguage = displayLanguage,
+                            topWaveColor = sectionSurface
                         )
                     }
                 }
-            }
-
-            item(key = "sep_hero_albums") {
-                WavySeparator(
-                    colorTop = appBackground,
-                    colorBottom = sectionSurface
-                )
             }
 
             // Section: Albums
@@ -415,7 +402,8 @@ fun FadeEdgeLazyRow(
 fun HeroHeader(
     albums: List<AlbumInfo>,
     onPlayClick: (AlbumInfo) -> Unit,
-    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage = moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage = moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL,
+    topWaveColor: Color = Color.Transparent
 ) {
     if (albums.isEmpty()) return
 
@@ -441,10 +429,7 @@ fun HeroHeader(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Dimens.ScreenPadding)
-            .padding(top = 64.dp) // Space for the search button overlay
+        modifier = Modifier.fillMaxWidth()
     ) {
         HorizontalPager(
             state = pagerState,
@@ -452,17 +437,12 @@ fun HeroHeader(
         ) { page ->
             val album = albums.getOrNull(page) ?: return@HorizontalPager
 
-            // 16:9 card, full-width with rounded corners
+            // Full-width edge-to-edge container, clipped at the bottom
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .border(
-                        width = 1.dp,
-                        color = Color.White.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(20.dp)
-                    )
+                    .height(380.dp)
+                    .clip(WavyBottomShape(12.dp, 6.5f))
             ) {
                 val context = LocalContext.current
                 val request = remember(album.coverUrl) {
@@ -472,11 +452,9 @@ fun HeroHeader(
                         .build()
                 }
 
-                // Album art background - NO BLUR for featured section
+                // Album art background - NO dark overlay
                 AsyncImage(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .alpha(0.85f),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     model = request,
                     contentDescription = null
@@ -489,109 +467,86 @@ fun HeroHeader(
                         .background(Color(0xFF0A0A0C).copy(alpha = 0.65f))
                 )
 
-                /* Inner glow accent removed for matte look */
-
-                // Content
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
-                ) {
-                    // "New for you" badge
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
-                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(50))
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "✦  New for you",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = album.getDisplayName(displayLanguage),
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = Color.White
-                    )
-
-                    Text(
-                        text = album.getDisplayArtist(displayLanguage),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.65f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Play button
-                    Button(
-                        onClick = { onPlayClick(album) },
-                        modifier = Modifier.height(44.dp),
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = Color.White
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            "Play Now",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        // Pager dots
-        Row(
-            Modifier
-                .wrapContentHeight()
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            repeat(pagerState.pageCount) { iteration ->
-                val isActive = pagerState.currentPage == iteration
-                val dotWidth by animateDpAsState(
-                    targetValue = if (isActive) 20.dp else 6.dp,
-                    animationSpec = tween(250),
-                    label = "dotWidth"
-                )
-                val dotColor by animateColorAsState(
-                    targetValue = if (isActive) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.25f),
-                    animationSpec = tween(250),
-                    label = "dotColor"
-                )
+                // Content Overlay
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 3.dp, vertical = 4.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(dotColor)
-                        .height(6.dp)
-                        .width(dotWidth)
+                        .fillMaxSize()
+                        .padding(horizontal = Dimens.ScreenPadding, vertical = 24.dp)
+                ) {
+                    // Content
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp), // adjust padding to avoid clipping by the bottom wave
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            // "New for you" badge
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
+                                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(50))
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "✦  New for you",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = album.getDisplayName(displayLanguage),
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                color = Color.White
+                            )
+
+                            Text(
+                                text = album.getDisplayArtist(displayLanguage),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White.copy(alpha = 0.65f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // Petal (Sun) Play Button at Bottom Right
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(PetalShape(petals = 8, depth = 0.15f))
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .clickable { onPlayClick(album) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Top Wavy Separator (drops stalactites INTO the image)
+                WavySeparator(
+                    colorTop = topWaveColor,
+                    colorBottom = Color.Transparent,
+                    modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
         }
@@ -633,5 +588,60 @@ fun SeeAllButton(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
+    }
+}
+
+class WavyBottomShape(private val waveHeight: androidx.compose.ui.unit.Dp, private val waveFrequency: Float) : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): androidx.compose.ui.graphics.Outline {
+        val width = size.width
+        val height = size.height
+        val amplitude = with(density) { waveHeight.toPx() }
+        val freq = waveFrequency * 2f * Math.PI.toFloat() / width
+
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, 0f)
+            lineTo(width, 0f)
+            
+            val waveBottomBase = height - amplitude
+            for (x in width.toInt() downTo 0 step 5) {
+                val angle: Double = ((x.toFloat() * freq)).toDouble()
+                val sinValue: Float = kotlin.math.sin(angle).toFloat()
+                val waveFactor: Float = (sinValue + 1f) * 0.5f 
+                val y: Float = waveBottomBase + (waveFactor * amplitude)
+                
+                if (x == width.toInt()) {
+                    lineTo(width, y)
+                } else {
+                    lineTo(x.toFloat(), y)
+                }
+            }
+            lineTo(0f, waveBottomBase + ((kotlin.math.sin(0.0).toFloat() + 1f) * 0.5f * amplitude))
+            close()
+        }
+        return androidx.compose.ui.graphics.Outline.Generic(path)
+    }
+}
+
+class PetalShape(private val petals: Int = 8, private val depth: Float = 0.15f) : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): androidx.compose.ui.graphics.Outline {
+        val path = androidx.compose.ui.graphics.Path()
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val baseRadius = size.width / 2f * (1f - depth)
+        val variation = size.width / 2f * depth
+
+        for (i in 0..360 step 5) {
+            val angle = Math.toRadians(i.toDouble())
+            val r = baseRadius + variation * kotlin.math.sin(angle * petals)
+            val x = cx + r * kotlin.math.cos(angle).toFloat()
+            val y = cy + r * kotlin.math.sin(angle).toFloat()
+            if (i == 0) {
+                path.moveTo(x.toFloat(), y.toFloat())
+            } else {
+                path.lineTo(x.toFloat(), y.toFloat())
+            }
+        }
+        path.close()
+        return androidx.compose.ui.graphics.Outline.Generic(path)
     }
 }

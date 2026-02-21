@@ -152,6 +152,14 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
         wsClient.sendAddToPlaylist(playlistId, trackPath)
     }
     
+    fun removeFromPlaylist(playlistId: String, playlistTrackId: Long) {
+        wsClient.sendRemoveFromPlaylist(playlistId, playlistTrackId)
+    }
+
+    fun reorderPlaylistTracks(playlistId: String, trackIds: List<Long>) {
+        wsClient.sendReorderPlaylistTracks(playlistId, trackIds)
+    }
+    
     override fun onCleared() {
         super.onCleared()
         wsClient.disconnect()

@@ -1,39 +1,64 @@
 package moe.memesta.vibeon.ui.pairing
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.ui.ConnectionState
-import moe.memesta.vibeon.ui.theme.VibeAnimations
+import moe.memesta.vibeon.ui.WavyBottomShape
+
+@Composable
+fun ExpressiveStar(modifier: Modifier = Modifier, color: Color) {
+    Canvas(modifier = modifier) {
+        val path = Path()
+        val numPoints = 12
+        val radius = size.width / 2f
+        val centerX = size.width / 2f
+        val centerY = size.height / 2f
+
+        for (i in 0 until numPoints * 2) {
+            val angle = i * Math.PI / numPoints
+            // Wavy radius pattern
+            val r = if (i % 2 == 0) radius else radius * 0.82f
+            val x = (centerX + r * Math.cos(angle)).toFloat()
+            val y = (centerY + r * Math.sin(angle)).toFloat()
+            if (i == 0) {
+                path.moveTo(x, y)
+            } else {
+                path.lineTo(x, y)
+            }
+        }
+        path.close()
+        drawPath(
+            path = path, 
+            color = color,
+            style = Fill
+        )
+    }
+}
 
 @Composable
 fun PairingScreen(
@@ -49,50 +74,62 @@ fun PairingScreen(
     // Use the first discovered device if none is selected, for the "main" view
     val displayDevice = connectedDevice ?: devices.firstOrNull()
     
+    val infiniteTransition = rememberInfiniteTransition(label = "logo_rotation")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(12000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "logo_angle"
+    )
+    
+    // Exact colors matching screenshot "vibe-on-mobilenew1.png"
+    val topBackgroundColor = Color(0xFFD3C1FA) // Light pastel purple
+    val topContentColor = Color(0xFF332353) // Dark purple
+    val bottomBackgroundColor = Color(0xFF141414) // Dark black/gray
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black) // High-contrast black as requested
-            .statusBarsPadding()
+            .background(bottomBackgroundColor)
             .navigationBarsPadding()
     ) {
-        // --- TOP BAR ---
-        Row(
+        // --- TOP CONTAINER (Colored section with wavy bottom) ---
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxHeight(0.78f) // Take up ~78% of the screen
+                .clip(WavyBottomShape(16.dp, 4.5f))
+                .background(topBackgroundColor)
+                .statusBarsPadding()
         ) {
-            Surface(
-                onClick = onNavigateBack,
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
-                modifier = Modifier.size(48.dp)
+            // Back Button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.Rounded.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        tint = topContentColor
                     )
                 }
             }
-        }
 
-        // --- MAIN CONTENT ---
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 35.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Title Section
+            // Main Content inside Top Container
             Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.Center
             ) {
+                // Title
                 Text(
                     text = "Ready to VIBE-ON!",
                     style = MaterialTheme.typography.headlineLarge.copy(
@@ -102,89 +139,100 @@ fun PairingScreen(
                         lineHeight = 40.sp,
                         textAlign = TextAlign.Center
                     ),
-                    color = Color.White
+                    color = topContentColor
                 )
+                
+                Spacer(modifier = Modifier.height(12.dp))
                 
                 Text(
                     text = when {
                         isConnected -> "Connected"
-                        devices.isEmpty() -> "Searching for devices..."
-                        else -> "Found ${devices.size} local client${if (devices.size > 1) "s" else ""}"
+                        devices.isEmpty() -> "Searching for servers..."
+                        else -> "Found ${devices.size} local server${if (devices.size > 1) "s" else ""}"
                     },
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center
                     ),
-                    color = Color(0xFF9AA0A6) // From CSS .Text color
+                    color = topContentColor.copy(alpha = 0.8f) // Slightly subdued dark purple
                 )
-            }
 
-            Spacer(modifier = Modifier.height(60.dp))
+                Spacer(modifier = Modifier.height(60.dp))
 
-            // Centerpiece: The Star/Blob
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(278.dp)
-            ) {
-                ExpressiveStar(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                
-                Icon(
-                    imageVector = Icons.Rounded.DesktopWindows,
-                    contentDescription = null,
-                    tint = Color.Black, // Icons inside the primary blob should be black for contrast
-                    modifier = Modifier.size(80.dp)
-                )
-            }
+                // Centerpiece: Logo Blob or PC Icon
+                AnimatedContent(
+                    targetState = isConnected || devices.isNotEmpty(),
+                    transitionSpec = {
+                        fadeIn(tween(800)) togetherWith fadeOut(tween(800))
+                    },
+                    label = "centerpiece_transition"
+                ) { found ->
+                    if (found) {
+                        // Desktop icon when found
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(160.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DesktopWindows,
+                                contentDescription = null,
+                                tint = topContentColor,
+                                modifier = Modifier.size(100.dp)
+                            )
+                        }
+                    } else {
+                        // Rotating vibe-on dark purple blob
+                         ExpressiveStar(
+                             modifier = Modifier
+                                 .size(140.dp)
+                                 .graphicsLayer { rotationZ = rotationAngle },
+                             color = topContentColor
+                         )
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
-            // Device Info
-            if (displayDevice != null) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = displayDevice.nickname ?: displayDevice.name,
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        ),
-                        color = Color.White
-                    )
-                    
-                    // IP Pill
-                    Surface(
-                        shape = RoundedCornerShape(9999.dp),
-                        color = Color(0xFF1E1E1E), // From CSS .Background
-                        modifier = Modifier.wrapContentSize()
+                // Device Info
+                if (displayDevice != null) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
+                            text = displayDevice.nickname ?: displayDevice.name,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            ),
+                            color = topContentColor
+                        )
+                        
+                        // IP Text (Simpler)
+                        Text(
                             text = "${displayDevice.host}",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.4.sp
                             ),
-                            color = MaterialTheme.colorScheme.primary // Use primary for accent text
+                            color = topContentColor.copy(alpha = 0.7f) // Subdued
                         )
                     }
                 }
             }
         }
 
-        // --- FOOTER ACTION ---
+        // --- BOTTOM CONTAINER (Action button area) ---
         Box(
             modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.35f) // Takes the remaining space (overlapped slightly by top container)
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 60.dp)
-                .padding(horizontal = 35.dp)
+                .padding(bottom = 40.dp, start = 32.dp, end = 32.dp),
+            contentAlignment = Alignment.BottomCenter
         ) {
             Button(
                 onClick = { 
@@ -199,72 +247,20 @@ fun PairingScreen(
                     .height(68.dp),
                 shape = RoundedCornerShape(9999.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.Black
+                    containerColor = topBackgroundColor, // Light purple button
+                    contentColor = topContentColor // Dark purple text
                 ),
                 contentPadding = PaddingValues(0.dp)
             ) {
                 Text(
-                    text = if (isConnected) "ALREADY STREAMING" else "START STREAMING",
+                    text = if (isConnected) "ALREADY VIBING" else "START VIBING",
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.sp
                     )
                 )
             }
         }
-    }
-}
-
-@Composable
-fun ExpressiveStar(
-    modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "star_animation")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.98f,
-        targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-
-    Canvas(modifier = modifier.graphicsLayer {
-        scaleX = scale
-        scaleY = scale
-    }) {
-        val path = Path()
-        val centerX = size.width / 2
-        val centerY = size.height / 2
-        val outerRadius = size.minDimension / 2
-        val innerRadius = outerRadius * 0.82f
-        val points = 12
-        
-        for (i in 0 until points * 2) {
-            val angle = i * Math.PI / points - Math.PI / 2
-            val r = if (i % 2 == 0) outerRadius else innerRadius
-            val x = centerX + r * Math.cos(angle).toFloat()
-            val y = centerY + r * Math.sin(angle).toFloat()
-            
-            if (i == 0) path.moveTo(x, y)
-            else {
-                // Approximate rounded corners with quadratic bezier
-                val prevAngle = (i - 1) * Math.PI / points - Math.PI / 2
-                val prevR = if ((i - 1) % 2 == 0) outerRadius else innerRadius
-                val prevX = centerX + prevR * Math.cos(prevAngle).toFloat()
-                val prevY = centerY + prevR * Math.sin(prevAngle).toFloat()
-                
-                val midX = (prevX + x) / 2
-                val midY = (prevY + y) / 2
-                
-                path.quadraticBezierTo(prevX, prevY, midX, midY)
-            }
-        }
-        path.close()
-        drawPath(path, color)
     }
 }

@@ -28,7 +28,8 @@ data class TrackInfo(
     val artistRomaji: String? = null,
     val artistEn: String? = null,
     val albumRomaji: String? = null,
-    val albumEn: String? = null
+    val albumEn: String? = null,
+    val playlistTrackId: Long? = null
 )
 
 @Immutable
@@ -160,7 +161,8 @@ class MusicStreamClient(
                         artistRomaji = track.optString("artistRomaji", null).takeIf { it != "null" },
                         artistEn = track.optString("artistEn", null).takeIf { it != "null" },
                         albumRomaji = track.optString("albumRomaji", null).takeIf { it != "null" },
-                        albumEn = track.optString("albumEn", null).takeIf { it != "null" }
+                        albumEn = track.optString("albumEn", null).takeIf { it != "null" },
+                        playlistTrackId = track.optLong("playlistTrackId", -1L).takeIf { it != -1L }
                     )
                 )
             }
@@ -237,7 +239,8 @@ class MusicStreamClient(
                         artistRomaji = track.optString("artistRomaji", null).takeIf { it != "null" },
                         artistEn = track.optString("artistEn", null).takeIf { it != "null" },
                         albumRomaji = track.optString("albumRomaji", null).takeIf { it != "null" },
-                        albumEn = track.optString("albumEn", null).takeIf { it != "null" }
+                        albumEn = track.optString("albumEn", null).takeIf { it != "null" },
+                        playlistTrackId = track.optLong("playlistTrackId", -1L).takeIf { it != -1L }
                     )
                 )
             }
@@ -333,7 +336,8 @@ class MusicStreamClient(
                             artistRomaji = track.optString("artistRomaji", null).takeIf { it != "null" },
                             artistEn = track.optString("artistEn", null).takeIf { it != "null" },
                             albumRomaji = track.optString("albumRomaji", null).takeIf { it != "null" },
-                            albumEn = track.optString("albumEn", null).takeIf { it != "null" }
+                            albumEn = track.optString("albumEn", null).takeIf { it != "null" },
+                            playlistTrackId = track.optLong("playlistTrackId", -1L).takeIf { it != -1L }
                         )
                         break
                     }
