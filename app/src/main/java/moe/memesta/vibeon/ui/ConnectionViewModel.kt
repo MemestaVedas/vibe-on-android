@@ -52,13 +52,13 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
         // Wire WebSocketClient into the notification manager so it tracks PC state
         MediaNotificationManager.attach(wsClient)
 
-        // Observe discovered devices and auto-connect to favorites
+        // Observe discovered devices and auto-connect to favorites or the first discovered device
         viewModelScope.launch {
             discoveredDevices.collect { devices ->
-                val favoriteDevice = devices.firstOrNull { it.isFavorite }
-                if (favoriteDevice != null && !hasAutoConnected && _connectionState.value == ConnectionState.IDLE) {
-                    Log.i("ConnectionViewModel", "⭐ Auto-connecting to favorite: ${favoriteDevice.nickname ?: favoriteDevice.name}")
-                    connectToDevice(favoriteDevice)
+                val targetDevice = devices.firstOrNull { it.isFavorite } ?: devices.firstOrNull()
+                if (targetDevice != null && !hasAutoConnected && _connectionState.value == ConnectionState.IDLE) {
+                    Log.i("ConnectionViewModel", "⭐ Auto-connecting to: ${targetDevice.nickname ?: targetDevice.name}")
+                    connectToDevice(targetDevice)
                     hasAutoConnected = true
                 }
             }

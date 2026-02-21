@@ -49,9 +49,10 @@ fun AppNavHost(
     
     val pagerState = rememberPagerState(pageCount = { 5 })
     
-    // Determine smart start destination based on favorites
+    // Start at main. Pairing is an overlay.
+    val startDestination = "main"
     val favorites = remember { favoritesManager.getFavorites() }
-    val startDestination = if (favorites.isNotEmpty()) "library" else "discovery"
+    var userDismissedPairing by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(favorites.isNotEmpty()) }
     
     // Handle optimistic navigation when auto-connecting to favorites
     val connectionState by connectionViewModel.connectionState.collectAsState()
@@ -66,25 +67,9 @@ fun AppNavHost(
     }
     
     LaunchedEffect(connectionState, connectedDevice) {
-        // When we successfully connect via auto-connect, ensure we're on library screen
-        when (connectionState) {
-            ConnectionState.CONNECTED -> {
-                if (connectedDevice != null && navController.currentDestination?.route in listOf("discovery", "pairing")) {
-                    val popTarget = if (navController.currentDestination?.route == "pairing") "pairing" else "discovery"
-                    navController.navigate("library") {
-                        popUpTo(popTarget) { inclusive = true }
-                    }
-                }
-            }
-            ConnectionState.FAILED -> {
-                // If auto-connect failed and we're on library, go back to discovery
-                if (navController.currentDestination?.route == "library" && connectedDevice == null) {
-                    navController.navigate("discovery") {
-                        popUpTo("library") { inclusive = true }
-                    }
-                }
-            }
-            else -> { /* No action needed for IDLE or CONNECTING */ }
+        // If connection fails, show the pairing screen again
+        if (connectionState == ConnectionState.FAILED) {
+            userDismissedPairing = false
         }
     }
     
@@ -95,7 +80,9 @@ fun AppNavHost(
 
 
     SharedTransitionLayout {
-        Scaffold(
+        // Enclose everything in a Box so the PairingScreen can overlay the entire Scaffold
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
                 // Use AnimatedVisibility with a stable fade to avoid layout jumps for shared elements
@@ -333,7 +320,8 @@ fun AppNavHost(
                             contentPadding = innerPadding
                         )
                     } else {
-                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                        // Keep a placeholder behind the overlay while pairing
+                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF141414)))
                     }
                 }
 
@@ -486,51 +474,86 @@ fun AppNavHost(
                         pagerState.scrollToPage(4)
                     }
                 }
-            }
+                }
             
-            // Global Sync Banner
-            AnimatedVisibility(
-                visible = syncStatus.isSyncing,
-                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(Dimens.ScreenPadding)
-            ) {
-                Surface(
+                // Global Sync Banner
+                AnimatedVisibility(
+                    visible = syncStatus.isSyncing,
+                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
-                        .clickable {
-                            navController.navigate("settings")
-                        },
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    tonalElevation = 8.dp,
-                    shadowElevation = 4.dp
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(Dimens.ScreenPadding)
                 ) {
-                    Row(
+                    Surface(
                         modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
+                            .clickable {
+                                navController.navigate("settings")
+                            },
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        tonalElevation = 8.dp,
+                        shadowElevation = 4.dp
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Sync,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Syncing library: ${(syncStatus.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Syncing library: ${(syncStatus.progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
             }
+        } // End of Scaffold
+            
+        // Pairing Overlay - Covers the app until dismissed, placed OUTSIDE Scaffold
+        if (!userDismissedPairing) {
+            // We need to manage scanning
+            DisposableEffect(Unit) {
+                connectionViewModel.startScanning()
+                onDispose {
+                    connectionViewModel.stopScanning()
+                }
             }
+            
+            val devices by connectionViewModel.discoveredDevices.collectAsState()
+            
+            moe.memesta.vibeon.ui.pairing.PairingScreen(
+                devices = devices,
+                connectionState = connectionState,
+                connectedDevice = connectedDevice,
+                onConnect = { ip, port ->
+                    val device = DiscoveredDevice(name = "Manual: $ip", host = ip, port = port)
+                    connectionViewModel.connectToDevice(device)
+                },
+                onDeviceSelected = { device ->
+                    connectionViewModel.connectToDevice(device)
+                },
+                onNavigateBack = { 
+                    // Dismiss if desired, or let back handle it
+                },
+                onNavigateToScan = { },
+                onDismiss = {
+                    userDismissedPairing = true
+                }
+            )
         }
-    }
+            
+    } // End of parent Box
+} // End of SharedTransitionLayout
 }
