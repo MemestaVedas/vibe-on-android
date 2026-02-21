@@ -2,8 +2,9 @@ package moe.memesta.vibeon.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
@@ -15,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.ArtistItemData
-import moe.memesta.vibeon.ui.components.ArtistListItem
+import moe.memesta.vibeon.ui.components.ArtistGridItem
 
 @Composable
 fun ArtistsListScreen(
@@ -73,21 +74,24 @@ fun ArtistsListScreen(
             )
         }
         
-        // Artists List
-        LazyColumn(
+        // Artists Grid
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
                 top = 8.dp,
                 bottom = contentPadding.calculateBottomPadding() + 24.dp
-            )
+            ),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             items(artists) { artist ->
-                ArtistListItem(
+                ArtistGridItem(
                     artistName = artist.name,
-                    followerCount = artist.followerCount,
                     photoUrl = artist.photoUrl,
-                    onClick = { onArtistClick(artist.name) },
-                    onPlayClick = { onPlayArtist(artist.name) }
+                    onClick = { onArtistClick(artist.name) }
                 )
             }
         }

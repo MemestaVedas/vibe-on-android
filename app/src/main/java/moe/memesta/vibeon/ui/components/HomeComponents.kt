@@ -37,6 +37,7 @@ import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
 
+
 // Unified accent
 private val CardBorderColor = Color.White.copy(alpha = 0.09f)
 // Accent color — now uses MaterialTheme.colorScheme.primary for dynamic theming
@@ -212,9 +213,9 @@ fun AlbumCard(
         Box(
             modifier = Modifier
                 .size(Dimens.StandardCardWidth)
-                .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
+                .clip(AlbumSquircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                .border(1.dp, CardBorderColor, RoundedCornerShape(Dimens.CornerRadiusLarge)),
+                .border(1.dp, CardBorderColor, AlbumSquircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (coverUrl != null && allowImageLoad) {

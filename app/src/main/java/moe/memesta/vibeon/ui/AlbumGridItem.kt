@@ -19,14 +19,14 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.components.AlbumSquircleShape
 
 @Composable
 fun AlbumGridItem(
     albumName: String,
     artistName: String,
     coverUrl: String?,
-    onClick: () -> Unit,
-    onPlayClick: () -> Unit
+    onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -39,7 +39,7 @@ fun AlbumGridItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .clip(MaterialTheme.shapes.medium) // 24dp from theme or Dimens logic if mapped
+                .clip(AlbumSquircleShape)
         ) {
             // Album Art
             if (coverUrl != null) {
@@ -66,25 +66,7 @@ fun AlbumGridItem(
                 }
             }
             
-            // Play Button Overlay (Bottom Right Corner)
-            IconButton(
-                onClick = onPlayClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(48.dp)
-                    .background(
-                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha=0.9f),
-                         shape = androidx.compose.foundation.shape.CircleShape
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Play Album",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+
         }
         
         Spacer(modifier = Modifier.height(Dimens.ItemSpacing))

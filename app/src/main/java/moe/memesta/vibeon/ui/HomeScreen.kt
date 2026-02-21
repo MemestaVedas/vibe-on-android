@@ -50,6 +50,7 @@ import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.TrackInfo
@@ -95,6 +96,9 @@ fun HomeScreen(
         tracks.take(20).chunked(4)
     }
 
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
     // Page-load entrance animation
     var pageVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -113,13 +117,79 @@ fun HomeScreen(
         label = "logo_angle"
     )
 
-    Box(modifier = Modifier.fillMaxSize().background(sectionSurface)) {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = true,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                drawerContentColor = MaterialTheme.colorScheme.onSurface,
+                windowInsets = WindowInsets.statusBars
+            ) {
+                // Logo positioned exactly as home screen logo
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(Dimens.ScreenPadding)
+                ) {
+                    Column {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_vibe_logo),
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp) // Match home screen logo size
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Vibe-On",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Your Music, Your Way",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                WavySeparator(
+                    colorTop = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    colorBottom = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.fillMaxWidth().height(16.dp),
+                    waveHeight = 8.dp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                NavigationDrawerItem(
+                    icon = { 
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                                .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        )
+                    },
+                    label = { Text("All Songs") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onViewAllSongs()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+            }
+        }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(sectionSurface)) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(
                 top = 72.dp,
-                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
+                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing + 80.dp // Added 80dp to clear player pills
             ),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
@@ -215,19 +285,30 @@ fun HomeScreen(
                             onSeeAllClick = { /* Navigate */ },
                             modifier = Modifier.padding(top = Dimens.SectionPadding)
                         )
-                        FadeEdgeLazyRow(
-                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
+                        // 3x3 Grid of Albums
+                        val albumChunks = albums.take(9).chunked(3)
+                        Column(
+                            modifier = Modifier.padding(horizontal = Dimens.ScreenPadding),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(
-                                items = albums.take(5),
-                                key = { "album_${it.name}" }
-                            ) { album ->
-                                AlbumCard(
-                                    albumName = album.getDisplayName(displayLanguage),
-                                    coverUrl = album.coverUrl,
-                                    onClick = { onAlbumSelected(album.name) }
-                                )
+                            albumChunks.forEach { chunk ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    chunk.forEach { album ->
+                                        AlbumCard(
+                                            albumName = album.getDisplayName(displayLanguage),
+                                            coverUrl = album.coverUrl,
+                                            onClick = { onAlbumSelected(album.name) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    // Fill empty slots in the last row if needed
+                                    repeat(3 - chunk.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
                             }
                         }
                     }
@@ -341,6 +422,9 @@ fun HomeScreen(
                 .padding(Dimens.ScreenPadding)
                 .size(40.dp)
                 .graphicsLayer { rotationZ = rotationAngle }
+                .clickable {
+                    scope.launch { drawerState.open() }
+                }
         )
 
         // Search + Connection Status Overlay
@@ -374,6 +458,7 @@ fun HomeScreen(
                     )
                 }
             }
+        }
         }
     }
 }

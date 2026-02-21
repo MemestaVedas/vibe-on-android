@@ -56,9 +56,8 @@ fun AlbumsGridScreen(
             )
         }
         
-        // Albums Grid
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Fixed(3),
             contentPadding = PaddingValues(
                 start = Dimens.ScreenPadding, 
                 end = Dimens.ScreenPadding, 
@@ -76,8 +75,7 @@ fun AlbumsGridScreen(
                     albumName = album.name,
                     artistName = album.artist,
                     coverUrl = album.coverUrl,
-                    onClick = { onAlbumClick(album.name) },
-                    onPlayClick = { onPlayAlbum(album.name) }
+                    onClick = { onAlbumClick(album.name) }
                 )
             }
         }
