@@ -51,7 +51,7 @@ enum class LyricsViewMode {
 fun LyricsScreen(
     connectionViewModel: ConnectionViewModel,
     playbackViewModel: PlaybackViewModel,
-    onBack: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val playbackState by playbackViewModel.playbackState.collectAsState()
     val lyricsData by connectionViewModel.lyrics.collectAsState()
@@ -114,34 +114,11 @@ fun LyricsScreen(
     }
     
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .background(VibeBackground)
+            .background(Color.Transparent)
     ) {
-        // --- 1. Top Header (Track Info) ---
-        // --- 1. Top Header (Minimal/Floating) ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(Dimens.ScreenPadding)
-                .zIndex(2f)
-        ) {
-            // Back Button
-            Box(
-                modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.15f), CircleShape)
-                    .bouncyClickable { onBack() }
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White
-                )
-            }
-        }
+        // --- 1. Top Header (Minimal/Floating) - Removed Back Button for Scrollable Integration ---
 
         /* Top gradient fade removed for matte look */
         
@@ -152,7 +129,7 @@ fun LyricsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = Dimens.SectionSpacing), // Use consistent spacing
-                contentPadding = PaddingValues(top = 150.dp, bottom = 200.dp),
+                contentPadding = PaddingValues(top = 64.dp, bottom = 200.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(32.dp)
             ) {

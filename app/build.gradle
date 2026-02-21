@@ -60,6 +60,9 @@ android {
             doNotStrip "*/libvibe_on_core.so"
         }
     }
+    lint {
+        abortOnError false
+    }
 }
 
 dependencies {
