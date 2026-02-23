@@ -18,6 +18,7 @@ data class TrackEntity(
     val year: Int?,
     val genre: String?,
     val trackNumber: Int?,
+    val discNumber: Int?,
     val titleRomaji: String? = null,
     val titleEn: String? = null,
     val artistRomaji: String? = null,

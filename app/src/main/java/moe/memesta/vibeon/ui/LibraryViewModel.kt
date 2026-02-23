@@ -14,6 +14,7 @@ import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.WebSocketClient
+import moe.memesta.vibeon.ui.utils.parseAlbum
 
 class LibraryViewModel(
     private val repository: LibraryRepository,
@@ -133,7 +134,9 @@ class LibraryViewModel(
     
     private suspend fun updateLocalState(tracks: List<TrackInfo>) {
         withContext(Dispatchers.Default) {
-            val albumModels = tracks.groupBy { it.album }
+            val albumModels = tracks.groupBy { track ->
+                parseAlbum(track.album, track.discNumber).baseName
+            }
                 .map { (album, albumTracks) ->
                     AlbumInfo(
                         name = album,
@@ -293,7 +296,9 @@ class LibraryViewModel(
                  }
              }
 
-            val albumModels = filtered.groupBy { it.album }
+            val albumModels = filtered.groupBy { track ->
+                parseAlbum(track.album, track.discNumber).baseName
+            }
                 .map { (album, albumTracks) ->
                     AlbumInfo(
                         name = album,

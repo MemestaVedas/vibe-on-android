@@ -131,21 +131,25 @@ class MainActivity : ComponentActivity() {
         val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
         controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
         controllerFuture?.addListener({
-            mediaController = controllerFuture?.get()
-            mediaController?.addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    playbackViewModel.updateIsPlaying(isPlaying)
-                }
-                override fun onPositionDiscontinuity(
-                    oldPosition: Player.PositionInfo,
-                    newPosition: Player.PositionInfo,
-                    reason: Int
-                ) {
-                    playbackViewModel.updateProgress(newPosition.positionMs)
-                }
-            })
-            // Attach player to ViewModel
-            playbackViewModel.setPlayer(mediaController!!)
+            try {
+                mediaController = controllerFuture?.get()
+                mediaController?.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        playbackViewModel.updateIsPlaying(isPlaying)
+                    }
+                    override fun onPositionDiscontinuity(
+                        oldPosition: Player.PositionInfo,
+                        newPosition: Player.PositionInfo,
+                        reason: Int
+                    ) {
+                        playbackViewModel.updateProgress(newPosition.positionMs)
+                    }
+                })
+                // Attach player to ViewModel
+                playbackViewModel.setPlayer(mediaController!!)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "❌ Failed to connect to MediaController: ${e.message}")
+            }
         }, ContextCompat.getMainExecutor(this))
     }
 

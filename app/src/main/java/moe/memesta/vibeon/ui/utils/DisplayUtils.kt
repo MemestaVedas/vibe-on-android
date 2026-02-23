@@ -89,3 +89,32 @@ fun AlbumInfo.getDisplayArtist(language: DisplayLanguage): String {
 fun ArtistItemData.getDisplayName(language: DisplayLanguage): String {
     return selectByLanguage(language, name, nameRomaji, nameEn)
 }
+
+// Album Normalization
+data class ParsedAlbum(
+    val baseName: String,
+    val discInfo: String?,
+    val discNumber: Int?
+)
+
+fun parseAlbum(albumName: String, discNum: Int?): ParsedAlbum {
+    // Regex matching the web version: /^(.*?)(?:\\|\/|\s-\s|\s*[\(\[]\s*|\s+-\s+)(?:Disc|CD)\s*(\d+)(.*)$/i
+    val regex = Regex("^(.*?)(?:\\\\|/|\\s-\\s|\\s*[\\(\\[]\\s*|\\s+-\\s+)(?:Disc|CD)\\s*(\\d+)(.*)$", RegexOption.IGNORE_CASE)
+    val match = regex.find(albumName)
+    
+    return if (match != null) {
+        val baseName = match.groupValues[1].trim()
+        val num = match.groupValues[2].toIntOrNull() ?: discNum
+        ParsedAlbum(
+            baseName = baseName,
+            discInfo = "Disc $num",
+            discNumber = num
+        )
+    } else {
+        ParsedAlbum(
+            baseName = albumName.trim(),
+            discInfo = discNum?.let { "Disc $it" },
+            discNumber = discNum
+        )
+    }
+}

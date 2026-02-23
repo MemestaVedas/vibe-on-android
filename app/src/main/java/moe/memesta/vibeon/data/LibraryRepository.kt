@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.data.local.TrackDao
 import moe.memesta.vibeon.data.local.TrackEntity
 
@@ -52,7 +53,9 @@ class LibraryRepository(
                 artistRomaji = entity.artistRomaji,
                 artistEn = entity.artistEn,
                 albumRomaji = entity.albumRomaji,
-                albumEn = entity.albumEn
+                albumEn = entity.albumEn,
+                discNumber = entity.discNumber,
+                trackNumber = entity.trackNumber
             )
         }
     }
@@ -90,8 +93,8 @@ class LibraryRepository(
         }
     }
     
-    suspend fun saveTracksToDb(tracks: List<TrackInfo>) {
-        if (tracks.isEmpty()) return
+    suspend fun saveTracksToDb(tracks: List<TrackInfo>) = withContext(Dispatchers.IO) {
+        if (tracks.isEmpty()) return@withContext
         
         Log.i("LibraryRepository", "💾 Saving ${tracks.size} tracks to database...")
         _syncStatus.value = SyncStatus(
@@ -131,7 +134,8 @@ class LibraryRepository(
                     albumArtUrl = relativeCoverUrl,
                     year = null,
                     genre = null,
-                    trackNumber = null,
+                    trackNumber = track.trackNumber,
+                    discNumber = track.discNumber,
                     titleRomaji = track.titleRomaji,
                     titleEn = track.titleEn,
                     artistRomaji = track.artistRomaji,

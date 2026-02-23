@@ -49,6 +49,8 @@ import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
+import moe.memesta.vibeon.ui.utils.parseAlbum
+import moe.memesta.vibeon.ui.components.SectionHeader
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,6 +76,10 @@ fun AlbumDetailScreen(
     
     val albumTracks = remember(tracks, decodedAlbumName) {
         tracks.filter { it.album == decodedAlbumName }
+            .sortedWith(
+                compareBy<TrackInfo> { it.discNumber ?: 1 }
+                    .thenBy { it.trackNumber ?: 0 }
+            )
     }
     
     val scrollState = rememberLazyListState()
@@ -235,6 +241,11 @@ fun AlbumDetailScreen(
             
             // Track List
             itemsIndexed(albumTracks) { index, track ->
+                val prevTrack = if (index > 0) albumTracks[index - 1] else null
+                val currentDisc = track.discNumber ?: 1
+                val prevDisc = prevTrack?.discNumber ?: 1
+                val showDiscSeparator = index > 0 && currentDisc != prevDisc
+
                 val alpha by animateFloatAsState(
                     targetValue = 1f,
                     animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
@@ -245,19 +256,31 @@ fun AlbumDetailScreen(
                     animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
                     label = "itemSlide"
                 )
-                
-                Box(modifier = Modifier.graphicsLayer { 
-                    this.alpha = alpha
-                    this.translationY = slide
-                }) {
-                    AlbumTrackRow(
-                        index = index + 1,
-                        track = track,
-                        onClick = {
-                            viewModel.playTrack(track, albumTracks)
-                            onTrackSelected(track)
-                        }
-                    )
+
+                Column {
+                    if (showDiscSeparator) {
+                        Text(
+                            text = "Disc $currentDisc",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = Dimens.ScreenPadding, vertical = 12.dp)
+                        )
+                    }
+                    
+                    Box(modifier = Modifier.graphicsLayer { 
+                        this.alpha = alpha
+                        this.translationY = slide
+                    }) {
+                        AlbumTrackRow(
+                            index = track.trackNumber ?: (index + 1),
+                            track = track,
+                            onClick = {
+                                viewModel.playTrack(track, albumTracks)
+                                onTrackSelected(track)
+                            }
+                        )
+                    }
                 }
             }
         }

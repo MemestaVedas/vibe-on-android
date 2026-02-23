@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
@@ -33,6 +35,9 @@ import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
+import moe.memesta.vibeon.ui.utils.parseAlbum
+import moe.memesta.vibeon.ui.components.WavySeparator
+import moe.memesta.vibeon.ui.components.SectionHeader
 
 @Composable
 fun LibraryScreen(
@@ -54,7 +59,7 @@ fun LibraryScreen(
     
     // Derived Data
     val displayedTracks = remember(tracks, searchQuery) {
-        if (searchQuery.isNotEmpty()) {
+        val filtered = if (searchQuery.isNotEmpty()) {
             tracks.filter { 
                 it.title.contains(searchQuery, ignoreCase = true) || 
                 it.artist.contains(searchQuery, ignoreCase = true) 
@@ -62,6 +67,13 @@ fun LibraryScreen(
         } else {
             tracks
         }
+        
+        // Sort: Album (Base) -> Disc -> Track
+        filtered.sortedWith(
+            compareBy<TrackInfo> { parseAlbum(it.album, it.discNumber).baseName }
+                .thenBy { it.discNumber ?: 0 }
+                .thenBy { it.trackNumber ?: 0 }
+        )
     }
 
     Box(
@@ -124,7 +136,39 @@ fun LibraryScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(displayedTracks) { track ->
+                        itemsIndexed(displayedTracks) { index, track ->
+                            val prevTrack = if (index > 0) displayedTracks[index - 1] else null
+                            val currentAlbum = remember(track.album, track.discNumber) { 
+                                parseAlbum(track.album, track.discNumber) 
+                            }
+                            val prevAlbum = remember(prevTrack?.album, prevTrack?.discNumber) { 
+                                prevTrack?.let { parseAlbum(it.album, it.discNumber) } 
+                            }
+
+                            val showAlbumSeparator = prevAlbum == null || currentAlbum.baseName != prevAlbum.baseName
+                            val showDiscSeparator = !showAlbumSeparator && currentAlbum.discNumber != prevAlbum?.discNumber
+
+                            if (showAlbumSeparator) {
+                                WavySeparator(
+                                    colorTop = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                    colorBottom = Color.Transparent,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                                SectionHeader(
+                                    title = currentAlbum.baseName,
+                                    modifier = Modifier.padding(bottom = 8.dp, start = 0.dp)
+                                )
+                            }
+                            
+                            if (showDiscSeparator) {
+                                Text(
+                                    text = "Disc ${currentAlbum.discNumber}",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp)
+                                )
+                            }
+
                             val onTrackClick = remember(track) {
                                 {
                                     viewModel.playTrack(track, displayedTracks)
