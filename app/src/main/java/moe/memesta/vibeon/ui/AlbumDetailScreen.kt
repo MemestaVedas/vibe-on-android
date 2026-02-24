@@ -35,8 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.compose.ui.platform.LocalContext
+import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.SuccessResult
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
@@ -89,6 +91,9 @@ fun AlbumDetailScreen(
     val artistName = firstTrack?.artist ?: "Unknown Artist"
     val displayArtistName = firstTrack?.getDisplayArtist(displayLanguage) ?: artistName
     
+    // Get context at composable level
+    val context = LocalContext.current
+    
     // Dynamic Theming
     var themeColors by remember { mutableStateOf(ThemeColors()) }
     val animatedVibrant by animateColorAsState(
@@ -107,135 +112,164 @@ fun AlbumDetailScreen(
             state = scrollState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing,
-                top = 0.dp // Start at top for transparent status bar effect
+                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
             )
         ) {
-            // Header Space
             item {
-                Column(
-                    modifier = Modifier.fillMaxWidth()
+                // Dynamic Header Box - Full immersive album art with overlay text
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(520.dp) // Large immersive header
+                        .clip(RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp))
                 ) {
-                    // Album Art Card with overlays - Edge to edge square
+                    // Extract colors on the fly
+                    LaunchedEffect(coverUrl) {
+                        if (coverUrl != null) {
+                            val loader = ImageLoader(context)
+                            val request = ImageRequest.Builder(context)
+                                .data(coverUrl)
+                                .allowHardware(false)
+                                .build()
+                            val result = loader.execute(request)
+                            if (result is SuccessResult) {
+                                themeColors = PaletteUtils.extractColors(result.drawable)
+                            }
+                        }
+                    }
+
+                    // Background Album Art - Fullscreen
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f) // Square aspect ratio
-                            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .fillMaxSize()
+                            .background(animatedVibrant.copy(alpha = 0.9f))
                     ) {
                         if (coverUrl != null) {
-                            val context = LocalContext.current
-                            val request = remember(coverUrl) {
-                                ImageRequest.Builder(context)
-                                    .data(coverUrl)
-                                    .crossfade(true)
-                                    .build()
-                            }
                             AsyncImage(
-                                model = request,
-                                contentDescription = decodedAlbumName,
+                                model = coverUrl,
+                                contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                Icons.Rounded.PlayArrow, // Fallback
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .align(Alignment.Center),
+                                tint = Color.White.copy(alpha = 0.2f)
                             )
                         }
                         
-                        // Dark overlay for better button visibility - Solid Matte
+                        // Dark gradient overlay at bottom for text readability
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.35f))
-                        )
-                        
-                        // Back button (top left)
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(start = 10.dp, top = 20.dp)
-                                .size(40.dp)
+                                .align(Alignment.BottomCenter)
                                 .background(
-                                    Color.White.copy(alpha = 0.15f),
-                                    CircleShape
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)
+                                        ),
+                                        startY = 100f
+                                    )
                                 )
-                        ) {
-                            Icon(
-                                Icons.Rounded.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
+                        )
+                    }
+
+                    // Back Button
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier
+                            .statusBarsPadding()
+                            .padding(start = 16.dp, top = 8.dp)
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), CircleShape)
+                    ) {
+                        Icon(
+                            Icons.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Overlay Content: Title, Artist and Play Button - at bottom
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 32.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = displayAlbumName,
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = displayArtistName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                modifier = Modifier.bouncyClickable(onClick = {
+                                    navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
+                                })
                             )
                         }
-                        
-                        // Play button (bottom right)
-                        FloatingActionButton(
-                            onClick = {
-                                if (albumTracks.isNotEmpty()) {
-                                    viewModel.playAlbum(decodedAlbumName)
-                                    onTrackSelected(albumTracks.first())
-                                }
-                            },
+
+                        // Circular Play Button
+                        Box(
                             modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(16.dp)
-                                .size(56.dp),
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = Color.White
+                                .size(64.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                .bouncyClickable {
+                                    if (albumTracks.isNotEmpty()) {
+                                        viewModel.playAlbum(decodedAlbumName)
+                                        onTrackSelected(albumTracks.first())
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Rounded.PlayArrow,
-                                contentDescription = "Play",
-                                modifier = Modifier.size(28.dp)
+                                contentDescription = "Play All",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(36.dp)
                             )
                         }
                     }
+                }
+
+                // Metadata Divider Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Album • 2024",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     
-                    // Text content with padding
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = Dimens.ScreenPadding)
-                    ) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        
-                        // Album Title
-                        Text(
-                            text = displayAlbumName,
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Artist Name (clickable)
-                        Text(
-                            text = displayArtistName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.bouncyClickable(onClick = {
-                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
-                            })
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Metadata row: Album • Year    Songs • Duration
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Album • ${albumTracks.size} songs",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
+                    val totalDuration = albumTracks.sumOf { (it.duration ?: 0).toLong() } / 1000
+                    val mins = totalDuration / 60
+                    Text(
+                        text = "${albumTracks.size} songs • ${mins} min",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
                 }
             }
             

@@ -1,4 +1,4 @@
-# Gradle and Android Studio
+# Gradle and Android Studio files
 .gradle/
 /local.properties
 .DS_Store
@@ -9,6 +9,7 @@
 .idea/
 captures/
 .navigation/
+AGENT_GUIDELINES.md
 
 # Crashlytics and other diagnostics
 *.hprof

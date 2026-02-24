@@ -51,7 +51,11 @@ enum class LyricsViewMode {
 fun LyricsScreen(
     connectionViewModel: ConnectionViewModel,
     playbackViewModel: PlaybackViewModel,
-    modifier: Modifier = Modifier
+    lyricsSurfaceColor: Color,
+    lyricsTextColor: Color,
+    lyricsSubtleTextColor: Color,
+    modifier: Modifier = Modifier,
+    showHeader: Boolean = true
 ) {
     val playbackState by playbackViewModel.playbackState.collectAsState()
     val lyricsData by connectionViewModel.lyrics.collectAsState()
@@ -116,19 +120,33 @@ fun LyricsScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
+            .background(color = lyricsSurfaceColor)
     ) {
-        // --- 1. Top Header (Minimal/Floating) - Removed Back Button for Scrollable Integration ---
+        // --- 1. Top Header (Floating over lyrics) ---
+        if (showHeader) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Dimens.SectionSpacing, vertical = 20.dp)
+                    .align(Alignment.TopCenter)
+                    .zIndex(3f)
+            ) {
+                Text(
+                    text = "Lyrics",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = lyricsTextColor
+                )
+            }
+        }
 
-        /* Top gradient fade removed for matte look */
-        
         // --- 2. Lyrics List ---
         if (!isEmpty && !isInstrumental) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = Dimens.SectionSpacing), // Use consistent spacing
+                    .padding(horizontal = Dimens.SectionSpacing),
                 contentPadding = PaddingValues(top = 64.dp, bottom = 200.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(32.dp)
@@ -138,7 +156,9 @@ fun LyricsScreen(
                         lyricGroup = lyricGroup,
                         isActive = index == currentLineIndex,
                         isPast = index < currentLineIndex,
-                        viewMode = viewMode
+                        viewMode = viewMode,
+                        baseTextColor = lyricsTextColor,
+                        secondaryTextColor = lyricsSubtleTextColor
                     )
                 }
             }
@@ -156,8 +176,8 @@ fun LyricsScreen(
             ) {
                 Row(
                     modifier = Modifier
-                        .background(MaterialTheme.colorScheme.surface, CircleShape)
-                        .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                        .background(lyricsSurfaceColor.copy(alpha = 0.92f), CircleShape)
+                        .border(1.dp, lyricsTextColor.copy(alpha = 0.2f), CircleShape)
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -166,14 +186,14 @@ fun LyricsScreen(
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                .background(if (isSelected) lyricsTextColor.copy(alpha = 0.2f) else Color.Transparent)
                                 .bouncyClickable { viewMode = mode.mode }
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = mode.label,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+                                color = if (isSelected) lyricsTextColor else lyricsSubtleTextColor,
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                             )
                         }
@@ -190,7 +210,7 @@ fun LyricsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                CircularProgressIndicator(color = lyricsTextColor)
             }
         } else if (isEmpty || isInstrumental) {
              Box(
@@ -201,14 +221,14 @@ fun LyricsScreen(
                     Icon(
                         imageVector = Icons.Rounded.MusicNote,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.3f),
+                        tint = lyricsSubtleTextColor.copy(alpha = 0.6f),
                         modifier = Modifier.size(64.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = if (isInstrumental) "Instrumental Track" else "No lyrics available",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = lyricsSubtleTextColor
                     )
                 }
             }
@@ -258,13 +278,15 @@ fun LyricGroupItem(
     lyricGroup: LyricGroup,
     isActive: Boolean,
     isPast: Boolean,
-    viewMode: LyricsViewMode
+    viewMode: LyricsViewMode,
+    baseTextColor: Color,
+    secondaryTextColor: Color
 ) {
     val textColor by animateColorAsState(
         targetValue = when {
-            isActive -> Color.White
-            isPast -> Color.White.copy(alpha = 0.4f)
-            else -> Color.White.copy(alpha = 0.3f)
+            isActive -> baseTextColor
+            isPast -> baseTextColor.copy(alpha = 0.45f)
+            else -> baseTextColor.copy(alpha = 0.28f)
         },
         animationSpec = tween(durationMillis = 300),
         label = "TextColor"
@@ -321,7 +343,7 @@ fun LyricGroupItem(
              Text(
                 text = secondaryText,
                 style = MaterialTheme.typography.titleMedium,
-                color = textColor.copy(alpha = textColor.alpha * 0.7f),
+                color = secondaryTextColor.copy(alpha = textColor.alpha * 0.85f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )

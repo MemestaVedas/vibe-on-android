@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import moe.memesta.vibeon.ui.*
+import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
 @Composable
@@ -20,6 +21,8 @@ fun MainContentPager(
     navController: NavController,
     contentPadding: PaddingValues
 ) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
     HorizontalPager(
         state = pagerState,
         modifier = Modifier.fillMaxSize(),
@@ -34,6 +37,11 @@ fun MainContentPager(
                 onArtistSelected = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
                 onSearchClick = { navController.navigate("search") },
                 onViewAllSongs = { navController.navigate("all_songs") },
+                onViewAllAlbums = { 
+                    scope.launch {
+                        pagerState.animateScrollToPage(1)
+                    }
+                },
                 contentPadding = contentPadding,
                 connectionViewModel = connectionViewModel
             )
