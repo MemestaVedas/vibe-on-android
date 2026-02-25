@@ -10,7 +10,6 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -18,6 +17,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.MarqueeAnimationMode
@@ -29,6 +29,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -301,7 +302,11 @@ fun NowPlayingScreen(
             containerColor = VibeBackground,
             modifier = Modifier.fillMaxHeight(0.85f)
         ) {
-            QueueScreen(connectionViewModel)
+            QueueScreen(
+                viewModel = connectionViewModel,
+                showCloseButton = true,
+                onClose = { showQueueSheet = false }
+            )
         }
     }
 }
@@ -349,9 +354,67 @@ fun NowPlayingContent(
     val primaryControlColor = vibrantColor
     val onPrimaryControlColor = MaterialTheme.colorScheme.onPrimary
     val hapticFeedback = LocalHapticFeedback.current
+    val displayLanguage = LocalDisplayLanguage.current
     
     // Context for gestures
     var showPlaylistDialog by remember { mutableStateOf(false) }
+
+    val queue by connectionViewModel.queue.collectAsState()
+    val currentIndex by connectionViewModel.currentIndex.collectAsState()
+    val sharedKeyBase = currentTrack.path.ifEmpty { "no-track" }
+
+    val pagerItems = remember(queue, currentTrack, displayLanguage, title, artist) {
+        if (queue.isNotEmpty()) {
+            queue.map { item ->
+                TrackPagerItem(
+                    path = item.path.ifEmpty { "no-track" },
+                    coverUrl = item.coverUrl,
+                    title = item.getDisplayName(displayLanguage),
+                    artist = item.getDisplayArtist(displayLanguage)
+                )
+            }
+        } else {
+            listOf(
+                TrackPagerItem(
+                    path = currentTrack.path.ifEmpty { "no-track" },
+                    coverUrl = currentTrack.coverUrl,
+                    title = title,
+                    artist = artist
+                )
+            )
+        }
+    }
+    val initialPage = currentIndex.coerceIn(0, (pagerItems.size - 1).coerceAtLeast(0))
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { pagerItems.size }
+    )
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+    var lastDispatchedPage by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(currentIndex, pagerItems.size, isDragged) {
+        if (!isDragged && pagerItems.isNotEmpty()) {
+            val target = currentIndex.coerceIn(0, pagerItems.lastIndex)
+            if (pagerState.currentPage != target) {
+                pagerState.animateScrollToPage(target)
+            } else {
+                lastDispatchedPage = target
+            }
+        }
+    }
+
+    LaunchedEffect(isDragged, pagerItems, currentIndex) {
+        if (!isDragged && pagerItems.isNotEmpty()) {
+            val page = pagerState.currentPage
+            if (page != currentIndex && page != lastDispatchedPage) {
+                lastDispatchedPage = page
+                connectionViewModel.playTrack(pagerItems[page].path)
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } else if (page == currentIndex) {
+                lastDispatchedPage = page
+            }
+        }
+    }
     
     // Album scale - no breathing effect
     val albumScale = 1f
@@ -433,9 +496,6 @@ fun NowPlayingContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Album Art - Edge to edge at top with rounded bottom corners
-            var offsetX by remember { mutableFloatStateOf(0f) }
-            val swipeThreshold = 100f
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -444,26 +504,9 @@ fun NowPlayingContent(
                     .aspectRatio(1f)
                     .clip(AlbumSquircleShape)
                     .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { },
-                            onDragEnd = { 
-                                // Release logic
-                                if (abs(offsetX) > swipeThreshold) {
-                                    if (offsetX < 0) onSkipNext() else onSkipPrevious()
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                }
-                                offsetX = 0f
-                            }
-                        ) { change, dragAmount ->
-                            change.consume()
-                            val positionChange = dragAmount
-                            
-                            // Handle horizontal skip/drag
-                            if (abs(positionChange.x) > abs(positionChange.y)) {
-                                offsetX += positionChange.x * 0.5f
-                            }
-                            // Handle vertical swipe down for lyrics
-                            else if (positionChange.y > 20f) {
+                        detectVerticalDragGestures { change, dragAmount ->
+                            if (dragAmount > 20f) {
+                                change.consume()
                                 expandLyrics()
                             }
                         }
@@ -475,36 +518,49 @@ fun NowPlayingContent(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                AnimatedContent<String?>(
-                    targetState = coverUrl,
-                    transitionSpec = {
-                        val direction = if (targetState != initialState) 1 else -1
-                        (slideInHorizontally { it * direction } + fadeIn()).togetherWith(
-                            slideOutHorizontally { -it * direction } + fadeOut()
-                        )
-                    },
-                    label = "AlbumArtSlide"
-                ) { currentCoverUrl ->
-                    if (!currentCoverUrl.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = currentCoverUrl,
-                            contentDescription = "Album Art",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Rounded.MusicNote,
-                                null,
-                                tint = Color.White.copy(alpha = 0.15f),
-                                modifier = Modifier.size(100.dp)
+                HorizontalPager(
+                    state = pagerState,
+                    userScrollEnabled = pagerItems.size > 1,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val item = pagerItems.getOrNull(page) ?: return@HorizontalPager
+                    val pageOffset = abs(
+                        (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                    ).coerceIn(0f, 1f)
+                    val pageScale = lerp(0.92f, 1f, 1f - pageOffset)
+                    val pageAlpha = lerp(0.6f, 1f, 1f - pageOffset)
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = pageScale
+                                scaleY = pageScale
+                                alpha = pageAlpha
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!item.coverUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = item.coverUrl,
+                                contentDescription = "Album Art",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surface),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Rounded.MusicNote,
+                                    null,
+                                    tint = Color.White.copy(alpha = 0.15f),
+                                    modifier = Modifier.size(100.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -892,6 +948,21 @@ fun NowPlayingContent(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), CircleShape)
                     .size(40.dp)
+                    .bouncyClickable(onClick = onQueueClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.QueueMusic,
+                    contentDescription = "Show Queue",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), CircleShape)
+                    .size(40.dp)
                     .bouncyClickable(onClick = { showPlaylistDialog = true }),
                 contentAlignment = Alignment.Center
             ) {
@@ -948,6 +1019,13 @@ fun NowPlayingContent(
         )
     }
 }
+
+private data class TrackPagerItem(
+    val path: String,
+    val coverUrl: String?,
+    val title: String,
+    val artist: String
+)
 
 // Custom Waveform-like Progress Bar
 @OptIn(ExperimentalMaterial3Api::class)

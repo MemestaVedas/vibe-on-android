@@ -9,9 +9,12 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -33,6 +36,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -41,6 +47,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -95,6 +102,7 @@ fun BottomPlayerBar(
     val artist = currentTrack.getDisplayArtist(displayLanguage)
 
     val progress = playbackState.progress
+    val sharedKeyBase = currentTrack.path.ifEmpty { "no-track" }
 
     // Determine effective route for the nav button
     val effectiveRoute = if (currentRoute == "main" && pagerState != null) {
@@ -125,23 +133,106 @@ fun BottomPlayerBar(
             exit = fadeOut(),
             modifier = Modifier.weight(1f)
         ) {
+            // State for swipe gesture animations
+            val offsetXState = remember { mutableFloatStateOf(0f) }
+            val animatedOffsetX by animateFloatAsState(
+                targetValue = offsetXState.floatValue,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                label = "pillSwipeOffset"
+            )
+            
+            // Scale effect for feedback
+            val scale by animateFloatAsState(
+                targetValue = if (abs(offsetXState.floatValue) > 50f) 0.95f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessHigh
+                ),
+                label = "pillScale"
+            )
+            
+            // Track transition animation
+            var trackKey by remember { mutableStateOf(currentTrack.path) }
+            val trackChanged = trackKey != currentTrack.path
+            if (trackChanged) {
+                trackKey = currentTrack.path
+            }
+            
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
+                    .graphicsLayer {
+                        // Apply swipe offset for visual feedback
+                        translationX = animatedOffsetX
+                        // Add slight rotation for dynamic effect
+                        rotationZ = animatedOffsetX * 0.01f
+                        // Scale effect when swiping
+                        scaleX = scale
+                        scaleY = scale
+                    }
                     .clip(RoundedCornerShape(40.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(40.dp))
-                    .clickable { onNavigateToPlayer() }
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { change, dragAmount ->
-                            val threshold = 20.dp.toPx()
-                            if (dragAmount < -threshold) {
-                                change.consume()
-                                onNavigateToPlayer()
+                    .pointerInput(connectionViewModel) {
+                        var accX = 0f
+                        var accY = 0f
+                        detectDragGestures(
+                            onDragStart = {
+                                accX = 0f
+                                accY = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                // We'll decide gesture orientation based on accumulated movement
+                                // Use a small threshold to pick orientation
+                                val orientationThreshold = 20.dp.toPx()
+                                accX += dragAmount.x
+                                accY += dragAmount.y
+
+                                val isHorizontal = abs(accX) > abs(accY) && abs(accX) > orientationThreshold
+                                val isVertical = abs(accY) > abs(accX) && abs(accY) > orientationThreshold
+
+                                if (isHorizontal) {
+                                    change.consume()
+                                    offsetXState.floatValue += dragAmount.x
+                                    offsetXState.floatValue = offsetXState.floatValue.coerceIn(-200f, 200f)
+                                } else if (isVertical) {
+                                    // Vertical - navigate to full player on upward swipe
+                                    val verticalThreshold = 20.dp.toPx()
+                                    if (accY < -verticalThreshold) {
+                                        change.consume()
+                                        onNavigateToPlayer()
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                val threshold = 100.dp.toPx()
+                                val currentOffset = offsetXState.floatValue
+                                when {
+                                    currentOffset > threshold -> {
+                                        scope.launch {
+                                            android.util.Log.i("BottomPlayerBar", "Swipe detected: previous (offset=$currentOffset)")
+                                            connectionViewModel.previous()
+                                        }
+                                    }
+                                    currentOffset < -threshold -> {
+                                        scope.launch {
+                                            android.util.Log.i("BottomPlayerBar", "Swipe detected: next (offset=$currentOffset)")
+                                            connectionViewModel.next()
+                                        }
+                                    }
+                                }
+                                offsetXState.floatValue = 0f
+                            },
+                            onDragCancel = {
+                                offsetXState.floatValue = 0f
                             }
-                        }
+                        )
                     }
-            ) {
+                        .clickable(onClick = onNavigateToPlayer)
+                    ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // Player Content
                     Row(
@@ -162,28 +253,48 @@ fun BottomPlayerBar(
                                     coverUrl = currentTrack.coverUrl,
                                     isPlaying = isPlaying,
                                     sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    sharedKey = sharedKeyBase
                                 )
                             }
 
                             Spacer(modifier = Modifier.width(16.dp))
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = artist,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                            // Animated track info
+                            AnimatedContent(
+                                targetState = currentTrack.path,
+                                transitionSpec = {
+                                    (fadeIn(animationSpec = tween(300)) + 
+                                     slideInHorizontally { it / 2 })
+                                        .togetherWith(
+                                            fadeOut(animationSpec = tween(200)) +
+                                            slideOutHorizontally { -it / 2 }
+                                        )
+                                },
+                                label = "trackInfoTransition"
+                            ) { _ ->
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .basicMarquee(iterations = Int.MAX_VALUE)
+                                    )
+                                    Text(
+                                        text = artist,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                    )
+                                }
                             }
                         }
 
@@ -315,49 +426,13 @@ private fun AlbumArtWithPulse(
     coverUrl: String?,
     isPlaying: Boolean,
     sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedKey: String
 ) {
-    // Pulsing glow animation for album art when playing
-    val infiniteTransition = rememberInfiniteTransition(label = "albumArtPulse")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.0f,
-        targetValue = if (isPlaying) 0.55f else 0.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowAlpha"
-    )
-    val glowScale by infiniteTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = if (isPlaying) 1.08f else 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = EaseInOutQuad),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowScale"
-    )
-
     Box(
-        modifier = Modifier
-            .size(52.dp)
-            .scale(glowScale),
+        modifier = Modifier.size(52.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Glow ring (removed for matte look)
-        /*
-        if (isPlaying) {
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha),
-                        CircleShape
-                    )
-            )
-        }
-        */
-
         with(sharedTransitionScope) {
             Box(
                 modifier = Modifier

@@ -66,11 +66,13 @@ import moe.memesta.vibeon.ui.utils.getDisplayName
 @Composable
 fun HomeScreen(
     viewModel: LibraryViewModel,
+    statsViewModel: moe.memesta.vibeon.ui.stats.StatsViewModel?,
     onTrackSelected: (TrackInfo) -> Unit,
     onAlbumSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
     onSearchClick: () -> Unit,
     onViewAllSongs: () -> Unit,
+    onViewStats: () -> Unit,
     onViewAllAlbums: () -> Unit,
     contentPadding: PaddingValues,
     connectionViewModel: ConnectionViewModel
@@ -80,7 +82,8 @@ fun HomeScreen(
     val artists by viewModel.homeArtists.collectAsState()
     val featuredAlbums by viewModel.featuredAlbums.collectAsState()
     val connectionState by connectionViewModel.connectionState.collectAsState()
-    val stats by viewModel.stats.collectAsState()
+    val statsSummary by statsViewModel?.weeklyOverview?.collectAsState()
+        ?: remember { mutableStateOf(null) }
     val displayLanguage = LocalDisplayLanguage.current
 
     val isLoading = tracks.isEmpty() && connectionState == ConnectionState.CONNECTED
@@ -176,6 +179,25 @@ fun HomeScreen(
                     onClick = {
                         scope.launch { drawerState.close() }
                         onViewAllSongs()
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+
+                NavigationDrawerItem(
+                    icon = {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
+                                .border(1.5.dp, MaterialTheme.colorScheme.secondary, CircleShape)
+                        )
+                    },
+                    label = { Text("Statistics") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onViewStats()
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
@@ -402,7 +424,10 @@ fun HomeScreen(
                             .padding(bottom = 40.dp)
                     ) {
                         Box(modifier = Modifier.padding(top = Dimens.SectionPadding)) {
-                            StatisticsSection(stats = stats)
+                            StatisticsSection(
+                                summary = statsSummary,
+                                onViewStats = onViewStats
+                            )
                         }
                     }
                 }

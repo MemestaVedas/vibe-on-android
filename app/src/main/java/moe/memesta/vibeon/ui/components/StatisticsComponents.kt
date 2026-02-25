@@ -14,16 +14,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import moe.memesta.vibeon.data.LibraryStats
+import moe.memesta.vibeon.data.stats.PlaybackStatsCalculator
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeBackground
 
 @Composable
 fun StatisticsSection(
-    stats: LibraryStats?,
+    summary: PlaybackStatsCalculator.PlaybackStatsSummary?,
+    onViewStats: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (stats == null) return
+    if (summary == null) return
     
     Column(
         modifier = modifier
@@ -51,16 +52,16 @@ fun StatisticsSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             BentoCard(
-                label = "Total Songs",
-                value = stats.totalSongs.toString(),
+                label = "Listening Time",
+                value = formatDuration(summary.totalDurationMs),
                 icon = Icons.Rounded.MusicNote,
                 accentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
             BentoCard(
-                label = "Albums",
-                value = stats.totalAlbums.toString(),
-                icon = Icons.Rounded.Album,
+                label = "Total Plays",
+                value = summary.totalPlayCount.toString(),
+                icon = Icons.Rounded.AutoGraph,
                 accentColor = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.weight(1f)
             )
@@ -71,19 +72,26 @@ fun StatisticsSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             BentoCard(
-                label = "Artists",
-                value = stats.totalArtists.toString(),
+                label = "Unique Songs",
+                value = summary.uniqueSongs.toString(),
                 icon = Icons.Rounded.Person,
                 accentColor = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.weight(1f)
             )
             BentoCard(
-                label = "Hours",
-                value = formatDurationHours(stats.totalDurationHours),
+                label = "Active Days",
+                value = summary.activeDays.toString(),
                 icon = Icons.Rounded.Schedule,
                 accentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
+        }
+
+        TextButton(
+            onClick = onViewStats,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text(text = "View full stats")
         }
     }
 }
@@ -132,6 +140,9 @@ private fun BentoCard(
     }
 }
 
-private fun formatDurationHours(hours: Double): String {
-    return if (hours >= 1) "${hours.toInt()}h" else "${(hours * 60).toInt()}m"
+private fun formatDuration(durationMs: Long): String {
+    val totalMinutes = durationMs / 60000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
 }

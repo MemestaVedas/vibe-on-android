@@ -58,11 +58,26 @@ fun AppNavHost(
     val connectionState by connectionViewModel.connectionState.collectAsState()
     val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
 
-    // Shared LibraryViewModel instance - preserved across navigation
-    val libraryViewModel = remember(connectedDevice) {
+    val libraryRepository = remember(connectedDevice) {
         connectedDevice?.let { device ->
-             val repo = moe.memesta.vibeon.data.LibraryRepository(trackDao, connectionViewModel.wsClient, device.host, device.port)
-             LibraryViewModel(repository = repo, wsClient = connectionViewModel.wsClient)
+            moe.memesta.vibeon.data.LibraryRepository(trackDao, connectionViewModel.wsClient, device.host, device.port)
+        }
+    }
+
+    // Shared LibraryViewModel instance - preserved across navigation
+    val libraryViewModel = remember(libraryRepository) {
+        libraryRepository?.let { repo ->
+            LibraryViewModel(repository = repo, wsClient = connectionViewModel.wsClient)
+        }
+    }
+
+    val statsViewModel = remember(libraryRepository) {
+        libraryRepository?.let { repo ->
+            moe.memesta.vibeon.ui.stats.StatsViewModel(
+                repository = repo,
+                trackDao = trackDao,
+                wsClient = connectionViewModel.wsClient
+            )
         }
     }
     
@@ -76,7 +91,7 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings")
+    val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats")
 
 
     SharedTransitionLayout {
@@ -115,52 +130,36 @@ fun AppNavHost(
                 navController = navController, 
                 startDestination = startDestination,
                 modifier = Modifier.fillMaxSize(),
-                // Standard enter
+                // Standard enter (forward push)
                 enterTransition = {
                     if (initialState.destination.route == "now_playing" || targetState.destination.route == "now_playing") {
                          fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration))
                     } else {
-                        fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration)) +
-                        slideInHorizontally(
-                            initialOffsetX = { fullWidth -> fullWidth / 4 },
-                            animationSpec = tween(VibeAnimations.ScreenEnterDuration)
-                        )
+                        enterTransition()
                     }
                 },
-                // Standard exit
+                // Standard exit (forward push)
                 exitTransition = {
                     if (targetState.destination.route == "now_playing" || initialState.destination.route == "now_playing") {
                         fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration))
                     } else {
-                        fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration)) +
-                        slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> -fullWidth / 4 },
-                            animationSpec = tween(VibeAnimations.ScreenExitDuration)
-                        )
+                        exitTransition()
                     }
                 },
-                // Pop enter (going back)
+                // Pop enter (going back) - previous page slides in from left with parallax & zoom
                 popEnterTransition = {
                     if (initialState.destination.route == "now_playing") {
                         fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration))
                     } else {
-                        fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration)) +
-                        slideInHorizontally(
-                            initialOffsetX = { fullWidth -> -fullWidth / 4 },
-                            animationSpec = tween(VibeAnimations.ScreenEnterDuration)
-                        )
+                        popEnterTransition()
                     }
                 },
-                // Pop exit (going back)
+                // Pop exit (going back) - current page slides out to right with scale down
                 popExitTransition = {
                     if (initialState.destination.route == "now_playing" || targetState.destination.route == "now_playing") {
                          fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration))
                     } else {
-                        fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration)) +
-                        slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> fullWidth / 4 },
-                            animationSpec = tween(VibeAnimations.ScreenExitDuration)
-                        )
+                        popExitTransition()
                     }
                 }
             ) {
@@ -313,6 +312,7 @@ fun AppNavHost(
                         MainContentPager(
                             pagerState = pagerState,
                             libraryViewModel = libraryViewModel,
+                            statsViewModel = statsViewModel,
                             connectionViewModel = connectionViewModel,
                             favoritesManager = favoritesManager,
                             playerSettingsRepository = playerSettingsRepository,
@@ -344,7 +344,7 @@ fun AppNavHost(
                         moe.memesta.vibeon.ui.LibraryScreen(
                             viewModel = libraryViewModel,
                             onBackClick = { navController.popBackStack() },
-                            onTrackSelected = { navController.navigate("now_playing") },
+                            onTrackSelected = { /* Update pill only, no navigation */ },
                             onNavigateToPlayer = { navController.navigate("now_playing") },
                             contentPadding = innerPadding
                         )
@@ -377,7 +377,7 @@ fun AppNavHost(
                             viewModel = libraryViewModel,
                             onTrackSelected = {
                                 navController.popBackStack()
-                                navController.navigate("now_playing")
+                                /* Update pill only, no navigation */
                             },
                             onAlbumSelected = { albumName ->
                                 navController.popBackStack()
@@ -419,7 +419,7 @@ fun AppNavHost(
                             viewModel = libraryViewModel,
                             navController = navController,
                             onBackClick = { navController.popBackStack() },
-                            onTrackSelected = { navController.navigate("now_playing") },
+                            onTrackSelected = { /* Update pill only, no navigation */ },
                             contentPadding = innerPadding
                         )
                     }
@@ -438,7 +438,7 @@ fun AppNavHost(
                             viewModel = libraryViewModel,
                             navController = navController,
                             onBackClick = { navController.popBackStack() },
-                            onTrackSelected = { navController.navigate("now_playing") },
+                            onTrackSelected = { /* Update pill only, no navigation */ },
                             contentPadding = innerPadding
                         )
                     }
@@ -458,7 +458,7 @@ fun AppNavHost(
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = {
                                 navController.popBackStack()
-                                navController.navigate("now_playing")
+                                /* Update pill only, no navigation */
                             },
                             contentPadding = innerPadding
                         )
@@ -472,6 +472,14 @@ fun AppNavHost(
                             popUpTo("settings") { inclusive = true }
                         }
                         pagerState.scrollToPage(4)
+                    }
+                }
+                composable("stats") {
+                    statsViewModel?.let { vm ->
+                        moe.memesta.vibeon.ui.stats.StatsScreen(
+                            statsViewModel = vm,
+                            onBackPressed = { navController.popBackStack() }
+                        )
                     }
                 }
                 }

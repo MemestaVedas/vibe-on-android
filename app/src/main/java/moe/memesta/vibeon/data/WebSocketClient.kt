@@ -131,6 +131,9 @@ class WebSocketClient {
     
     private val _currentPlaylistTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     val currentPlaylistTracks: StateFlow<List<TrackInfo>> = _currentPlaylistTracks.asStateFlow()
+
+    private val _statsUpdated = MutableStateFlow(0L)
+    val statsUpdated: StateFlow<Long> = _statsUpdated.asStateFlow()
     
     fun connect(host: String, port: Int, clientName: String = "Android") {
         this.host = host
@@ -192,6 +195,7 @@ class WebSocketClient {
         val message = JSONObject().apply {
             put("type", "next")
         }
+        Log.i("WebSocket", "➡️ Sending 'next' command")
         sendMessage(message)
     }
     
@@ -199,6 +203,7 @@ class WebSocketClient {
         val message = JSONObject().apply {
             put("type", "previous")
         }
+        Log.i("WebSocket", "⬅️ Sending 'previous' command")
         sendMessage(message)
     }
     
@@ -535,6 +540,11 @@ class WebSocketClient {
                         client._queue.value = queueItems
                         client._currentIndex.value = json.optInt("currentIndex", 0)
                         Log.i("WebSocket", "📋 Queue updated with ${queueItems.size} tracks")
+                    }
+                    "statsUpdated" -> {
+                        val timestamp = json.optLong("timestamp", System.currentTimeMillis())
+                        client._statsUpdated.value = timestamp
+                        Log.i("WebSocket", "📊 Stats updated @ $timestamp")
                     }
                     "handoffPrepare" -> {
                         // Server is ready to stream to mobile

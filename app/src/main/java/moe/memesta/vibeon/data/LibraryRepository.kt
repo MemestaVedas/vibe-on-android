@@ -171,4 +171,7 @@ class LibraryRepository(
     
     // Pass-through for stats
     suspend fun getStats() = streamClient.getStats()
+
+    suspend fun getPlaybackEvents(startMs: Long? = null, endMs: Long? = null) =
+        streamClient.getPlaybackEvents(startMs, endMs)
 }

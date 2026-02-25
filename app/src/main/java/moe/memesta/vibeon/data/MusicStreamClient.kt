@@ -13,6 +13,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import moe.memesta.vibeon.data.stats.PlaybackEvent
 
 /**
  * Data classes for library browsing
@@ -299,6 +300,50 @@ class MusicStreamClient(
             }
         } catch (e: Exception) {
             Log.e("MusicStreamClient", "Error getting stats: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun getPlaybackEvents(startMs: Long? = null, endMs: Long? = null): List<PlaybackEvent>? = withContext(Dispatchers.IO) {
+        try {
+            val queryParams = buildList {
+                startMs?.let { add("startMs=$it") }
+                endMs?.let { add("endMs=$it") }
+            }.joinToString("&")
+            val url = if (queryParams.isNotBlank()) {
+                "$baseUrl/api/stats/events?$queryParams"
+            } else {
+                "$baseUrl/api/stats/events"
+            }
+            val request = Request.Builder()
+                .url(url)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val jsonText = response.body?.string().orEmpty()
+                val jsonArray = JSONArray(jsonText)
+                val events = mutableListOf<PlaybackEvent>()
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    events.add(
+                        PlaybackEvent(
+                            songId = obj.optString("songId"),
+                            timestamp = obj.optLong("timestamp"),
+                            durationMs = obj.optLong("durationMs"),
+                            startTimestamp = obj.optLong("startTimestamp").takeIf { obj.has("startTimestamp") },
+                            endTimestamp = obj.optLong("endTimestamp").takeIf { obj.has("endTimestamp") },
+                            output = obj.optString("output", "desktop")
+                        )
+                    )
+                }
+                events
+            } else {
+                Log.e("MusicStreamClient", "❌ Failed to get playback events: ${response.code}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("MusicStreamClient", "Error getting playback events: ${e.message}", e)
             null
         }
     }

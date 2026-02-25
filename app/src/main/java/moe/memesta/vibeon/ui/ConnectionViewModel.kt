@@ -38,6 +38,7 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     val playlists: StateFlow<List<moe.memesta.vibeon.data.PlaylistInfo>> = wsClient.playlists
     val currentPlaylistTracks: StateFlow<List<moe.memesta.vibeon.data.TrackInfo>> = wsClient.currentPlaylistTracks
     val queue: StateFlow<List<moe.memesta.vibeon.data.QueueItem>> = wsClient.queue
+    val currentIndex: StateFlow<Int> = wsClient.currentIndex
     val library: StateFlow<List<moe.memesta.vibeon.data.TrackInfo>> = wsClient.library
     
     private val _connectionState = MutableStateFlow(ConnectionState.IDLE)
@@ -118,6 +119,14 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     
     fun seek(positionSecs: Double) {
         wsClient.sendSeek(positionSecs)
+    }
+
+    fun playTrack(path: String) {
+        wsClient.sendPlayTrack(path)
+    }
+
+    fun setQueue(paths: List<String>) {
+        wsClient.sendSetQueue(paths)
     }
     
     fun getLyrics() {

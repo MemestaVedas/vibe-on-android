@@ -15,6 +15,7 @@ import java.net.URLEncoder
 fun MainContentPager(
     pagerState: PagerState,
     libraryViewModel: LibraryViewModel,
+    statsViewModel: moe.memesta.vibeon.ui.stats.StatsViewModel?,
     connectionViewModel: ConnectionViewModel,
     favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
@@ -32,11 +33,13 @@ fun MainContentPager(
         when (page) {
             0 -> HomeScreen(
                 viewModel = libraryViewModel,
-                onTrackSelected = { navController.navigate("now_playing") },
+                statsViewModel = statsViewModel,
+                onTrackSelected = { /* Update pill only, no navigation */ },
                 onAlbumSelected = { albumName -> navController.navigate("album/${URLEncoder.encode(albumName, "UTF-8")}") },
                 onArtistSelected = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
                 onSearchClick = { navController.navigate("search") },
                 onViewAllSongs = { navController.navigate("all_songs") },
+                onViewStats = { navController.navigate("stats") },
                 onViewAllAlbums = { 
                     scope.launch {
                         pagerState.animateScrollToPage(1)
