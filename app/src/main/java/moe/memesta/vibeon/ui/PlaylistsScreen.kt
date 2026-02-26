@@ -10,10 +10,13 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import moe.memesta.vibeon.data.SortOption
+import moe.memesta.vibeon.ui.components.PlaylistCreationDialog
+import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeBackground
@@ -53,97 +59,181 @@ fun PlaylistsScreen(
 ) {
     val playlists by viewModel.playlists.collectAsState()
     val allTracks by libraryViewModel.tracks.collectAsState()
+    var showCreateDialog by remember { mutableStateOf(false) }
     var showCreateWizard by remember { mutableStateOf(false) }
+    var showSortSheet by remember { mutableStateOf(false) }
+    var currentSortOption by remember { mutableStateOf<SortOption>(SortOption.PlaylistNameAZ) }
     
     // Fetch playlists when screen loads
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         viewModel.getPlaylists()
     }
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                text = { Text("New Playlist") },
-                icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                onClick = { showCreateWizard = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
-                modifier = Modifier.padding(16.dp)
-            )
+    
+    // Sort playlists based on selected option
+    val sortedPlaylists = remember(playlists, currentSortOption) {
+        when (currentSortOption) {
+            SortOption.PlaylistNameAZ -> playlists.sortedBy { it.name.lowercase() }
+            SortOption.PlaylistNameZA -> playlists.sortedByDescending { it.name.lowercase() }
+            SortOption.PlaylistTrackCountAsc -> playlists.sortedBy { it.trackCount }
+            SortOption.PlaylistTrackCountDesc -> playlists.sortedByDescending { it.trackCount }
+            else -> playlists
         }
-    ) { paddingValues ->
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .background(VibeBackground)
+    ) {
         if (playlists.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(VibeBackground)
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.fillMaxSize()
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                // Header with title and sort button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Dimens.ScreenPadding, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    androidx.compose.material3.Icon(
-                        imageVector = Icons.Filled.QueueMusic,
-                        contentDescription = "No playlists",
-                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Text(
-                        "No playlists",
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                        fontSize = 16.sp
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(VibeBackground)
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding, vertical = Dimens.SectionSpacing),
-                verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-            ) {
-                item {
                     Text(
                         text = "Playlists",
                         style = MaterialTheme.typography.headlineLarge,
                         color = MaterialTheme.colorScheme.onBackground,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = Dimens.SectionSpacing)
+                        fontWeight = FontWeight.Bold
                     )
                 }
                 
-                itemsIndexed(playlists) { index, playlist ->
-                    PlaylistCard(
-                        playlist = playlist,
-                        onPlaylistClick = { onPlaylistSelected(playlist.id) }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = contentPadding.calculateBottomPadding() + 80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Filled.QueueMusic,
+                            contentDescription = "No playlists",
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Text(
+                            "No playlists",
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Header with title and sort button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Dimens.ScreenPadding, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Playlists",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.Bold
                     )
+                    
+                    FilledTonalIconButton(
+                        onClick = { showSortSheet = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Sort,
+                            contentDescription = "Sort playlists"
+                        )
+                    }
                 }
                 
-                // Bottom padding for floating nav bar
-                item {
-                    Spacer(modifier = Modifier.height(80.dp))
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = Dimens.ScreenPadding,
+                        end = Dimens.ScreenPadding,
+                        bottom = contentPadding.calculateBottomPadding() + 160.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
+                ) {
+                    itemsIndexed(sortedPlaylists) { index, playlist ->
+                        PlaylistCard(
+                            playlist = playlist,
+                            onPlaylistClick = { onPlaylistSelected(playlist.id) }
+                        )
+                    }
                 }
             }
         }
+        
+        // FAB positioned at bottom right with proper margin from bottom nav
+        ExtendedFloatingActionButton(
+            text = { Text("New Playlist") },
+            icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+            onClick = { showCreateDialog = true },
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(
+                    end = 16.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 96.dp
+                )
+        )
+
+        if (showCreateWizard) {
+            PlaylistCreationWizard(
+                songs = allTracks,
+                onCreatePlaylist = { name, songPaths, customization ->
+                    // Send to server
+                    viewModel.createPlaylist(name, songPaths, customization)
+                    showCreateWizard = false
+                    viewModel.getPlaylists()
+                },
+                onDismiss = { showCreateWizard = false },
+                contentPadding = contentPadding
+            )
+        }
     }
 
-    if (showCreateWizard) {
-        PlaylistCreationWizard(
-            songs = allTracks,
-            onCreatePlaylist = { name, songPaths, customization ->
-                // Send to server
-                viewModel.createPlaylist(name, songPaths, customization)
-                showCreateWizard = false
-                viewModel.getPlaylists()
-            },
-            onDismiss = { showCreateWizard = false }
+    // Show creation dialog
+    PlaylistCreationDialog(
+        visible = showCreateDialog,
+        onDismiss = { showCreateDialog = false },
+        onManualSelected = {
+            showCreateDialog = false
+            showCreateWizard = true
+        }
+    )
+    
+    // Show sort sheet
+    if (showSortSheet) {
+        SortBottomSheet(
+            title = "Sort Playlists",
+            options = SortOption.PLAYLISTS,
+            selectedOption = currentSortOption,
+            onDismiss = { showSortSheet = false },
+            onOptionSelected = { option ->
+                currentSortOption = option
+                showSortSheet = false
+            }
         )
     }
+    
+    // Show creation wizard moved into root Box for proper overlay
 }
 
 

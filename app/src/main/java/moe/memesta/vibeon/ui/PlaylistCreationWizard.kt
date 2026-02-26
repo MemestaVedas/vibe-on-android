@@ -67,7 +67,8 @@ enum class PlaylistCustomizationType {
 fun PlaylistCreationWizard(
     songs: List<TrackInfo>,
     onCreatePlaylist: (name: String, songs: List<String>, customization: PlaylistCustomization) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    contentPadding: PaddingValues = PaddingValues()
 ) {
     var currentStep by remember { mutableStateOf(0) }
     var playlistName by remember { mutableStateOf("") }
@@ -141,7 +142,12 @@ fun PlaylistCreationWizard(
                         onCreatePlaylist(playlistName, selectedPaths, customization)
                     }
                 },
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 96.dp
+                ),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.White
             )
@@ -168,7 +174,8 @@ fun PlaylistCreationWizard(
                         onNameChange = { playlistName = it },
                         customization = customization,
                         onCustomizationChange = { customization = it },
-                        onImagePicked = { imagePickerLauncher.launch("image/*") }
+                        onImagePicked = { imagePickerLauncher.launch("image/*") },
+                        contentPadding = contentPadding
                     )
                 }
                 1 -> {
@@ -177,7 +184,8 @@ fun PlaylistCreationWizard(
                         selectedSongPaths = selectedSongPaths,
                         onSelectionChange = { path, selected ->
                             selectedSongPaths = selectedSongPaths.toMutableMap().apply { this[path] = selected }
-                        }
+                        },
+                        contentPadding = contentPadding
                     )
                 }
             }
@@ -191,14 +199,16 @@ fun PlaylistNameAndAppearanceStep(
     onNameChange: (String) -> Unit,
     customization: PlaylistCustomization,
     onCustomizationChange: (PlaylistCustomization) -> Unit,
-    onImagePicked: () -> Unit
+    onImagePicked: () -> Unit,
+    contentPadding: PaddingValues = PaddingValues()
 ) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(VibeBackground)
             .padding(Dimens.ScreenPadding),
-        verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
+        verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing),
+        contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 120.dp)
     ) {
         // Playlist Name Input
         item {
@@ -424,7 +434,8 @@ fun PlaylistIconSelector(
 fun PlaylistSongSelectionStep(
     songs: List<TrackInfo>,
     selectedSongPaths: Map<String, Boolean>,
-    onSelectionChange: (String, Boolean) -> Unit
+    onSelectionChange: (String, Boolean) -> Unit,
+    contentPadding: PaddingValues = PaddingValues()
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -463,7 +474,10 @@ fun PlaylistSongSelectionStep(
                 .fillMaxSize()
                 .padding(horizontal = Dimens.ScreenPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = Dimens.ItemSpacing)
+            contentPadding = PaddingValues(
+                top = Dimens.ItemSpacing,
+                bottom = contentPadding.calculateBottomPadding() + 120.dp
+            )
         ) {
             items(filteredSongs) { song ->
                 val isSelected = selectedSongPaths[song.path] ?: false

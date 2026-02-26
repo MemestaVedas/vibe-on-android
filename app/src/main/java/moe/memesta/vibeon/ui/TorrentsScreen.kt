@@ -23,6 +23,7 @@ fun TorrentsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(

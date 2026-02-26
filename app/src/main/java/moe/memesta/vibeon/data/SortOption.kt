@@ -16,6 +16,12 @@ sealed class SortOption(val storageKey: String, val displayName: String) {
     object TrackTitleZA : SortOption("track_title_za", "Title (Z-A)")
     object TrackDurationAsc : SortOption("track_duration_asc", "Duration (Low-High)")
     object TrackDurationDesc : SortOption("track_duration_desc", "Duration (High-Low)")
+    
+    // Playlist Sort Options
+    object PlaylistNameAZ : SortOption("playlist_name_az", "Name (A-Z)")
+    object PlaylistNameZA : SortOption("playlist_name_za", "Name (Z-A)")
+    object PlaylistTrackCountAsc : SortOption("playlist_track_count_asc", "Fewest Tracks")
+    object PlaylistTrackCountDesc : SortOption("playlist_track_count_desc", "Most Tracks")
 
     companion object {
         val ALBUMS: List<SortOption> by lazy {
@@ -36,6 +42,15 @@ sealed class SortOption(val storageKey: String, val displayName: String) {
                 TrackDurationDesc
             )
         }
+        
+        val PLAYLISTS: List<SortOption> by lazy {
+            listOf(
+                PlaylistNameAZ,
+                PlaylistNameZA,
+                PlaylistTrackCountDesc,
+                PlaylistTrackCountAsc
+            )
+        }
 
         fun fromStorageKey(key: String): SortOption {
             return when (key) {
@@ -48,6 +63,10 @@ sealed class SortOption(val storageKey: String, val displayName: String) {
                 "track_title_za" -> TrackTitleZA
                 "track_duration_asc" -> TrackDurationAsc
                 "track_duration_desc" -> TrackDurationDesc
+                "playlist_name_az" -> PlaylistNameAZ
+                "playlist_name_za" -> PlaylistNameZA
+                "playlist_track_count_asc" -> PlaylistTrackCountAsc
+                "playlist_track_count_desc" -> PlaylistTrackCountDesc
                 else -> AlbumTitleAZ
             }
         }
