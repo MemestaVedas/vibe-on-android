@@ -91,7 +91,7 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats")
+        val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
 
 
     SharedTransitionLayout {
@@ -482,6 +482,22 @@ fun AppNavHost(
                         )
                     }
                 }
+                
+                    composable("torrents") {
+                        TorrentsScreen(
+                            onBackPressed = { navController.popBackStack() }
+                        )
+                    }
+                
+                    composable("server_details") {
+                        ServerDetailsScreen(
+                            connectionViewModel = connectionViewModel,
+                            onBackPressed = { navController.popBackStack() },
+                            onDisconnect = {
+                                connectionViewModel.disconnect()
+                            }
+                        )
+                    }
                 }
             
                 // Global Sync Banner

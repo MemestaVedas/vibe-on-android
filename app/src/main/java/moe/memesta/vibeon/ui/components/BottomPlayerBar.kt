@@ -123,7 +123,7 @@ fun BottomPlayerBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 32.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // --- Left Pill: Now Playing Info ---
@@ -131,7 +131,7 @@ fun BottomPlayerBar(
             visible = currentTrack.title != "No Track",
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f).widthIn(max = 280.dp)
         ) {
             // State for swipe gesture animations
             val offsetXState = remember { mutableFloatStateOf(0f) }
@@ -163,7 +163,7 @@ fun BottomPlayerBar(
             
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.85f)
+                    .fillMaxWidth(0.7f)
                     .graphicsLayer {
                         // Apply swipe offset for visual feedback
                         translationX = animatedOffsetX
@@ -177,38 +177,15 @@ fun BottomPlayerBar(
                     .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(40.dp))
                     .pointerInput(connectionViewModel) {
-                        var accX = 0f
-                        var accY = 0f
                         detectDragGestures(
-                            onDragStart = {
-                                accX = 0f
-                                accY = 0f
-                            },
+                            onDragStart = { },
                             onDrag = { change, dragAmount ->
-                                // We'll decide gesture orientation based on accumulated movement
-                                // Use a small threshold to pick orientation
-                                val orientationThreshold = 20.dp.toPx()
-                                accX += dragAmount.x
-                                accY += dragAmount.y
-
-                                val isHorizontal = abs(accX) > abs(accY) && abs(accX) > orientationThreshold
-                                val isVertical = abs(accY) > abs(accX) && abs(accY) > orientationThreshold
-
-                                if (isHorizontal) {
-                                    change.consume()
-                                    offsetXState.floatValue += dragAmount.x
-                                    offsetXState.floatValue = offsetXState.floatValue.coerceIn(-200f, 200f)
-                                } else if (isVertical) {
-                                    // Vertical - navigate to full player on upward swipe
-                                    val verticalThreshold = 20.dp.toPx()
-                                    if (accY < -verticalThreshold) {
-                                        change.consume()
-                                        onNavigateToPlayer()
-                                    }
-                                }
+                                change.consume()
+                                offsetXState.floatValue += dragAmount.x
+                                offsetXState.floatValue = offsetXState.floatValue.coerceIn(-200f, 200f)
                             },
                             onDragEnd = {
-                                val threshold = 100.dp.toPx()
+                                val threshold = 80.dp.toPx()
                                 val currentOffset = offsetXState.floatValue
                                 when {
                                     currentOffset > threshold -> {

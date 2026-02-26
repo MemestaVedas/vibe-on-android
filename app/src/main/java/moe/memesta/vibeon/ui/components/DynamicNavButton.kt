@@ -11,8 +11,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,7 +27,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.TimeoutCancellationException
@@ -57,14 +65,20 @@ val AlbumArtStarShape = SvgShape(
     viewportHeight = 320f
 )
 
-data class NavPage(val route: String, val label: String, val shape: Shape, val pageIndex: Int)
+data class NavPage(
+    val route: String,
+    val label: String,
+    val shape: Shape,
+    val pageIndex: Int,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
 
 val NavPages = listOf(
-    NavPage("settings", "Settings", SettingsShape, 4),
-    NavPage("artists", "Artists", ArtistsShape, 3),
-    NavPage("playlists", "Playlists", PlaylistsShape, 2),
-    NavPage("albums", "Albums", AlbumsShape, 1),
-    NavPage("library", "Home", CircleShape, 0)
+    NavPage("settings", "Settings", SettingsShape, 4, Icons.Rounded.Settings),
+    NavPage("artists", "Artists", ArtistsShape, 3, Icons.Rounded.Person),
+    NavPage("playlists", "Playlists", PlaylistsShape, 2, Icons.Rounded.PlaylistPlay),
+    NavPage("albums", "Albums", AlbumsShape, 1, Icons.Rounded.Album),
+    NavPage("library", "Home", CircleShape, 0, Icons.Rounded.Home)
 )
 
 @Composable
@@ -86,59 +100,43 @@ fun DynamicNavButton(
         modifier = modifier,
         contentAlignment = Alignment.BottomEnd
     ) {
-        // The popup menu
+        // The popup menu - positioned to the LEFT side
         if (isMenuOpen) {
             Popup(
-                alignment = Alignment.BottomEnd,
+                alignment = Alignment.BottomStart,
                 properties = PopupProperties(focusable = true, dismissOnBackPress = true, dismissOnClickOutside = true),
                 onDismissRequest = { isMenuOpen = false }
             ) {
                 Row(
-                    modifier = Modifier.padding(bottom = 80.dp),
-                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier
+                        .padding(bottom = 80.dp, start = 24.dp)
+                        .fillMaxWidth(0.5f),
+                    horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.Bottom
                 ) {
-                    // Column for texts
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.padding(vertical = 8.dp).padding(end = 12.dp)
-                    ) {
-                        menuItems.forEachIndexed { index, page ->
-                            Box(
-                                modifier = Modifier.height(36.dp),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                val isHovered = index == hoveredIndex
-                                if (isHovered) {
-                                    androidx.compose.material3.Text(
-                                        text = page.label,
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Column for shapes
+                    // Column for shapes with icons inside
                     Column(
                         modifier = Modifier
-                            .width(48.dp)
+                            .width(56.dp)
                             .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                             .padding(vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         menuItems.forEachIndexed { index, page ->
                             val isHovered = index == hoveredIndex
-                            val scale by animateFloatAsState(if (isHovered) 1.15f else 1.0f, label = "scale")
+                            val scale by animateFloatAsState(if (isHovered) 1.2f else 1.0f, 
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                ),
+                                label = "scale"
+                            )
                             
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(44.dp)
                                     .scale(scale)
                                     .clip(page.shape)
                                     .background(if (isHovered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
@@ -148,7 +146,44 @@ fun DynamicNavButton(
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Optional: Add icon or text here if needed, but user image shows just shapes
+                                // Icon appears when hovered
+                                if (isHovered) {
+                                    Icon(
+                                        imageVector = page.icon,
+                                        contentDescription = page.label,
+                                        tint = if (isHovered) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    // Column for labels on the left
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.Start,
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .padding(start = 8.dp)
+                    ) {
+                        menuItems.forEachIndexed { index, page ->
+                            Box(
+                                modifier = Modifier.height(44.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                val isHovered = index == hoveredIndex
+                                if (isHovered) {
+                                    Text(
+                                        text = page.label,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
@@ -168,16 +203,16 @@ fun DynamicNavButton(
         
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(56.dp)
                 .scale(mainScale)
-                .clip(currentPage.shape) // Dynamic shape based on current page
+                .clip(currentPage.shape)
                 .background(MaterialTheme.colorScheme.primary)
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         
-                        // Try to wait for up within 300ms
-                        val upBeforeTimeout = withTimeoutOrNull(300L) {
+                        // Decreased activation time from 300ms to 100ms for faster response
+                        val upBeforeTimeout = withTimeoutOrNull(100L) {
                             var result: PointerInputChange? = null
                             while (result == null) {
                                 val event = awaitPointerEvent()
@@ -204,8 +239,8 @@ fun DynamicNavButton(
                                 if (change.positionChange() != androidx.compose.ui.geometry.Offset.Zero) {
                                     hasMoved = true
                                     val yOffset = change.position.y - down.position.y
-                                    val itemHeightPx = 40.dp.toPx()
-                                    val gapPx = 80.dp.toPx()
+                                    val itemHeightPx = 44.dp.toPx()
+                                    val gapPx = 40.dp.toPx()  // Reduced gap for better finger positioning
                                     val relativeY = -yOffset
                                     
                                     if (relativeY > gapPx) {
@@ -238,7 +273,8 @@ fun DynamicNavButton(
             Icon(
                 imageVector = Icons.Rounded.Search,
                 contentDescription = "Search",
-                tint = MaterialTheme.colorScheme.onPrimary
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(24.dp)
             )
         }
     }

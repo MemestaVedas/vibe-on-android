@@ -40,6 +40,8 @@ fun MainContentPager(
                 onSearchClick = { navController.navigate("search") },
                 onViewAllSongs = { navController.navigate("all_songs") },
                 onViewStats = { navController.navigate("stats") },
+                    onViewTorrents = { navController.navigate("torrents") },
+                    onViewServerDetails = { navController.navigate("server_details") },
                 onViewAllAlbums = { 
                     scope.launch {
                         pagerState.animateScrollToPage(1)

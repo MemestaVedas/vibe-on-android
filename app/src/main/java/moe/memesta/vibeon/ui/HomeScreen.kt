@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -75,6 +79,8 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     onViewAllSongs: () -> Unit,
     onViewStats: () -> Unit,
+        onViewTorrents: () -> Unit,
+        onViewServerDetails: () -> Unit,
     onViewAllAlbums: () -> Unit,
     onViewAllArtists: () -> Unit,
     contentPadding: PaddingValues,
@@ -85,15 +91,20 @@ fun HomeScreen(
     val artists by viewModel.homeArtists.collectAsState()
     val featuredAlbums by viewModel.featuredAlbums.collectAsState()
     val connectionState by connectionViewModel.connectionState.collectAsState()
+        val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
     val statsSummary by statsViewModel?.weeklyOverview?.collectAsState()
         ?: remember { mutableStateOf(null) }
     val displayLanguage = LocalDisplayLanguage.current
 
     val isLoading = tracks.isEmpty() && connectionState == ConnectionState.CONNECTED
 
-    // Define a lighter surface color to make wavy separator transitions distinct
+    // Define distinct section colors for sidebar layering
     val sectionSurface = Color.White.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surface)
     val appBackground = MaterialTheme.colorScheme.background
+    // Sidebar section colors - distinct for each section to blend wavy separators
+    val sidebarTopSection = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    val sidebarMiddleSection = MaterialTheme.colorScheme.surface
+    val sidebarBottomSection = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
 
     val listState = rememberLazyListState()
     // Pre-calculate chunks for Recently Added grid
@@ -109,83 +120,173 @@ fun HomeScreen(
         gesturesEnabled = true,
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                drawerContainerColor = sidebarMiddleSection,
                 drawerContentColor = MaterialTheme.colorScheme.onSurface,
                 windowInsets = WindowInsets.statusBars
             ) {
-                // Logo positioned exactly as home screen logo
-                Box(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(Dimens.ScreenPadding)
+                        .fillMaxSize()
+                        .background(sidebarMiddleSection)
                 ) {
-                    Column {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_vibe_logo),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp) // Match home screen logo size
-                        )
+                    // --- TOP SECTION: FIXED ---
+                    // Logo + Top Section Background
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(sidebarTopSection)
+                            .statusBarsPadding()
+                            .padding(Dimens.ScreenPadding)
+                    ) {
+                        Column {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_vibe_logo),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Vibe-On",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Your Music, Your Way",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    // Top wavy separator - from top section to middle section
+                    WavySeparator(
+                        colorTop = sidebarTopSection,
+                        colorBottom = sidebarMiddleSection,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp),
+                        waveHeight = 20.dp
+                    )
+
+                    // --- MIDDLE SECTION: SCROLLABLE ---
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .background(sidebarMiddleSection)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.Top
+                    ) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Vibe-On",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+
+                        NavigationDrawerItem(
+                            icon = { 
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                )
+                            },
+                            label = { Text("All Songs") },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                onViewAllSongs()
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
-                        Text(
-                            text = "Your Music, Your Way",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+
+                        NavigationDrawerItem(
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.BarChart,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            },
+                            label = { Text("Statistics") },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                onViewStats()
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
+
+                        NavigationDrawerItem(
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.Download,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            },
+                            label = { Text("Torrent") },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                onViewTorrents()
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // --- BOTTOM SECTION: FIXED ---
+                    // Bottom wavy section - from middle to bottom section
+                    WavySeparator(
+                        colorTop = sidebarMiddleSection,
+                        colorBottom = sidebarBottomSection,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp),
+                        waveHeight = 20.dp,
+                        showAtTop = false
+                    )
+
+                    // Server connection section
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(sidebarBottomSection)
+                            .clickable {
+                                scope.launch { drawerState.close() }
+                                onViewServerDetails()
+                            },
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Connected to",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    text = connectedDevice?.name ?: "Unknown Server",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Rounded.Favorite,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
-
-                WavySeparator(
-                    colorTop = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    colorBottom = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth().height(16.dp),
-                    waveHeight = 8.dp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                NavigationDrawerItem(
-                    icon = { 
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                                .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                        )
-                    },
-                    label = { Text("All Songs") },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onViewAllSongs()
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
-
-                NavigationDrawerItem(
-                    icon = {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f))
-                                .border(1.5.dp, MaterialTheme.colorScheme.secondary, CircleShape)
-                        )
-                    },
-                    label = { Text("Statistics") },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        onViewStats()
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
             }
         }
     ) {
