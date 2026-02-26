@@ -14,6 +14,7 @@ import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.WebSocketClient
+import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.ui.utils.parseAlbum
 
 class LibraryViewModel(
@@ -72,6 +73,14 @@ class LibraryViewModel(
     // Optimized List for AlbumsGridScreen
     private val _filteredAlbums = MutableStateFlow<List<AlbumInfo>>(emptyList())
     val filteredAlbums: StateFlow<List<AlbumInfo>> = _filteredAlbums
+    
+    // Album sorting
+    private val _currentAlbumSortOption = MutableStateFlow<SortOption>(SortOption.AlbumTitleAZ)
+    val currentAlbumSortOption: StateFlow<SortOption> = _currentAlbumSortOption
+    
+    // Track sorting
+    private val _currentTrackSortOption = MutableStateFlow<SortOption>(SortOption.TrackTitleAZ)
+    val currentTrackSortOption: StateFlow<SortOption> = _currentTrackSortOption
     
     private val _stats = MutableStateFlow<moe.memesta.vibeon.data.LibraryStats?>(null)
     val stats: StateFlow<moe.memesta.vibeon.data.LibraryStats?> = _stats
@@ -142,6 +151,7 @@ class LibraryViewModel(
                         name = album,
                         artist = albumTracks.firstOrNull()?.artist ?: "",
                         coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                        songCount = albumTracks.size,
                         nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
                         nameEn = albumTracks.firstOrNull()?.albumEn,
                         artistRomaji = albumTracks.firstOrNull()?.artistRomaji,
@@ -205,17 +215,20 @@ class LibraryViewModel(
              
              withContext(Dispatchers.Main) {
                  _songResults.value = filtered
-                  _albumResults.value = filtered.map { 
-                      AlbumInfo(
-                          name = it.album, 
-                          artist = it.artist, 
-                          coverUrl = it.coverUrl,
-                          nameRomaji = it.albumRomaji,
-                          nameEn = it.albumEn,
-                          artistRomaji = it.artistRomaji,
-                          artistEn = it.artistEn
-                      ) 
-                  }.distinctBy { it.name }
+                  _albumResults.value = filtered
+                      .groupBy { it.album }
+                      .map { (albumName, albumTracks) ->
+                          AlbumInfo(
+                              name = albumName,
+                              artist = albumTracks.firstOrNull()?.artist ?: "",
+                              coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                              songCount = albumTracks.size,
+                              nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
+                              nameEn = albumTracks.firstOrNull()?.albumEn,
+                              artistRomaji = albumTracks.firstOrNull()?.artistRomaji,
+                              artistEn = albumTracks.firstOrNull()?.artistEn
+                          )
+                      }
                   _artistResults.value = filtered.map { 
                       ArtistItemData(
                           name = it.artist, 
@@ -304,17 +317,52 @@ class LibraryViewModel(
                         name = album,
                         artist = albumTracks.firstOrNull()?.artist ?: "",
                         coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                        songCount = albumTracks.size,
                         nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
                         nameEn = albumTracks.firstOrNull()?.albumEn,
                         artistRomaji = albumTracks.firstOrNull()?.artistRomaji,
                         artistEn = albumTracks.firstOrNull()?.artistEn
                     )
                 }
-                .sortedBy { it.name }
+                .let { albums -> sortAlbums(albums, _currentAlbumSortOption.value) }
 
             withContext(Dispatchers.Main) {
                 _filteredAlbums.value = albumModels
             }
         }
+    }
+    
+    private fun sortAlbums(albums: List<AlbumInfo>, sortOption: SortOption): List<AlbumInfo> {
+        return when (sortOption) {
+            SortOption.AlbumTitleAZ -> albums.sortedBy { it.name.lowercase() }
+            SortOption.AlbumTitleZA -> albums.sortedByDescending { it.name.lowercase() }
+            SortOption.AlbumArtist -> albums.sortedBy { it.artist.lowercase() }
+            SortOption.AlbumSongCountAsc -> albums.sortedWith(
+                compareBy<AlbumInfo> { it.songCount }.thenBy { it.name.lowercase() }
+            )
+            SortOption.AlbumSongCountDesc -> albums.sortedWith(
+                compareByDescending<AlbumInfo> { it.songCount }.thenBy { it.name.lowercase() }
+            )
+            else -> albums.sortedBy { it.name.lowercase() }
+        }
+    }
+    
+    fun setAlbumSortOption(option: SortOption) {
+        _currentAlbumSortOption.value = option
+        updateFilteredAlbums(_tracks.value, _searchQuery.value)
+    }
+    
+    private fun sortTracks(tracks: List<TrackInfo>, sortOption: SortOption): List<TrackInfo> {
+        return when (sortOption) {
+            SortOption.TrackTitleAZ -> tracks.sortedBy { it.title.lowercase() }
+            SortOption.TrackTitleZA -> tracks.sortedByDescending { it.title.lowercase() }
+            SortOption.TrackDurationAsc -> tracks.sortedWith(compareBy { it.duration ?: 0L })
+            SortOption.TrackDurationDesc -> tracks.sortedWith(compareByDescending { it.duration ?: 0L })
+            else -> tracks.sortedBy { it.title.lowercase() }
+        }
+    }
+    
+    fun setTrackSortOption(option: SortOption) {
+        _currentTrackSortOption.value = option
     }
 }

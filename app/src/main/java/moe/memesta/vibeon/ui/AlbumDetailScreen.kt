@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +54,8 @@ import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import moe.memesta.vibeon.ui.utils.parseAlbum
 import moe.memesta.vibeon.ui.components.SectionHeader
+import moe.memesta.vibeon.data.SortOption
+import moe.memesta.vibeon.ui.components.SortBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +69,8 @@ fun AlbumDetailScreen(
 ) {
     val displayLanguage = LocalDisplayLanguage.current
     val tracks by viewModel.tracks.collectAsState()
+    val currentTrackSortOption by viewModel.currentTrackSortOption.collectAsState()
+    var showSortSheet by remember { mutableStateOf(false) }
     
     // Decode URL-encoded album name
     val decodedAlbumName = remember(albumName) {
@@ -76,12 +81,23 @@ fun AlbumDetailScreen(
         }
     }
     
-    val albumTracks = remember(tracks, decodedAlbumName) {
-        tracks.filter { it.album == decodedAlbumName }
-            .sortedWith(
-                compareBy<TrackInfo> { it.discNumber ?: 1 }
-                    .thenBy { it.trackNumber ?: 0 }
-            )
+    val albumTracks = remember(tracks, decodedAlbumName, currentTrackSortOption) {
+        val filtered = tracks.filter { it.album == decodedAlbumName }
+        
+        // Apply sorting based on selected option
+        when (currentTrackSortOption) {
+            SortOption.TrackTitleAZ -> filtered.sortedBy { it.title.lowercase() }
+            SortOption.TrackTitleZA -> filtered.sortedByDescending { it.title.lowercase() }
+            SortOption.TrackDurationAsc -> filtered.sortedWith(compareBy { it.duration ?: 0L })
+            SortOption.TrackDurationDesc -> filtered.sortedWith(compareByDescending { it.duration ?: 0L })
+            else -> {
+                // Default: sort by disc and track number
+                filtered.sortedWith(
+                    compareBy<TrackInfo> { it.discNumber ?: 1 }
+                        .thenBy { it.trackNumber ?: 0 }
+                )
+            }
+        }
     }
     
     val scrollState = rememberLazyListState()
@@ -179,21 +195,42 @@ fun AlbumDetailScreen(
                         )
                     }
 
-                    // Back Button
-                    IconButton(
-                        onClick = onBackClick,
+                    // Back Button and Sort
+                    Row(
                         modifier = Modifier
                             .statusBarsPadding()
-                            .padding(start = 16.dp, top = 8.dp)
-                            .size(44.dp)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), CircleShape)
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Rounded.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        IconButton(
+                            onClick = onBackClick,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), CircleShape)
+                        ) {
+                            Icon(
+                                Icons.Rounded.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        IconButton(
+                            onClick = { showSortSheet = true },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Sort,
+                                contentDescription = "Sort",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
 
                     // Overlay Content: Title, Artist and Play Button - at bottom
@@ -225,25 +262,56 @@ fun AlbumDetailScreen(
                             )
                         }
 
-                        // Circular Play Button
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape)
-                                .bouncyClickable {
-                                    if (albumTracks.isNotEmpty()) {
-                                        viewModel.playAlbum(decodedAlbumName)
-                                        onTrackSelected(albumTracks.first())
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
+                        // Play and Shuffle Buttons
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Rounded.PlayArrow,
-                                contentDescription = "Play All",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(36.dp)
-                            )
+                            // Shuffle Button - Expressive Shape
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .bouncyClickable {
+                                        if (albumTracks.isNotEmpty()) {
+                                            // Shuffle the album tracks and play
+                                            val shuffledTracks = albumTracks.shuffled()
+                                            viewModel.playTrack(shuffledTracks.first(), shuffledTracks)
+                                            onTrackSelected(shuffledTracks.first())
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            
+                            // Play Button - Expressive Shape
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .bouncyClickable {
+                                        if (albumTracks.isNotEmpty()) {
+                                            viewModel.playAlbum(decodedAlbumName)
+                                            onTrackSelected(albumTracks.first())
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Rounded.PlayArrow,
+                                    contentDescription = "Play All",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -320,6 +388,20 @@ fun AlbumDetailScreen(
         }
 
         // No top bar needed since back button is on the card
+    }
+    
+    // Sort Bottom Sheet
+    if (showSortSheet) {
+        SortBottomSheet(
+            title = "Sort by",
+            options = SortOption.TRACKS,
+            selectedOption = currentTrackSortOption,
+            onDismiss = { showSortSheet = false },
+            onOptionSelected = { option ->
+                viewModel.setTrackSortOption(option)
+                showSortSheet = false
+            }
+        )
     }
 }
 
