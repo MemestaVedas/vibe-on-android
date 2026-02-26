@@ -32,6 +32,7 @@ import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.SongCoverShape
+import moe.memesta.vibeon.ui.theme.ArtistCoverShape
 import moe.memesta.vibeon.ui.theme.shimmerEffect
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
@@ -285,8 +286,8 @@ fun ArtistPill(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), CircleShape)
-                    .clip(CircleShape)
+                    .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), ArtistCoverShape)
+                    .clip(ArtistCoverShape)
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {

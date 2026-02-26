@@ -383,6 +383,33 @@ class WebSocketClient {
         sendMessage(message)
     }
     
+    fun sendCreatePlaylist(name: String, songPaths: List<String>, customization: moe.memesta.vibeon.ui.PlaylistCustomization) {
+        val songsArray = org.json.JSONArray()
+        songPaths.forEach { songsArray.put(it) }
+        
+        val message = JSONObject().apply {
+            put("type", "createPlaylist")
+            put("name", name)
+            put("songs", songsArray)
+            put("customizationType", customization.type.name)
+            
+            when (customization.type) {
+                moe.memesta.vibeon.ui.PlaylistCustomizationType.Image -> {
+                    put("imageUri", customization.imageUri?.toString())
+                }
+                moe.memesta.vibeon.ui.PlaylistCustomizationType.Icon -> {
+                    put("color", customization.color)
+                    put("iconName", customization.iconName)
+                }
+                moe.memesta.vibeon.ui.PlaylistCustomizationType.Default -> {
+                    put("color", customization.color)
+                }
+            }
+        }
+        Log.i("WebSocket", "✨ Creating new playlist: $name")
+        sendMessage(message)
+    }
+    
     private inner class VibeonWebSocketListener(
         private val client: WebSocketClient,
         private val clientName: String

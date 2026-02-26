@@ -169,6 +169,10 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
         wsClient.sendReorderPlaylistTracks(playlistId, trackIds)
     }
     
+    fun createPlaylist(name: String, songPaths: List<String>, customization: PlaylistCustomization) {
+        wsClient.sendCreatePlaylist(name, songPaths, customization)
+    }
+    
     override fun onCleared() {
         super.onCleared()
         wsClient.disconnect()

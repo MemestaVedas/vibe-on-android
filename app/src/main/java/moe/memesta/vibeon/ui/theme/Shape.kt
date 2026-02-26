@@ -38,3 +38,9 @@ val ArtistCoverShape: Shape = SvgShape(
     viewportWidth = 304f,
     viewportHeight = 304f
 ) // Arch shape for artists
+
+val DomeShape: Shape = SvgShape(
+    pathString = "M330 160C330 248.366 258.366 320 170 320C81.6344 320 10 248.366 10 160C10 71.6344 81.6345 0 170 0C258.366 0 330 71.6345 330 160Z",
+    viewportWidth = 330f,
+    viewportHeight = 320f
+) // Dome shape for carouselIndicators

@@ -1,22 +1,24 @@
 package moe.memesta.vibeon.ui.components
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.stats.PlaybackStatsCalculator
 import moe.memesta.vibeon.ui.theme.Dimens
-import moe.memesta.vibeon.ui.theme.VibeBackground
 
 @Composable
 fun StatisticsSection(
@@ -24,115 +26,227 @@ fun StatisticsSection(
     onViewStats: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (summary == null) return
-    
-    Column(
+    if (summary == null) {
+        PlaceholderStatisticsContent()
+        return
+    }
+
+    Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.ScreenPadding),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        onClick = onViewStats
     ) {
-        Text(
-            text = "Your Statistics",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = "See how you've been vibing ✨",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Bento-style grid
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        Box(
+            modifier = Modifier
+                .background(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
         ) {
-            BentoCard(
-                label = "Listening Time",
-                value = formatDuration(summary.totalDurationMs),
-                icon = Icons.Rounded.MusicNote,
-                accentColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
-            )
-            BentoCard(
-                label = "Total Plays",
-                value = summary.totalPlayCount.toString(),
-                icon = Icons.Rounded.AutoGraph,
-                accentColor = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.weight(1f)
-            )
-        }
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                // Header Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(color = MaterialTheme.colorScheme.surfaceContainer),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        Modifier.padding(start = 24.dp, top = 24.dp, bottom = 24.dp)
+                    ) {
+                        Text(
+                            text = "Listening stats",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = summary.range.displayName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 24.dp)
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            BentoCard(
-                label = "Unique Songs",
-                value = summary.uniqueSongs.toString(),
-                icon = Icons.Rounded.Person,
-                accentColor = MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.weight(1f)
-            )
-            BentoCard(
-                label = "Active Days",
-                value = summary.activeDays.toString(),
-                icon = Icons.Rounded.Schedule,
-                accentColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f)
-            )
-        }
+                // Content
+                Column(
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Main listening duration
+                    Text(
+                        text = formatListeningDurationLong(summary.totalDurationMs),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-        TextButton(
-            onClick = onViewStats,
-            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text(text = "View full stats")
+                    // Stats row: Total Plays and Avg per day
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Total plays",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = summary.totalPlayCount.toString(),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Avg per day",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatListeningDurationCompact(summary.averageDailyDurationMs),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Top track if available
+                    val topTrack = summary.topSongs.firstOrNull()
+                    if (topTrack != null) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Top track",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = topTrack.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "${topTrack.artist} • ${topTrack.playCount} plays",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    // Mini timeline
+                    MiniListeningTimeline(summary)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun BentoCard(
-    label: String,
-    value: String,
-    icon: ImageVector,
-    accentColor: Color,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp)),
-        color = Color.Transparent,
-        shape = RoundedCornerShape(20.dp)
+private fun PlaceholderStatisticsContent() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.ScreenPadding),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
-                .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
-                .padding(16.dp)
+                .background(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
         ) {
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(color = MaterialTheme.colorScheme.surfaceContainer),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        Modifier.padding(start = 24.dp, top = 24.dp, bottom = 24.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(140.dp)
+                                .height(18.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PlaceholderLine(width = 140.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        PlaceholderLine(width = 60.dp)
+                        PlaceholderLine(width = 60.dp)
+                    }
+                    PlaceholderLine(width = 120.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniListeningTimeline(summary: PlaybackStatsCalculator.PlaybackStatsSummary?) {
+    val timeline = summary?.timeline ?: emptyList()
+    val maxDuration = timeline.maxOfOrNull { it.totalDurationMs }?.takeIf { it > 0 } ?: 1L
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(96.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        val entries = if (timeline.isEmpty()) {
+            List(5) { null }
+        } else {
+            timeline.takeLast(minOf(7, timeline.size))
+        }
+
+        entries.forEach { entry ->
+            val heightFraction = entry?.let { it.totalDurationMs.toFloat() / maxDuration.toFloat() }?.coerceIn(0f, 1f) ?: 0.1f
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Bottom,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(24.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height((70.dp * heightFraction).coerceAtLeast(10.dp))
+                        .clip(CircleShape)
+                        .background(color = MaterialTheme.colorScheme.primary)
                 )
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = value,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = entry?.label ?: "",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -140,9 +254,30 @@ private fun BentoCard(
     }
 }
 
-private fun formatDuration(durationMs: Long): String {
+@Composable
+private fun PlaceholderLine(width: Dp) {
+    Box(
+        modifier = Modifier
+            .width(width)
+            .height(18.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+    )
+}
+
+private fun formatListeningDurationLong(durationMs: Long): String {
     val totalMinutes = durationMs / 60000
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+}
+
+private fun formatListeningDurationCompact(durationMs: Long): String {
+    val totalMinutes = durationMs / 60000
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+        hours > 0 -> "${hours}h"
+        else -> "${minutes}m"
+    }
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -20,7 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,6 +57,7 @@ import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.*
 import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.DomeShape
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
@@ -74,6 +76,7 @@ fun HomeScreen(
     onViewAllSongs: () -> Unit,
     onViewStats: () -> Unit,
     onViewAllAlbums: () -> Unit,
+    onViewAllArtists: () -> Unit,
     contentPadding: PaddingValues,
     connectionViewModel: ConnectionViewModel
 ) {
@@ -100,24 +103,6 @@ fun HomeScreen(
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    // Page-load entrance animation
-    var pageVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(50)
-        pageVisible = true
-    }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "logo_rotation")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "logo_angle"
-    )
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -238,13 +223,7 @@ fun HomeScreen(
 
             // Section: Albums
             item(key = "section_albums") {
-                AnimatedVisibility(
-                    visible = pageVisible && !isLoading,
-                    enter = slideInHorizontally(
-                        initialOffsetX = { -80 },
-                        animationSpec = tween(350, delayMillis = 160)
-                    )
-                ) {
+                if (!isLoading) {
                     Column(
                         modifier = Modifier
                             .background(sectionSurface)
@@ -267,12 +246,6 @@ fun HomeScreen(
                                     albumName = album.getDisplayName(displayLanguage),
                                     coverUrl = album.coverUrl,
                                     onClick = { onAlbumSelected(album.name) }
-                                )
-                            }
-                            item {
-                                SeeAllButton(
-                                    onClick = onViewAllAlbums,
-                                    modifier = Modifier.size(Dimens.StandardCardWidth)
                                 )
                             }
                         }
@@ -300,21 +273,15 @@ fun HomeScreen(
 
             // Section: Artists
             item(key = "section_artists") {
-                AnimatedVisibility(
-                    visible = pageVisible && !isLoading,
-                    enter = slideInHorizontally(
-                        initialOffsetX = { -80 },
-                        animationSpec = tween(350, delayMillis = 240)
-                    )
-                ) {
+                if (!isLoading) {
                     Column(
                         modifier = Modifier
                             .background(appBackground)
                             .padding(bottom = 24.dp)
                     ) {
                         SectionHeader(
-                            "Artists", 
-                            onSeeAllClick = { /* Navigate */ },
+                            "Top Artists", 
+                            onSeeAllClick = onViewAllArtists,
                             modifier = Modifier.padding(top = Dimens.SectionPadding)
                         )
                         FadeEdgeLazyRow(
@@ -356,13 +323,7 @@ fun HomeScreen(
 
             // Section: Your Songs (Recently Added) - Now after Artists
             item(key = "section_recent") {
-                AnimatedVisibility(
-                    visible = pageVisible && !isLoading,
-                    enter = slideInHorizontally(
-                        initialOffsetX = { -80 },
-                        animationSpec = tween(350, delayMillis = 80)
-                    )
-                ) {
+                if (!isLoading) {
                     Column(
                         modifier = Modifier
                             .background(sectionSurface)
@@ -410,13 +371,7 @@ fun HomeScreen(
 
             // Section: Statistics
             item(key = "section_stats") {
-                AnimatedVisibility(
-                    visible = pageVisible && !isLoading,
-                    enter = slideInHorizontally(
-                        initialOffsetX = { -80 },
-                        animationSpec = tween(350, delayMillis = 320)
-                    )
-                ) {
+                if (!isLoading) {
                     Column(
                         modifier = Modifier
                             .background(appBackground)
@@ -434,7 +389,7 @@ fun HomeScreen(
             }
         }
 
-        // Rotating Logo Overlay
+        // Logo Overlay (Static - no rotation)
         Image(
             painter = painterResource(id = R.drawable.ic_vibe_logo),
             contentDescription = "Vibe-On Logo",
@@ -443,43 +398,22 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .padding(Dimens.ScreenPadding)
                 .size(40.dp)
-                .graphicsLayer { rotationZ = rotationAngle }
                 .clickable {
                     scope.launch { drawerState.open() }
                 }
         )
 
-        // Search + Connection Status Overlay
-        Row(
+        // Connection Status Indicator Only (Search icon removed)
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(Dimens.ScreenPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(Dimens.ScreenPadding)
         ) {
             ConnectionStatusIndicator(
                 connectionState = connectionState,
                 modifier = Modifier
             )
-
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(onClick = onSearchClick) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
         }
         }
     }
@@ -542,7 +476,9 @@ fun HeroHeader(
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f/9f)
+                .aspectRatio(14f/9f),
+            userScrollEnabled = true,
+            flingBehavior = PagerDefaults.flingBehavior(state = pagerState)
         ) { page ->
             val album = albums.getOrNull(page) ?: return@HorizontalPager
 
@@ -580,8 +516,8 @@ fun HeroHeader(
                             val hct = com.google.android.material.color.utilities.Hct.fromInt(sourceColor)
                             val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
                             
-                            // Match M3 surfaceContainer-like tone (tone 6-12 for dark background)
-                            dynamicBaseColor = Color(scheme.neutralPalette.tone(10))
+                            // Use the primary palette at a darker tone (50) for vibrant dominant color
+                            dynamicBaseColor = Color(scheme.primaryPalette.tone(50))
                         }
                     }
                 }
@@ -603,8 +539,8 @@ fun HeroHeader(
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    finalOverlayColor.copy(alpha = 0.2f),
-                                    finalOverlayColor.copy(alpha = 0.6f),
+                                    finalOverlayColor.copy(alpha = 0f),
+                                    finalOverlayColor.copy(alpha = 0.5f),
                                     finalOverlayColor.copy(alpha = 1.0f)
                                 )
                             )
@@ -630,10 +566,11 @@ fun HeroHeader(
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "✦",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 12.sp
+                                Icon(
+                                    imageVector = Icons.Rounded.Favorite,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(12.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
@@ -711,26 +648,20 @@ fun HeroHeader(
             showAtTop = false // Keep rising direction
         )
 
-        // Pager Indicators: ___ o o o o
+        // Pager Indicators with dome shapes - filled for active, outline for inactive
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(albums.size) { index ->
                 val isSelected = pagerState.currentPage == index
-                val width by animateDpAsState(
-                    targetValue = if (isSelected) 32.dp else 8.dp,
-                    animationSpec = tween(300),
-                    label = "indicator_width"
-                )
                 Box(
                     modifier = Modifier
-                        .height(4.dp)
-                        .width(width)
-                        .clip(RoundedCornerShape(2.dp))
+                        .size(width = 12.dp, height = 14.dp)
+                        .clip(DomeShape)
                         .background(
                             if (isSelected) Color.White else Color.White.copy(alpha = 0.4f)
                         )

@@ -45,6 +45,11 @@ fun MainContentPager(
                         pagerState.animateScrollToPage(1)
                     }
                 },
+                onViewAllArtists = {
+                    scope.launch {
+                        pagerState.animateScrollToPage(3)
+                    }
+                },
                 contentPadding = contentPadding,
                 connectionViewModel = connectionViewModel
             )
@@ -60,6 +65,7 @@ fun MainContentPager(
             )
             2 -> PlaylistsScreen(
                 viewModel = connectionViewModel,
+                libraryViewModel = libraryViewModel,
                 contentPadding = contentPadding,
                 onPlaylistSelected = { playlistId -> navController.navigate("playlist/${URLEncoder.encode(playlistId, "UTF-8")}") }
             )
