@@ -1,24 +1,36 @@
 package moe.memesta.vibeon.ui.components
 
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.theme.ArtistCoverShape
-import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 @Composable
@@ -27,51 +39,103 @@ fun ArtistGridItem(
     photoUrl: String?,
     onClick: () -> Unit
 ) {
-    Column(
+    var dominantColor by remember(photoUrl) { mutableStateOf<Color?>(null) }
+    val defaultColor = MaterialTheme.colorScheme.primary
+    val primaryColor = dominantColor ?: defaultColor
+    val onPrimaryColor = dominantColor?.let { color ->
+        val r = (color.red * 255).toInt()
+        val g = (color.green * 255).toInt()
+        val b = (color.blue * 255).toInt()
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        if (luminance > 0.5) Color.Black else Color.White
+    } ?: MaterialTheme.colorScheme.onPrimary
+    
+    val context = LocalContext.current
+    LaunchedEffect(photoUrl) {
+        if (photoUrl != null) {
+            try {
+                withContext(Dispatchers.IO) {
+                    val loader = context.imageLoader
+                    val request = ImageRequest.Builder(context)
+                        .data(photoUrl)
+                        .allowHardware(false)
+                        .build()
+                    val result = loader.execute(request)
+                    if (result is SuccessResult) {
+                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                        bitmap?.let {
+                            val palette = Palette.from(it).generate()
+                            palette.dominantSwatch?.let { swatch ->
+                                dominantColor = Color(swatch.rgb)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Fallback to default color on error
+            }
+        }
+    }
+    
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .bouncyClickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .aspectRatio(1f)
+            .clip(ArtistCoverShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .bouncyClickable(onClick = onClick)
     ) {
-        // Artist Photo (Circular)
+        if (photoUrl != null) {
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = artistName,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(
+                Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(48.dp)
+                    .align(Alignment.Center),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+        
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            if (photoUrl != null) {
-                AsyncImage(
-                    model = photoUrl,
-                    contentDescription = artistName,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                .height(120.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            primaryColor
+                        )
+                    )
                 )
-            } else {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .align(Alignment.Center),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(Dimens.ItemSpacing))
-        
-        // Artist Name
-        Text(
-            text = artistName,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
         )
+        
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 12.dp)
+                .align(Alignment.BottomCenter),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Text(
+                text = artistName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = onPrimaryColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }

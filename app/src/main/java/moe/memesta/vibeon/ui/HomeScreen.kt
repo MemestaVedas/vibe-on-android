@@ -56,6 +56,11 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.TrackInfo
@@ -114,6 +119,64 @@ fun HomeScreen(
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    
+    // Pull-to-refresh state
+    var isRefreshing by remember { mutableStateOf(false) }
+    var pullOffset by remember { mutableStateOf(0f) }
+    val pullThreshold = 150f
+    
+    // Nested scroll connection for pull-to-refresh
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (isRefreshing) return Offset.Zero
+                
+                // Allow pull down at top
+                if (available.y < 0 && pullOffset > 0f) {
+                    val consumed = pullOffset.coerceAtMost(-available.y)
+                    pullOffset -= consumed
+                    return Offset(0f, -consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (isRefreshing) return Offset.Zero
+                
+                // Allow pull down when at top
+                if (available.y > 0f && listState.firstVisibleItemIndex == 0) {
+                    pullOffset = (pullOffset + available.y * 0.5f).coerceAtMost(pullThreshold * 1.5f)
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (pullOffset > pullThreshold && !isRefreshing) {
+                    isRefreshing = true
+                    scope.launch {
+                        // Disconnect and reconnect to refresh the connection
+                        val currentDevice = connectedDevice
+                        if (currentDevice != null) {
+                            connectionViewModel.disconnect()
+                            delay(500)
+                            connectionViewModel.connectToDevice(currentDevice)
+                        }
+                        delay(1500)
+                        isRefreshing = false
+                        pullOffset = 0f
+                    }
+                } else {
+                    pullOffset = 0f
+                }
+                return Velocity.Zero
+            }
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -291,9 +354,21 @@ fun HomeScreen(
         }
     ) {
         Box(modifier = Modifier.fillMaxSize().background(appBackground)) {
+        
+        // Refresh indicator
+        MorphingShapesRefreshIndicator(
+            pullOffset = pullOffset,
+            pullThreshold = pullThreshold,
+            isRefreshing = isRefreshing,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+        
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .nestedScroll(nestedScrollConnection)
+                .offset { androidx.compose.ui.unit.IntOffset(0, pullOffset.toInt()) },
             contentPadding = PaddingValues(
                 top = 0.dp,
                 bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing + 80.dp 
@@ -862,5 +937,67 @@ class PetalShape(private val petals: Int = 8, private val depth: Float = 0.15f) 
         }
         path.close()
         return androidx.compose.ui.graphics.Outline.Generic(path)
+    }
+}
+
+/**
+ * Custom pull-to-refresh indicator with morphing shapes animation
+ * Positioned to push content down like Google Photos
+ */
+@Composable
+fun MorphingShapesRefreshIndicator(
+    pullOffset: Float,
+    pullThreshold: Float,
+    isRefreshing: Boolean,
+    modifier: Modifier = Modifier
+) {
+    // Calculate pull progress (0f to 1f)
+    val pullProgress = (pullOffset / pullThreshold).coerceIn(0f, 1f)
+    
+    AnimatedVisibility(
+        visible = isRefreshing || pullProgress > 0f,
+        enter = fadeIn() + scaleIn(initialScale = 0.8f),
+        exit = fadeOut() + scaleOut(targetScale = 0.8f),
+        modifier = modifier
+            .statusBarsPadding()
+            .padding(vertical = 16.dp)
+            .offset { androidx.compose.ui.unit.IntOffset(0, pullOffset.toInt()) }
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f),
+                        CircleShape
+                    )
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                } else {
+                    // Show a scaling indicator during pull - morphing circle
+                    val animatedSize by animateDpAsState(
+                        targetValue = (32.dp * pullProgress).coerceAtMost(32.dp),
+                        label = "pullSize"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(animatedSize)
+                            .background(
+                                MaterialTheme.colorScheme.onPrimaryContainer,
+                                CircleShape
+                            )
+                    )
+                }
+            }
+        }
     }
 }
