@@ -30,30 +30,45 @@ fun DynamicTheme(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    var colorScheme by remember { mutableStateOf<ColorScheme?>(null) }
+    // Initialize with default scheme immediately to prevent black screen
+    var colorScheme by remember { 
+        mutableStateOf<ColorScheme>(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme) {
+                dynamicDarkColorScheme(context)
+            } else {
+                defaultDarkColorScheme()
+            }
+        )
+    }
+
+    // Track if we've ever had a bitmap to distinguish initial state from refresh
+    var hadBitmap by remember { mutableStateOf(false) }
 
     LaunchedEffect(seedBitmap, darkTheme) {
-        colorScheme = if (seedBitmap != null) {
-            withContext(Dispatchers.Default) {
+        if (seedBitmap != null) {
+            // Generate new scheme from bitmap
+            hadBitmap = true
+            colorScheme = withContext(Dispatchers.Default) {
                 generateSchemeFromBitmap(seedBitmap, darkTheme)
             }
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        } else if (!hadBitmap) {
+            // Only on first load without a bitmap, use fallback
+            colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             } else {
                 defaultDarkColorScheme()
             }
         }
+        // If seedBitmap is null but we had one before, keep the previous colorScheme
+        // This prevents black screen during refresh when bitmap temporarily becomes null
     }
 
-    colorScheme?.let { scheme ->
-        MaterialTheme(
-            colorScheme = scheme,
-            typography = Typography,
-            shapes = Shapes,
-            content = content
-        )
-    }
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        shapes = Shapes,
+        content = content
+    )
 }
 
 /**

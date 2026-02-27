@@ -101,7 +101,7 @@ fun HomeScreen(
         ?: remember { mutableStateOf(null) }
     val displayLanguage = LocalDisplayLanguage.current
 
-    val isLoading = tracks.isEmpty() && connectionState == ConnectionState.CONNECTED
+    // isLoading moved below so it can consider preserved data during refresh
 
     // Define distinct section colors for sidebar layering
     val sectionSurface = Color.White.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surface)
@@ -112,18 +112,39 @@ fun HomeScreen(
     val sidebarBottomSection = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
 
     val listState = rememberLazyListState()
-    // Pre-calculate chunks for Recently Added grid
-    val recentChunks = remember(tracks) {
-        tracks.take(20).chunked(4)
-    }
 
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    
-    // Pull-to-refresh state
+    // Pull-to-refresh state (declared early so it can be referenced by preserved-data logic below)
     var isRefreshing by remember { mutableStateOf(false) }
     var pullOffset by remember { mutableStateOf(0f) }
     val pullThreshold = 150f
+
+    // Preserve last non-empty snapshots so UI doesn't go blank during refresh
+    var preservedTracks by remember { mutableStateOf(tracks) }
+    var preservedAlbums by remember { mutableStateOf(albums) }
+    var preservedArtists by remember { mutableStateOf(artists) }
+    var preservedFeatured by remember { mutableStateOf(featuredAlbums) }
+
+    // Update preserved snapshots when non-empty data arrives
+    LaunchedEffect(tracks) { if (tracks.isNotEmpty()) preservedTracks = tracks }
+    LaunchedEffect(albums) { if (albums.isNotEmpty()) preservedAlbums = albums }
+    LaunchedEffect(artists) { if (artists.isNotEmpty()) preservedArtists = artists }
+    LaunchedEffect(featuredAlbums) { if (featuredAlbums.isNotEmpty()) preservedFeatured = featuredAlbums }
+
+    // Use preserved data during refresh to avoid blank UI
+    val effectiveTracks = if (isRefreshing) preservedTracks else tracks
+    val effectiveAlbums = if (isRefreshing) preservedAlbums else albums
+    val effectiveArtists = if (isRefreshing) preservedArtists else artists
+    val effectiveFeatured = if (isRefreshing) preservedFeatured else featuredAlbums
+
+    // Pre-calculate chunks for Recently Added grid
+    val recentChunks = remember(effectiveTracks) {
+        effectiveTracks.take(20).chunked(4)
+    }
+
+    val isLoading = effectiveTracks.isEmpty() && connectionState == ConnectionState.CONNECTED
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
     
     // Nested scroll connection for pull-to-refresh
     val nestedScrollConnection = remember {
@@ -147,10 +168,16 @@ fun HomeScreen(
             ): Offset {
                 if (isRefreshing) return Offset.Zero
                 
-                // Allow pull down when at top
+                // Only consume vertical scrolls at top, and only if gesture is primarily vertical
+                // This allows horizontal pager swipes to work properly
                 if (available.y > 0f && listState.firstVisibleItemIndex == 0) {
-                    pullOffset = (pullOffset + available.y * 0.5f).coerceAtMost(pullThreshold * 1.5f)
-                    return Offset(0f, available.y)
+                    // Check if the gesture is more vertical than horizontal
+                    val isVerticalGesture = kotlin.math.abs(available.y) > kotlin.math.abs(available.x) * 1.5f
+                    
+                    if (isVerticalGesture) {
+                        pullOffset = (pullOffset + available.y * 0.5f).coerceAtMost(pullThreshold * 1.5f)
+                        return Offset(0f, available.y)
+                    }
                 }
                 return Offset.Zero
             }
@@ -159,13 +186,10 @@ fun HomeScreen(
                 if (pullOffset > pullThreshold && !isRefreshing) {
                     isRefreshing = true
                     scope.launch {
-                        // Disconnect and reconnect to refresh the connection
-                        val currentDevice = connectedDevice
-                        if (currentDevice != null) {
-                            connectionViewModel.disconnect()
-                            delay(500)
-                            connectionViewModel.connectToDevice(currentDevice)
-                        }
+                        // Request fresh data from the server without disconnecting,
+                        // which avoids the black screen caused by resetting connection state.
+                        connectionViewModel.wsClient.sendGetStatus()
+                        connectionViewModel.wsClient.sendGetLibrary()
                         delay(1500)
                         isRefreshing = false
                         pullOffset = 0f
@@ -376,7 +400,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             // Spacer for logo/search if hero is missing or loading
-            if (featuredAlbums.isEmpty() || isLoading) {
+            if (effectiveFeatured.isEmpty() || isLoading) {
                 item(key = "top_spacer") {
                     Spacer(modifier = Modifier.statusBarsPadding().height(72.dp))
                 }
@@ -384,10 +408,10 @@ fun HomeScreen(
 
             // Section: Featured Carousel (TOP)
             item(key = "section_featured_carousel") {
-                if (featuredAlbums.isNotEmpty() && !isLoading) {
+                if (effectiveFeatured.isNotEmpty() && !isLoading) {
                     Box(modifier = Modifier.fillMaxWidth()) {
                         HeroHeader(
-                            albums = featuredAlbums,
+                            albums = effectiveFeatured,
                             onPlayClick = { album -> onAlbumSelected(album.name) },
                             displayLanguage = displayLanguage
                         )
@@ -415,7 +439,7 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
-                                items = albums.take(5),
+                                items = effectiveAlbums.take(5),
                                 key = { "home_album_${it.name}" }
                             ) { album ->
                                 AlbumCard(
@@ -465,7 +489,7 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
-                                items = artists.take(5),
+                                items = effectiveArtists.take(5),
                                 key = { "artist_${it.name}" }
                             ) { artist ->
                                 ArtistPill(
