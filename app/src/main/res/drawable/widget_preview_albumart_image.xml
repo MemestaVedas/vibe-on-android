@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp"
+    android:height="180dp"
+    android:viewportWidth="180"
+    android:viewportHeight="180">
+
+    <!-- Rounded square background -->
+    <path
+        android:pathData="M28,0L152,0A28,28 0,0 1,180 28L180,152A28,28 0,0 1,152 180L28,180A28,28 0,0 1,0 152L0,28A28,28 0,0 1,28 0z"
+        android:fillColor="#2D2D3A"/>
+
+    <!-- Music note icon centred -->
+    <path
+        android:pathData="M93.33,68V86.14C92.71,85.78 91.99,85.56 91.22,85.56C88.89,85.56 87,87.44 87,89.78C87,92.11 88.89,94 91.22,94C93.56,94 95.44,92.11 95.44,89.78V74.22H101.67V68H93.33Z"
+        android:fillColor="#D0BCFF"/>
+
+</vector>

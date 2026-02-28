@@ -93,10 +93,11 @@ class PlaybackViewModel(
     private fun startMobileStreaming(url: String) {
         // Exit silent notification mode before loading real audio
         MediaNotificationManager.exitSilentMode()
-
-        player?.let { p ->
-            Log.i("PlaybackViewModel", "🎵 Starting mobile streaming: $url")
+        Log.i("PlaybackViewModel", "🔓 Exited silent mode for mobile streaming")
             
+        player?.let { p ->
+            Log.i("PlaybackViewModel", "🎵 Starting mobile streaming from URL: $url")
+            Log.d("PlaybackViewModel", "📊 Player state before loading: isPlaying=${p.isPlaying}, playbackState=${p.playbackState}")
             // Build metadata for the MediaItem
             val state = _playbackState.value
             val metadata = MediaMetadata.Builder()
@@ -150,9 +151,21 @@ class PlaybackViewModel(
                 }
                 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    Log.e("PlaybackViewModel", "❌ ExoPlayer Error: ${error.message}", error)
+                    Log.e("PlaybackViewModel", "❌ ExoPlayer Error: ${error.errorCodeName}", error)
+                    Log.e("PlaybackViewModel", "❌ Error details: ${error.cause?.message}", error.cause)
+                    val errorMsg = when (error.errorCodeName) {
+                        "ERROR_CODE_NETWORK_TIMEOUT" -> "Network timeout - check connection to PC"
+                        "ERROR_CODE_NETWORK_PERMISSION" -> "Network permission error"
+                        "ERROR_CODE_IO_FILE_NOT_FOUND" -> "Stream file not found on PC"
+                        "ERROR_CODE_IO_NETWORK_CONNECTION_FAILED" -> "Cannot connect to PC - check network/IP address"
+                        "ERROR_CODE_CLEARTEXT_NOT_PERMITTED" -> "HTTP not allowed (security config issue)"
+                        "ERROR_CODE_UNSPECIFIED" -> "Unspecified error: ${error.message}"
+                        else -> "ExoPlayer error: ${error.errorCodeName} - ${error.message}"
+                    }
+                    Log.e("PlaybackViewModel", "📱 Mobile Streaming Error: $errorMsg")
                     if (_isMobilePlayback.value) {
-                         // Maybe handle error or fallback
+                        // Log but don't stop - allow user to retry
+                        Log.i("PlaybackViewModel", "🔄 Mobile playback active, waiting for recovery...")
                     }
                 }
             }.also { p.addListener(it) }

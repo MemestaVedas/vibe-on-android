@@ -380,7 +380,7 @@ fun HomeScreen(
         Box(modifier = Modifier.fillMaxSize().background(appBackground)) {
         
         // Refresh indicator
-        MorphingShapesRefreshIndicator(
+        HomeLoadingRefreshIndicator(
             pullOffset = pullOffset,
             pullThreshold = pullThreshold,
             isRefreshing = isRefreshing,
@@ -458,7 +458,7 @@ fun HomeScreen(
                             .padding(top = Dimens.SectionSpacing, bottom = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        MorphingShapesLoader(label = "Loading albums...")
+                        VibeLoadingIndicator(label = "Loading albums...")
                     }
                 }
             }
@@ -507,7 +507,7 @@ fun HomeScreen(
                             .padding(top = Dimens.SectionSpacing, bottom = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        MorphingShapesLoader(label = "Loading artists...")
+                        VibeLoadingIndicator(label = "Loading artists...")
                     }
                 }
             }
@@ -967,7 +967,7 @@ class PetalShape(private val petals: Int = 8, private val depth: Float = 0.15f) 
  * Positioned to push content down like Google Photos
  */
 @Composable
-fun MorphingShapesRefreshIndicator(
+fun HomeLoadingRefreshIndicator(
     pullOffset: Float,
     pullThreshold: Float,
     isRefreshing: Boolean,
@@ -1000,9 +1000,9 @@ fun MorphingShapesRefreshIndicator(
                 contentAlignment = Alignment.Center
             ) {
                 if (isRefreshing) {
-                    CircularProgressIndicator(
+                    moe.memesta.vibeon.ui.components.VibeLoadingIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        showLabel = false
                     )
                 } else {
                     // Show a scaling indicator during pull - morphing circle

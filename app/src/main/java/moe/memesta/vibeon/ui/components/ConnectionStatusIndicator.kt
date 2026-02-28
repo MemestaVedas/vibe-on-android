@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
@@ -74,10 +73,9 @@ fun ConnectionStatusIndicator(
                     )
                 }
                 connectionState == ConnectionState.CONNECTING -> {
-                    CircularProgressIndicator(
+                    moe.memesta.vibeon.ui.components.VibeContainedLoadingIndicator(
                         modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        showLabel = false
                     )
                 }
             }

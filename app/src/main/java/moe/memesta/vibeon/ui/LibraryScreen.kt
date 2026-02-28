@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
-import moe.memesta.vibeon.ui.components.MorphingShapesLoader
+import moe.memesta.vibeon.ui.components.VibeContainedLoadingIndicator
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.getDisplayName
@@ -118,7 +118,7 @@ fun LibraryScreen(
                 // Content
                 if (isLoading && tracks.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        MorphingShapesLoader(label = "Loading your library...")
+                        VibeContainedLoadingIndicator(label = "Loading your library...")
                     }
                 } else if (tracks.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

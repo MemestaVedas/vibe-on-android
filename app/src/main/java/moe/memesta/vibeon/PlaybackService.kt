@@ -26,6 +26,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import moe.memesta.vibeon.data.P2PDataSource
 import moe.memesta.vibeon.data.StreamRepository
+import moe.memesta.vibeon.widget.WidgetActions
 import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -90,6 +91,32 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            WidgetActions.ACTION_PLAY_PAUSE -> {
+                if (isSilentMode) {
+                    // In silent mode, forward to PC
+                    val ws = MediaNotificationManager.wsClient
+                    if (ws?.isConnected?.value == true) {
+                        if (player.isPlaying) ws.sendPause() else ws.sendPlay()
+                    }
+                } else {
+                    if (player.isPlaying) player.pause() else player.play()
+                }
+                Log.i("PlaybackService", "Widget: play/pause")
+            }
+            WidgetActions.ACTION_NEXT -> {
+                MediaNotificationManager.wsClient?.sendNext()
+                Log.i("PlaybackService", "Widget: next")
+            }
+            WidgetActions.ACTION_PREVIOUS -> {
+                MediaNotificationManager.wsClient?.sendPrevious()
+                Log.i("PlaybackService", "Widget: previous")
+            }
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
 
     override fun onDestroy() {
         serviceScope.cancel()
@@ -258,6 +285,28 @@ class PlaybackService : MediaSessionService() {
     // ---------------------------------------------------------------------------
 
     private inner class VibeonForwardingPlayer(player: ExoPlayer) : ForwardingPlayer(player) {
+
+        // Always advertise next/prev commands so the notification shows skip buttons
+        // even though the underlying ExoPlayer only has one silent item on repeat.
+        override fun getAvailableCommands(): Player.Commands {
+            return super.getAvailableCommands().buildUpon()
+                .add(Player.COMMAND_SEEK_TO_NEXT)
+                .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .build()
+        }
+
+        override fun isCommandAvailable(command: Int): Boolean {
+            return when (command) {
+                Player.COMMAND_SEEK_TO_NEXT,
+                Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                Player.COMMAND_SEEK_TO_PREVIOUS,
+                Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
+                else -> super.isCommandAvailable(command)
+            }
+        }
+
         override fun play() {
             super.play()
             if (isForwardingEnabled) {
@@ -275,23 +324,23 @@ class PlaybackService : MediaSessionService() {
         }
 
         override fun seekToNext() {
-            if (isForwardingEnabled && !isSilentMode) {
+            if (isForwardingEnabled) {
                 val now = System.currentTimeMillis()
                 if (now - lastNextSentTime > SKIP_DEBOUNCE_MS) {
                     lastNextSentTime = now
                     MediaNotificationManager.wsClient?.sendNext()
-                    Log.i("PlaybackService", "⏭️ Next forwarded to PC (Service)")
+                    Log.i("PlaybackService", "⏭️ Next forwarded to PC")
                 }
-            } else {
+            } else if (!isSilentMode) {
                 super.seekToNext()
             }
         }
 
         override fun seekToPrevious() {
-            if (isForwardingEnabled && !isSilentMode) {
+            if (isForwardingEnabled) {
                 MediaNotificationManager.wsClient?.sendPrevious()
-                Log.i("PlaybackService", "⏮️ Previous forwarded to PC (Service)")
-            } else {
+                Log.i("PlaybackService", "⏮️ Previous forwarded to PC")
+            } else if (!isSilentMode) {
                 super.seekToPrevious()
             }
         }
@@ -299,7 +348,7 @@ class PlaybackService : MediaSessionService() {
         override fun seekToNextMediaItem() {
             if (isForwardingEnabled) {
                 MediaNotificationManager.wsClient?.sendNext()
-            } else {
+            } else if (!isSilentMode) {
                 super.seekToNextMediaItem()
             }
         }
@@ -307,7 +356,7 @@ class PlaybackService : MediaSessionService() {
         override fun seekToPreviousMediaItem() {
             if (isForwardingEnabled) {
                 MediaNotificationManager.wsClient?.sendPrevious()
-            } else {
+            } else if (!isSilentMode) {
                 super.seekToPreviousMediaItem()
             }
         }

@@ -63,7 +63,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.data.stats.PlaybackStatsCalculator
 import moe.memesta.vibeon.data.stats.StatsTimeRange
-import moe.memesta.vibeon.ui.components.MorphingShapesLoader
+import moe.memesta.vibeon.ui.components.VibeContainedLoadingIndicator
 import moe.memesta.vibeon.ui.theme.Dimens
 import kotlin.math.max
 import kotlin.math.min
@@ -83,7 +83,7 @@ fun StatsScreen(
     ) {
         if (uiState.isLoading && summary == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                MorphingShapesLoader(label = "Loading your stats...")
+                VibeContainedLoadingIndicator(label = "Loading your stats...")
             }
             return
         }

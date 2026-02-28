@@ -15,7 +15,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.stats.PlaybackStatsCalculator
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -162,52 +161,13 @@ fun StatisticsSection(
 
 @Composable
 private fun PlaceholderStatisticsContent() {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Dimens.ScreenPadding),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .padding(horizontal = Dimens.ScreenPadding, vertical = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .background(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(color = MaterialTheme.colorScheme.surfaceContainer),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(
-                        Modifier.padding(start = 24.dp, top = 24.dp, bottom = 24.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(140.dp)
-                                .height(18.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    PlaceholderLine(width = 140.dp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                        PlaceholderLine(width = 60.dp)
-                        PlaceholderLine(width = 60.dp)
-                    }
-                    PlaceholderLine(width = 120.dp)
-                }
-            }
-        }
+        VibeContainedLoadingIndicator(label = "Loading stats...")
     }
 }
 
@@ -252,17 +212,6 @@ private fun MiniListeningTimeline(summary: PlaybackStatsCalculator.PlaybackStats
             }
         }
     }
-}
-
-@Composable
-private fun PlaceholderLine(width: Dp) {
-    Box(
-        modifier = Modifier
-            .width(width)
-            .height(18.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-    )
 }
 
 private fun formatListeningDurationLong(durationMs: Long): String {

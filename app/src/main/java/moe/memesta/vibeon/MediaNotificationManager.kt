@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.MediaSessionData
 import moe.memesta.vibeon.data.WebSocketClient
+import moe.memesta.vibeon.widget.WidgetUpdater
 
 /**
  * Singleton bridge between WebSocketClient and PlaybackService.
@@ -107,6 +108,9 @@ object MediaNotificationManager {
                         }
                     }
                     lastArtBitmap = artBitmap
+
+                    // Update the home-screen widget
+                    WidgetUpdater.onTrackChanged(track, playing)
 
                     scope.launch(Dispatchers.Main) {
                         val metadata = MediaMetadata.Builder()
