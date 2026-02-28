@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import moe.memesta.vibeon.ui.components.MorphingShapesLoader
 import moe.memesta.vibeon.ui.theme.VibeBackground
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
@@ -210,7 +211,7 @@ fun LyricsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = lyricsTextColor)
+                MorphingShapesLoader(label = "Loading lyrics...")
             }
         } else if (isEmpty || isInstrumental) {
              Box(

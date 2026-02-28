@@ -33,7 +33,6 @@ import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.SongCoverShape
 import moe.memesta.vibeon.ui.theme.ArtistCoverShape
-import moe.memesta.vibeon.ui.theme.shimmerEffect
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
@@ -328,95 +327,3 @@ fun ArtistPill(
     }
 }
 
-// SKELETONS
-
-@Composable
-fun SkeletonSquareCard(
-    modifier: Modifier = Modifier,
-    tintColor: Color? = null
-) {
-    Column(modifier = modifier.width(Dimens.StandardCardWidth)) {
-        Box(
-            modifier = Modifier
-                .size(Dimens.StandardCardWidth)
-                .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                .shimmerEffect(tintColor)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .height(14.dp)
-                .fillMaxWidth(0.8f)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                .shimmerEffect(tintColor)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Box(
-            modifier = Modifier
-                .height(12.dp)
-                .fillMaxWidth(0.55f)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                .shimmerEffect(tintColor)
-        )
-    }
-}
-
-@Composable
-fun SkeletonAlbumCard(
-    modifier: Modifier = Modifier,
-    tintColor: Color? = null
-) {
-    Column(modifier = modifier.width(Dimens.StandardCardWidth)) {
-        Box(
-            modifier = Modifier
-                .size(Dimens.StandardCardWidth)
-                .clip(RoundedCornerShape(Dimens.CornerRadiusLarge))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                .shimmerEffect(tintColor)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .height(14.dp)
-                .fillMaxWidth(0.7f)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                .shimmerEffect(tintColor)
-        )
-    }
-}
-
-@Composable
-fun SkeletonArtistPill(
-    modifier: Modifier = Modifier,
-    tintColor: Color? = null
-) {
-    Row(
-        modifier = modifier
-            .height(48.dp)
-            .width(160.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-            .shimmerEffect(tintColor)
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Box(
-            modifier = Modifier
-                .height(12.dp)
-                .fillMaxWidth(0.6f)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-        )
-    }
-}

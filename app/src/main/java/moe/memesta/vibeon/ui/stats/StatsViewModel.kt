@@ -51,10 +51,12 @@ class StatsViewModel(
     private var cachedTracks: List<TrackEntity>? = null
 
     init {
+        Log.d("StatsViewModel", "🎯 StatsViewModel initialized")
         refreshWeeklyOverview()
         refreshRange(StatsTimeRange.WEEK)
         viewModelScope.launch {
             wsClient.statsUpdated.collect {
+                Log.d("StatsViewModel", "📊 Stats update signal received from PC")
                 refreshWeeklyOverview()
                 refreshRange(_uiState.value.selectedRange)
             }
@@ -62,6 +64,7 @@ class StatsViewModel(
         viewModelScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(30000)
+                Log.d("StatsViewModel", "🔄 Auto-refreshing stats...")
                 refreshWeeklyOverview()
                 refreshRange(_uiState.value.selectedRange)
             }
@@ -70,7 +73,15 @@ class StatsViewModel(
 
     fun onRangeSelected(range: StatsTimeRange) {
         if (range == _uiState.value.selectedRange && !_uiState.value.isLoading) return
+        Log.d("StatsViewModel", "📅 Range selected: ${range.displayName}")
         refreshRange(range)
+    }
+
+    fun forceRefresh() {
+        Log.d("StatsViewModel", "🔄 Force refresh triggered")
+        cachedTracks = null
+        refreshWeeklyOverview()
+        refreshRange(_uiState.value.selectedRange)
     }
 
     private fun refreshWeeklyOverview() {
@@ -93,8 +104,14 @@ class StatsViewModel(
                 withContext(Dispatchers.IO) {
                     val tracks = loadTracks()
                     val events = loadEvents(range)
+                    Log.d("StatsViewModel", "📊 Calculating summary for ${range.displayName}...")
+                    Log.d("StatsViewModel", "  Tracks: ${tracks.size}, Events: ${events.size}")
                     calculator.loadSummary(range, tracks, events)
                 }
+            }.onSuccess { summary ->
+                Log.d("StatsViewModel", "✅ Summary loaded: ${summary.totalDurationMs}ms, ${summary.totalPlayCount} plays")
+            }.onFailure { e ->
+                Log.e("StatsViewModel", "❌ Failed to load summary", e)
             }.getOrNull()
             _uiState.update { it.copy(isLoading = false, summary = summary, selectedRange = range) }
         }
@@ -103,6 +120,7 @@ class StatsViewModel(
     private suspend fun loadTracks(): List<TrackEntity> {
         cachedTracks?.let { if (it.isNotEmpty()) return it }
         val tracks = trackDao.getAllTracks().first()
+        Log.d("StatsViewModel", "📚 Loaded ${tracks.size} tracks from DB")
         cachedTracks = tracks
         return tracks
     }
@@ -111,26 +129,37 @@ class StatsViewModel(
         val now = System.currentTimeMillis()
         val (startMs, endMs) = resolveBounds(range, now)
 
+        Log.d("StatsViewModel", "📅 Loading events for ${range.displayName}: $startMs to $endMs")
+
         // Fetch remote events from the PC server
-        val remoteEvents = runCatching {
+        val remoteEvents: List<PlaybackEvent> = runCatching {
             repository.getPlaybackEvents(startMs, endMs)
+        }.onSuccess { events ->
+            Log.d("StatsViewModel", "🖥️ Remote (PC) events: ${events?.size ?: 0}")
+        }.onFailure { e ->
+            Log.w("StatsViewModel", "⚠️ Failed to fetch remote events: ${e.message}")
         }.getOrNull() ?: emptyList()
 
         // Load local (mobile-recorded) events and filter by time range
         val lowerBound = startMs ?: Long.MIN_VALUE
-        val localEvents = runCatching {
-            localStatsRepository.readEvents().filter { event ->
-                val end = event.endTimestamp ?: event.timestamp
-                val start = event.startTimestamp ?: (end - event.durationMs)
-                end >= lowerBound && start <= endMs
-            }
-        }.getOrElse {
-            Log.w("StatsViewModel", "Failed to read local events: ${it.message}")
-            emptyList()
+        val allLocal = runCatching {
+            localStatsRepository.readEvents()
+        }.onSuccess { events ->
+            Log.d("StatsViewModel", "📱 Local events (all): ${events.size}")
+        }.onFailure { e ->
+            Log.e("StatsViewModel", "❌ Failed to read local events", e)
+        }.getOrElse { emptyList() }
+        
+        val localEvents = allLocal.filter { event ->
+            val end = event.endTimestamp ?: event.timestamp
+            val start = event.startTimestamp ?: (end - event.durationMs)
+            end >= lowerBound && start <= endMs
         }
+        Log.d("StatsViewModel", "📱 Local events (filtered): ${localEvents.size}")
 
-        Log.d("StatsViewModel", "Events — remote: ${remoteEvents.size}, local: ${localEvents.size}")
-        return remoteEvents + localEvents
+        val combined = remoteEvents + localEvents
+        Log.d("StatsViewModel", "📊 Total events: ${combined.size}")
+        return combined
     }
 
     private fun resolveBounds(range: StatsTimeRange, nowMillis: Long): Pair<Long?, Long> {

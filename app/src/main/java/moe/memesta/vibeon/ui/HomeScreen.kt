@@ -452,14 +452,13 @@ fun HomeScreen(
                     }
                 }
                 if (isLoading) {
-                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
-                        SectionHeader("Albums")
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                        ) {
-                            items(5, key = { "skeleton_album_$it" }) { SkeletonAlbumCard() }
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = Dimens.SectionSpacing, bottom = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        MorphingShapesLoader(label = "Loading albums...")
                     }
                 }
             }
@@ -502,14 +501,13 @@ fun HomeScreen(
                     }
                 }
                 if (isLoading) {
-                    Column(modifier = Modifier.padding(top = Dimens.SectionSpacing)) {
-                        SectionHeader("Artists")
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                        ) {
-                            items(5, key = { "skeleton_artist_$it" }) { SkeletonArtistPill() }
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = Dimens.SectionSpacing, bottom = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        MorphingShapesLoader(label = "Loading artists...")
                     }
                 }
             }

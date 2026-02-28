@@ -15,7 +15,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import moe.memesta.vibeon.ui.theme.shimmerEffect
 import moe.memesta.vibeon.ui.theme.SongCoverShape
 import androidx.compose.ui.Alignment
 import androidx.activity.compose.BackHandler
@@ -30,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.ui.components.MorphingShapesLoader
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.getDisplayName
@@ -118,7 +118,7 @@ fun LibraryScreen(
                 // Content
                 if (isLoading && tracks.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        MorphingShapesLoader(label = "Loading your library...")
                     }
                 } else if (tracks.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

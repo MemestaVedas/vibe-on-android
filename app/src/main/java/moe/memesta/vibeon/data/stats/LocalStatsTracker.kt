@@ -54,11 +54,16 @@ class LocalStatsTracker(
             isPlayingFlow.collect { playing ->
                 val session = currentSession ?: return@collect
                 val nowRealtime = SystemClock.elapsedRealtime()
+                
                 if (session.isPlaying) {
-                    session.accumulatedMs += (nowRealtime - session.lastRealtimeMs).coerceAtLeast(0L)
+                    val delta = (nowRealtime - session.lastRealtimeMs).coerceAtLeast(0L)
+                    session.accumulatedMs += delta
+                    Log.d(TAG, "⏱️ Accumulated: +${delta}ms (total: ${session.accumulatedMs}ms)")
                 }
+                
                 session.isPlaying = playing
                 session.lastRealtimeMs = nowRealtime
+                Log.d(TAG, "🎵 Play state changed: $playing")
             }
         }
     }
@@ -82,7 +87,7 @@ class LocalStatsTracker(
             lastRealtimeMs = SystemClock.elapsedRealtime(),
             isPlaying = isPlayingFlow.value
         )
-        Log.d(TAG, "▶ Local session started: $songId")
+        Log.d(TAG, "▶ ✅ Session STARTED: $songId (playing: ${isPlayingFlow.value})")
     }
 
     private fun finalizeCurrentSession() {
@@ -91,18 +96,22 @@ class LocalStatsTracker(
         // Accumulate any remaining time if still playing at finalize time
         val nowRealtime = SystemClock.elapsedRealtime()
         if (session.isPlaying) {
-            session.accumulatedMs += (nowRealtime - session.lastRealtimeMs).coerceAtLeast(0L)
+            val delta = (nowRealtime - session.lastRealtimeMs).coerceAtLeast(0L)
+            session.accumulatedMs += delta
+            Log.d(TAG, "⏱️ Final accumulation: +${delta}ms")
         }
         currentSession = null
 
         val listened = session.accumulatedMs.coerceAtLeast(0L)
+        Log.d(TAG, "⏹ Session FINALIZED: ${session.songId} — listened: ${listened}ms (min: ${MIN_SESSION_LISTEN_MS}ms)")
+        
         if (listened < MIN_SESSION_LISTEN_MS) {
-            Log.d(TAG, "⏭ Ignored short session: ${session.songId} — ${listened}ms < ${MIN_SESSION_LISTEN_MS}ms")
+            Log.d(TAG, "⏭ ❌ Session IGNORED (too short)")
             return
         }
 
         val timestamp = (session.startEpochMs + listened).coerceAtMost(System.currentTimeMillis())
-        Log.d(TAG, "⏹ Local session finalized: ${session.songId} — ${listened}ms")
+        Log.d(TAG, "💾 Recording to repo...")
 
         scope.launch(Dispatchers.IO) {
             statsRepository.recordPlayback(session.songId, listened, timestamp)

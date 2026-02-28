@@ -20,6 +20,11 @@ class LocalPlaybackStatsRepository(context: Context) {
     private val historyFile = File(context.filesDir, "vibe_on_playback_history.json")
     private val fileLock = Any()
 
+    init {
+        Log.d(TAG, "📊 Stats repo initialized. File: ${historyFile.absolutePath}")
+        Log.d(TAG, "📊 Existing events: ${readEvents().size}")
+    }
+
     // ---------------------------------------------------------------------------
     // Write
     // ---------------------------------------------------------------------------
@@ -29,7 +34,15 @@ class LocalPlaybackStatsRepository(context: Context) {
         durationMs: Long,
         timestamp: Long = System.currentTimeMillis()
     ) {
-        if (songId.isBlank() || durationMs <= 0L) return
+        if (songId.isBlank()) {
+            Log.w(TAG, "⚠️ Skipping empty songId")
+            return
+        }
+        
+        if (durationMs <= 0L) {
+            Log.w(TAG, "⚠️ Skipping zero duration for $songId")
+            return
+        }
 
         val end = timestamp.coerceAtLeast(0L)
         val duration = durationMs.coerceAtLeast(0L)
@@ -38,7 +51,7 @@ class LocalPlaybackStatsRepository(context: Context) {
         val event = PlaybackEvent(
             songId = songId,
             timestamp = end,
-            durationMs = end - start,
+            durationMs = duration,
             startTimestamp = start,
             endTimestamp = end,
             output = "mobile"
@@ -48,12 +61,16 @@ class LocalPlaybackStatsRepository(context: Context) {
             val events = readEventsLocked().toMutableList()
             // Prune events older than 2 years
             val cutoff = end - MAX_HISTORY_AGE_MS
-            if (cutoff > 0) events.removeAll { (it.endTimestamp ?: it.timestamp) < cutoff }
+            if (cutoff > 0) {
+                val beforeSize = events.size
+                events.removeAll { (it.endTimestamp ?: it.timestamp) < cutoff }
+                val pruned = beforeSize - events.size
+                if (pruned > 0) Log.d(TAG, "🗑️ Pruned $pruned old events")
+            }
             events += event
             writeEventsLocked(events)
+            Log.d(TAG, "📊 ✅ Recorded: $songId — ${durationMs}ms (total events: ${events.size})")
         }
-
-        Log.d(TAG, "📊 Recorded local play: $songId — ${durationMs}ms")
     }
 
     // ---------------------------------------------------------------------------

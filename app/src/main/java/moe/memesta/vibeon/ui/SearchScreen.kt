@@ -33,10 +33,8 @@ import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
 import moe.memesta.vibeon.ui.components.ArtistPill
+import moe.memesta.vibeon.ui.components.MorphingShapesLoader
 import moe.memesta.vibeon.ui.components.SectionHeader
-import moe.memesta.vibeon.ui.components.SkeletonAlbumCard
-import moe.memesta.vibeon.ui.components.SkeletonArtistPill
-import moe.memesta.vibeon.ui.components.SkeletonSquareCard
 import moe.memesta.vibeon.ui.components.SquareTrackCard
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
@@ -205,46 +203,13 @@ fun SearchScreen(
                         ) { state ->
                             when (state) {
                                 "loading" -> {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(
-                                            bottom = contentPadding.calculateBottomPadding() + 24.dp
-                                        ),
-                                        verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = contentPadding.calculateBottomPadding() + 24.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        item {
-                                            Column {
-                                                SectionHeader("Songs")
-                                                LazyRow(
-                                                    contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-                                                    horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                                                ) {
-                                                    items(4) { SkeletonSquareCard() }
-                                                }
-                                            }
-                                        }
-                                        item {
-                                            Column {
-                                                SectionHeader("Albums")
-                                                LazyRow(
-                                                    contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-                                                    horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                                                ) {
-                                                    items(3) { SkeletonAlbumCard() }
-                                                }
-                                            }
-                                        }
-                                        item {
-                                            Column {
-                                                SectionHeader("Artists")
-                                                LazyRow(
-                                                    contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-                                                    horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                                                ) {
-                                                    items(3) { SkeletonArtistPill() }
-                                                }
-                                            }
-                                        }
+                                        MorphingShapesLoader(label = "Searching your library...")
                                     }
                                 }
                                 
