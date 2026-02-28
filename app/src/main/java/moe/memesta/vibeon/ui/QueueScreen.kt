@@ -281,7 +281,7 @@ fun QueueScreen(
                             onDrag = { updateDrag(it) },
                             onDragEnd = { endDrag() },
                             onItemMeasured = { height -> if (itemHeightPx == 0f) itemHeightPx = height },
-                            modifier = Modifier.animateItemPlacement()
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }
