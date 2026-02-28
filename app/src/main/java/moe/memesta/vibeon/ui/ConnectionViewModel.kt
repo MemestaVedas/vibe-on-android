@@ -11,6 +11,8 @@ import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.data.WebSocketClient
+import moe.memesta.vibeon.data.stats.LocalPlaybackStatsRepository
+import moe.memesta.vibeon.data.stats.LocalStatsTracker
 
 enum class ConnectionState {
     IDLE,
@@ -19,8 +21,19 @@ enum class ConnectionState {
     FAILED
 }
 
-class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewModel() {
+class ConnectionViewModel(
+    private val repository: DiscoveryRepository,
+    val localStatsRepository: LocalPlaybackStatsRepository
+) : ViewModel() {
     val wsClient = WebSocketClient()
+    private val statsTracker by lazy {
+        LocalStatsTracker(
+            statsRepository = localStatsRepository,
+            currentTrack = wsClient.currentTrack,
+            isPlayingFlow = wsClient.isPlaying,
+            scope = viewModelScope
+        )
+    }
     
     val discoveredDevices: StateFlow<List<DiscoveredDevice>> = repository.discoveredDevices
     val wsIsConnected: StateFlow<Boolean> = wsClient.isConnected
@@ -52,6 +65,8 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     init {
         // Wire WebSocketClient into the notification manager so it tracks PC state
         MediaNotificationManager.attach(wsClient)
+        // Start local stats tracking
+        statsTracker.start()
 
         // Observe discovered devices and auto-connect to favorites or the first discovered device
         viewModelScope.launch {
@@ -175,6 +190,7 @@ class ConnectionViewModel(private val repository: DiscoveryRepository) : ViewMod
     
     override fun onCleared() {
         super.onCleared()
+        statsTracker.stop()
         wsClient.disconnect()
     }
 }

@@ -27,6 +27,7 @@ import moe.memesta.vibeon.PlaybackService
 import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.StreamRepository
 import moe.memesta.vibeon.data.DiscoveredDevice
+import moe.memesta.vibeon.data.stats.LocalPlaybackStatsRepository
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.theme.VibeonTheme
 import moe.memesta.vibeon.ui.navigation.AppNavHost
@@ -41,6 +42,7 @@ import androidx.core.view.WindowCompat
 class MainActivity : ComponentActivity() {
     private lateinit var discoveryRepository: DiscoveryRepository
     private lateinit var connectionViewModel: ConnectionViewModel
+    private lateinit var localStatsRepository: LocalPlaybackStatsRepository
     private lateinit var playbackViewModel: PlaybackViewModel
     private lateinit var favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager
     private lateinit var playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository
@@ -71,7 +73,8 @@ class MainActivity : ComponentActivity() {
         discoveryRepository = DiscoveryRepository(this)
         favoritesManager = moe.memesta.vibeon.data.local.FavoritesManager(this)
         playerSettingsRepository = moe.memesta.vibeon.data.local.PlayerSettingsRepository(this)
-        connectionViewModel = ConnectionViewModel(discoveryRepository)
+        localStatsRepository = LocalPlaybackStatsRepository(applicationContext)
+        connectionViewModel = ConnectionViewModel(discoveryRepository, localStatsRepository)
         // Initialize playbackViewModel immediately so it's ready for UI
         playbackViewModel = PlaybackViewModel(
             webSocketClient = connectionViewModel.wsClient

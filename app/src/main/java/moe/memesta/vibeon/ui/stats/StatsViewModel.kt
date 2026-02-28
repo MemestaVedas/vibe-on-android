@@ -15,10 +15,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.Log
 import moe.memesta.vibeon.data.LibraryRepository
 import moe.memesta.vibeon.data.WebSocketClient
 import moe.memesta.vibeon.data.local.TrackDao
 import moe.memesta.vibeon.data.local.TrackEntity
+import moe.memesta.vibeon.data.stats.LocalPlaybackStatsRepository
 import moe.memesta.vibeon.data.stats.PlaybackEvent
 import moe.memesta.vibeon.data.stats.PlaybackStatsCalculator
 import moe.memesta.vibeon.data.stats.StatsTimeRange
@@ -26,7 +28,8 @@ import moe.memesta.vibeon.data.stats.StatsTimeRange
 class StatsViewModel(
     private val repository: LibraryRepository,
     private val trackDao: TrackDao,
-    private val wsClient: WebSocketClient
+    private val wsClient: WebSocketClient,
+    private val localStatsRepository: LocalPlaybackStatsRepository
 ) : ViewModel() {
 
     data class StatsUiState(
@@ -107,7 +110,27 @@ class StatsViewModel(
     private suspend fun loadEvents(range: StatsTimeRange): List<PlaybackEvent> {
         val now = System.currentTimeMillis()
         val (startMs, endMs) = resolveBounds(range, now)
-        return repository.getPlaybackEvents(startMs, endMs) ?: emptyList()
+
+        // Fetch remote events from the PC server
+        val remoteEvents = runCatching {
+            repository.getPlaybackEvents(startMs, endMs)
+        }.getOrNull() ?: emptyList()
+
+        // Load local (mobile-recorded) events and filter by time range
+        val lowerBound = startMs ?: Long.MIN_VALUE
+        val localEvents = runCatching {
+            localStatsRepository.readEvents().filter { event ->
+                val end = event.endTimestamp ?: event.timestamp
+                val start = event.startTimestamp ?: (end - event.durationMs)
+                end >= lowerBound && start <= endMs
+            }
+        }.getOrElse {
+            Log.w("StatsViewModel", "Failed to read local events: ${it.message}")
+            emptyList()
+        }
+
+        Log.d("StatsViewModel", "Events — remote: ${remoteEvents.size}, local: ${localEvents.size}")
+        return remoteEvents + localEvents
     }
 
     private fun resolveBounds(range: StatsTimeRange, nowMillis: Long): Pair<Long?, Long> {

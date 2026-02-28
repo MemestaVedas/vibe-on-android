@@ -76,7 +76,8 @@ fun AppNavHost(
             moe.memesta.vibeon.ui.stats.StatsViewModel(
                 repository = repo,
                 trackDao = trackDao,
-                wsClient = connectionViewModel.wsClient
+                wsClient = connectionViewModel.wsClient,
+                localStatsRepository = connectionViewModel.localStatsRepository
             )
         }
     }
