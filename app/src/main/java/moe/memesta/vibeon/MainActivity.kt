@@ -70,14 +70,16 @@ class MainActivity : ComponentActivity() {
             }
         }
         
-        discoveryRepository = DiscoveryRepository(this)
-        favoritesManager = moe.memesta.vibeon.data.local.FavoritesManager(this)
-        playerSettingsRepository = moe.memesta.vibeon.data.local.PlayerSettingsRepository(this)
-        localStatsRepository = LocalPlaybackStatsRepository(applicationContext)
-        connectionViewModel = ConnectionViewModel(discoveryRepository, localStatsRepository)
+val appContainer = VibeonApp.instance.container
+
+        discoveryRepository = appContainer.discoveryRepository
+        favoritesManager = appContainer.favoritesManager
+        playerSettingsRepository = appContainer.playerSettingsRepository
+        localStatsRepository = appContainer.localStatsRepository
+        connectionViewModel = ConnectionViewModel(discoveryRepository, localStatsRepository, appContainer.webSocketClient)
         // Initialize playbackViewModel immediately so it's ready for UI
         playbackViewModel = PlaybackViewModel(
-            webSocketClient = connectionViewModel.wsClient
+            webSocketClient = appContainer.webSocketClient
         )
         
         // Auto-start discovery for favorite device detection

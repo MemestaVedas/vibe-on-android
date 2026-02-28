@@ -4,6 +4,8 @@ import android.app.Application
 
 class VibeonApp : Application() {
 
+    lateinit var container: AppContainer
+
     companion object {
         lateinit var instance: VibeonApp
             private set
@@ -12,5 +14,6 @@ class VibeonApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        container = AppContainer(this)
     }
 }

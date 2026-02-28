@@ -23,9 +23,9 @@ enum class ConnectionState {
 
 class ConnectionViewModel(
     private val repository: DiscoveryRepository,
-    val localStatsRepository: LocalPlaybackStatsRepository
+    val localStatsRepository: LocalPlaybackStatsRepository,
+    val wsClient: WebSocketClient
 ) : ViewModel() {
-    val wsClient = WebSocketClient()
     private val statsTracker by lazy {
         LocalStatsTracker(
             statsRepository = localStatsRepository,
