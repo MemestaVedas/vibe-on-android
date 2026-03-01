@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var playbackViewModel: PlaybackViewModel
     private lateinit var favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager
     private lateinit var playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository
+    private lateinit var onboardingManager: moe.memesta.vibeon.data.local.OnboardingManager
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
     private var streamRepository: StreamRepository? = null
@@ -76,6 +77,7 @@ val appContainer = VibeonApp.instance.container
         favoritesManager = appContainer.favoritesManager
         playerSettingsRepository = appContainer.playerSettingsRepository
         localStatsRepository = appContainer.localStatsRepository
+        onboardingManager = appContainer.onboardingManager
         connectionViewModel = ConnectionViewModel(discoveryRepository, localStatsRepository, appContainer.webSocketClient)
         // Initialize playbackViewModel immediately so it's ready for UI
         playbackViewModel = PlaybackViewModel(
@@ -124,7 +126,8 @@ val appContainer = VibeonApp.instance.container
                         playbackViewModel, 
                         favoritesManager, 
                         playerSettingsRepository,
-                        trackDao
+                        trackDao,
+                        onboardingManager
                     )
                 }
             }

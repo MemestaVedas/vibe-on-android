@@ -34,6 +34,10 @@ import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.pairing.PairingScreen
+import moe.memesta.vibeon.ui.onboarding.WelcomeScreen
+import moe.memesta.vibeon.ui.onboarding.OnboardingOverlay
+import moe.memesta.vibeon.data.local.OnboardingManager
+import moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -42,7 +46,8 @@ fun AppNavHost(
     playbackViewModel: PlaybackViewModel,
     favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
-    trackDao: moe.memesta.vibeon.data.local.TrackDao
+    trackDao: moe.memesta.vibeon.data.local.TrackDao,
+    onboardingManager: OnboardingManager
 ) {
     val navController = rememberNavController()
     var currentDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
@@ -54,9 +59,20 @@ fun AppNavHost(
     val favorites = remember { favoritesManager.getFavorites() }
     var userDismissedPairing by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(favorites.isNotEmpty()) }
     
+    // --- Onboarding state ---
+    var showWelcome by androidx.compose.runtime.saveable.rememberSaveable {
+        mutableStateOf(!onboardingManager.isWelcomeCompleted)
+    }
+    var showWalkthrough by remember { mutableStateOf(false) }
+    
     // Handle optimistic navigation when auto-connecting to favorites
     val connectionState by connectionViewModel.connectionState.collectAsState()
     val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
+    
+    // Album art URL + bitmap for PairingScreen morph + dynamic palette
+    val currentTrack by connectionViewModel.currentTrack.collectAsState()
+    val albumArtUrl = currentTrack.coverUrl
+    val albumArtBitmap = rememberBitmapFromUrl(albumArtUrl)
 
     val libraryRepository = remember(connectedDevice) {
         connectedDevice?.let { device ->
@@ -216,10 +232,11 @@ fun AppNavHost(
 
                     moe.memesta.vibeon.ui.pairing.PairingScreen(
                         devices = devices,
-                        connectionState = connectionState, // Pass connectionState
-                        connectedDevice = connectedDevice, // Pass connectedDevice
+                        connectionState = connectionState,
+                        connectedDevice = connectedDevice,
+                        albumArtUrl = albumArtUrl,
+                        albumArtBitmap = albumArtBitmap,
                         onConnect = { ip, port ->
-                            // Handle manual connection
                             val device = DiscoveredDevice(
                                 name = "Manual: $ip",
                                 host = ip,
@@ -232,7 +249,7 @@ fun AppNavHost(
                             currentDevice = device
                             connectionViewModel.connectToDevice(device)
                         },
-                        onNavigateBack = { navController.popBackStack() }, // Add onNavigateBack
+                        onNavigateBack = { navController.popBackStack() },
                         onNavigateToScan = {
                             // TODO: Implement QR Scanning
                         }
@@ -286,6 +303,8 @@ fun AppNavHost(
                         devices = devices,
                         connectionState = connectionState,
                         connectedDevice = connectedDevice,
+                        albumArtUrl = albumArtUrl,
+                        albumArtBitmap = albumArtBitmap,
                         onConnect = { ip, port ->
                             connectionViewModel.connectToDevice(
                                 DiscoveredDevice(
@@ -547,7 +566,7 @@ fun AppNavHost(
         } // End of Scaffold
             
         // Pairing Overlay - Covers the app until dismissed, placed OUTSIDE Scaffold
-        if (!userDismissedPairing) {
+        if (!userDismissedPairing && !showWelcome) {
             // We need to manage scanning
             DisposableEffect(Unit) {
                 connectionViewModel.startScanning()
@@ -562,6 +581,8 @@ fun AppNavHost(
                 devices = devices,
                 connectionState = connectionState,
                 connectedDevice = connectedDevice,
+                albumArtUrl = albumArtUrl,
+                albumArtBitmap = albumArtBitmap,
                 onConnect = { ip, port ->
                     val device = DiscoveredDevice(name = "Manual: $ip", host = ip, port = port)
                     connectionViewModel.connectToDevice(device)
@@ -575,6 +596,35 @@ fun AppNavHost(
                 onNavigateToScan = { },
                 onDismiss = {
                     userDismissedPairing = true
+                    // Trigger walkthrough for new users after first connection
+                    if (!onboardingManager.isWalkthroughCompleted) {
+                        showWalkthrough = true
+                    }
+                },
+                onTroubleshoot = {
+                    // Restart scanning
+                    connectionViewModel.stopScanning()
+                    connectionViewModel.startScanning()
+                }
+            )
+        }
+        
+        // Welcome Screen overlay — shown only on first launch, before pairing
+        if (showWelcome) {
+            WelcomeScreen(
+                onComplete = {
+                    onboardingManager.isWelcomeCompleted = true
+                    showWelcome = false
+                }
+            )
+        }
+        
+        // Home screen walkthrough — one-time overlay after first connection
+        if (showWalkthrough) {
+            OnboardingOverlay(
+                onDismiss = {
+                    onboardingManager.isWalkthroughCompleted = true
+                    showWalkthrough = false
                 }
             )
         }
