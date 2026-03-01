@@ -288,25 +288,23 @@ fun PairingScreen(
                 }
                 .clip(WavyBottomShape(10.dp, 8.0f))
                 .drawBehind {
-                    val center = Offset(size.width / 2f, size.height * 0.4f)
+                    val center = Offset(size.width / 2f, size.height / 2f)
                     val baseRadius = size.maxDimension * 0.8f
                     
                     // Animated radial gradient from center outward
-                    rotate(rotationAngle * 0.05f, pivot = center) {
-                        drawRect(
-                            brush = Brush.radialGradient(
-                                colorStops = arrayOf(
-                                    0.0f to animPrimary,
-                                    0.3f to animSecondary,
-                                    0.6f to animTertiary,
-                                    1.0f to animOnPrimary
-                                ),
-                                center = center,
-                                radius = baseRadius * radiusPulse
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0.0f to animPrimary,
+                                0.3f to animSecondary,
+                                0.6f to animTertiary,
+                                1.0f to animOnPrimary
                             ),
-                            size = size
-                        )
-                    }
+                            center = center,
+                            radius = baseRadius * radiusPulse
+                        ),
+                        size = size
+                    )
                     
                     // Grain overlay
                     drawRect(
@@ -326,15 +324,8 @@ fun PairingScreen(
                         .fillMaxWidth()
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Rounded.ArrowBack,
-                            contentDescription = "Back",
-                            tint = topContentColor
-                        )
-                    }
                     
                     // Real-time connection status chip
                     AnimatedVisibility(

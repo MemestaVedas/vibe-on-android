@@ -28,11 +28,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.TrackInfo
@@ -76,6 +79,17 @@ fun SearchScreen(
     val scrimAlpha  = remember { Animatable(0f) }
 
     val scope = rememberCoroutineScope()
+
+    // Ensure dialog window is transparent to avoid "purple bar" (primary color) leaks
+    val currentView = LocalView.current
+    androidx.compose.runtime.SideEffect {
+        val window = (currentView.parent as? DialogWindowProvider)?.window
+        window?.let {
+            it.statusBarColor = android.graphics.Color.TRANSPARENT
+            it.navigationBarColor = android.graphics.Color.TRANSPARENT
+            WindowCompat.getInsetsController(it, currentView).isAppearanceLightStatusBars = false
+        }
+    }
 
     // Enter animation
     LaunchedEffect(Unit) {

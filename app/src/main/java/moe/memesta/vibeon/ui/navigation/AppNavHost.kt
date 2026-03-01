@@ -519,6 +519,17 @@ fun AppNavHost(
                         )
                     }
                 }
+
+                // Home screen walkthrough — one-time overlay after first connection
+                // Placed here inside the Box hosting the NavHost so it renders UNDER the global UI
+                if (showWalkthrough) {
+                    OnboardingOverlay(
+                        onDismiss = {
+                            onboardingManager.isWalkthroughCompleted = true
+                            showWalkthrough = false
+                        }
+                    )
+                }
             
                 // Global Sync Banner
                 AnimatedVisibility(
@@ -615,16 +626,6 @@ fun AppNavHost(
                 onComplete = {
                     onboardingManager.isWelcomeCompleted = true
                     showWelcome = false
-                }
-            )
-        }
-        
-        // Home screen walkthrough — one-time overlay after first connection
-        if (showWalkthrough) {
-            OnboardingOverlay(
-                onDismiss = {
-                    onboardingManager.isWalkthroughCompleted = true
-                    showWalkthrough = false
                 }
             )
         }
