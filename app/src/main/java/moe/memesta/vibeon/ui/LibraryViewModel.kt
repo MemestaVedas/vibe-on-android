@@ -75,11 +75,11 @@ class LibraryViewModel(
     val filteredAlbums: StateFlow<List<AlbumInfo>> = _filteredAlbums
     
     // Album sorting
-    private val _currentAlbumSortOption = MutableStateFlow<SortOption>(SortOption.AlbumTitleAZ)
+    private val _currentAlbumSortOption = MutableStateFlow<SortOption>(SortOption.AlbumDefault)
     val currentAlbumSortOption: StateFlow<SortOption> = _currentAlbumSortOption
     
     // Track sorting
-    private val _currentTrackSortOption = MutableStateFlow<SortOption>(SortOption.TrackTitleAZ)
+    private val _currentTrackSortOption = MutableStateFlow<SortOption>(SortOption.TrackDefault)
     val currentTrackSortOption: StateFlow<SortOption> = _currentTrackSortOption
     
     private val _stats = MutableStateFlow<moe.memesta.vibeon.data.LibraryStats?>(null)
@@ -334,6 +334,7 @@ class LibraryViewModel(
     
     private fun sortAlbums(albums: List<AlbumInfo>, sortOption: SortOption): List<AlbumInfo> {
         return when (sortOption) {
+            SortOption.AlbumDefault -> albums // Original grouping order
             SortOption.AlbumTitleAZ -> albums.sortedBy { it.name.lowercase() }
             SortOption.AlbumTitleZA -> albums.sortedByDescending { it.name.lowercase() }
             SortOption.AlbumArtist -> albums.sortedBy { it.artist.lowercase() }
@@ -343,7 +344,7 @@ class LibraryViewModel(
             SortOption.AlbumSongCountDesc -> albums.sortedWith(
                 compareByDescending<AlbumInfo> { it.songCount }.thenBy { it.name.lowercase() }
             )
-            else -> albums.sortedBy { it.name.lowercase() }
+            else -> albums
         }
     }
     
@@ -352,13 +353,18 @@ class LibraryViewModel(
         updateFilteredAlbums(_tracks.value, _searchQuery.value)
     }
     
-    private fun sortTracks(tracks: List<TrackInfo>, sortOption: SortOption): List<TrackInfo> {
+    fun sortTracks(tracks: List<TrackInfo>, sortOption: SortOption): List<TrackInfo> {
         return when (sortOption) {
+            SortOption.TrackDefault -> tracks.sortedWith(
+                compareBy<TrackInfo> { it.discNumber ?: 0 }
+                    .thenBy { it.trackNumber ?: 0 }
+                    .thenBy { it.title.lowercase() }
+            )
             SortOption.TrackTitleAZ -> tracks.sortedBy { it.title.lowercase() }
             SortOption.TrackTitleZA -> tracks.sortedByDescending { it.title.lowercase() }
-            SortOption.TrackDurationAsc -> tracks.sortedWith(compareBy { it.duration ?: 0L })
-            SortOption.TrackDurationDesc -> tracks.sortedWith(compareByDescending { it.duration ?: 0L })
-            else -> tracks.sortedBy { it.title.lowercase() }
+            SortOption.TrackDurationAsc -> tracks.sortedWith(compareBy { it.duration })
+            SortOption.TrackDurationDesc -> tracks.sortedWith(compareByDescending { it.duration })
+            else -> tracks
         }
     }
     

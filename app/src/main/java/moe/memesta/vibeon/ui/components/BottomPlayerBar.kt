@@ -83,6 +83,7 @@ fun BottomPlayerBar(
     connectionViewModel: ConnectionViewModel,
     playbackViewModel: PlaybackViewModel,
     onNavigateToPlayer: () -> Unit,
+    onNavigateToSearch: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     pagerState: PagerState? = null,
@@ -316,10 +317,7 @@ fun BottomPlayerBar(
                 }
             },
             onSearchTap = {
-                navController.navigate("search") {
-                    launchSingleTop = true
-                    restoreState = true
-                }
+                onNavigateToSearch()
             }
         )
     }

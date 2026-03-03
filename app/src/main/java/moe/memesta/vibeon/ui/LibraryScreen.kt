@@ -57,8 +57,10 @@ fun LibraryScreen(
     
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
     
+    val trackSortOption by viewModel.currentTrackSortOption.collectAsState()
+    
     // Derived Data
-    val displayedTracks = remember(tracks, searchQuery) {
+    val displayedTracks = remember(tracks, searchQuery, trackSortOption) {
         val filtered = if (searchQuery.isNotEmpty()) {
             tracks.filter { 
                 it.title.contains(searchQuery, ignoreCase = true) || 
@@ -68,14 +70,11 @@ fun LibraryScreen(
             tracks
         }
         
-        // Sort: Album (Base) -> Disc -> Track
-        filtered.sortedWith(
-            compareBy<TrackInfo> { parseAlbum(it.album, it.discNumber).baseName }
-                .thenBy { it.discNumber ?: 0 }
-                .thenBy { it.trackNumber ?: 0 }
-        )
+        viewModel.sortTracks(filtered, trackSortOption)
     }
 
+    var showSortSheet by remember { mutableStateOf(false) }
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -94,25 +93,42 @@ fun LibraryScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Dimens.ScreenPadding, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                            .bouncyClickable(onClick = onBackClick)
-                            .padding(8.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            onClick = onBackClick,
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(8.dp)
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", modifier = Modifier.padding(8.dp))
+                        }
+                        
+                        Spacer(modifier = Modifier.width(16.dp))
+                        
+                        Text(
+                            text = "Library",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                     }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    Text(
-                        text = "Library",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+
+                    IconButton(
+                        onClick = { showSortSheet = true },
+                        modifier = Modifier.background(
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            CircleShape
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sort,
+                            contentDescription = "Sort",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
                 
                 // Content
@@ -183,6 +199,19 @@ fun LibraryScreen(
                     }
                 }
             }
+        }
+
+        if (showSortSheet) {
+            moe.memesta.vibeon.ui.components.SortBottomSheet(
+                title = "Sort tracks by",
+                options = SortOption.TRACKS,
+                selectedOption = trackSortOption,
+                onDismiss = { showSortSheet = false },
+                onOptionSelected = {
+                    viewModel.setTrackSortOption(it)
+                    showSortSheet = false
+                }
+            )
         }
     }
 }

@@ -8,14 +8,17 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.EaseInCubic
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.*
 import androidx.compose.foundation.layout.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
@@ -65,6 +68,7 @@ fun AppNavHost(
         mutableStateOf(!onboardingManager.isWelcomeCompleted)
     }
     var showWalkthrough by remember { mutableStateOf(false) }
+    var showSearch by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     
     // Handle optimistic navigation when auto-connecting to favorites
     val connectionState by connectionViewModel.connectionState.collectAsState()
@@ -133,6 +137,7 @@ fun AppNavHost(
                                 launchSingleTop = true
                             }
                         },
+                        onNavigateToSearch = { showSearch = true },
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this,
                         pagerState = pagerState
@@ -144,6 +149,10 @@ fun AppNavHost(
             val syncStatus by libraryViewModel?.syncStatus?.collectAsState() ?: remember { mutableStateOf(SyncStatus()) }
             
             Box(modifier = Modifier.fillMaxSize()) {
+                if (showSearch) {
+                    BackHandler { showSearch = false }
+                }
+
                 NavHost(
                 navController = navController, 
                 startDestination = startDestination,
@@ -339,6 +348,8 @@ fun AppNavHost(
                             playerSettingsRepository = playerSettingsRepository,
                             navController = navController,
                             contentPadding = innerPadding,
+                            onNavigateToPlayer = { navController.navigate("now_playing") },
+                            onSearchClick = { showSearch = true },
                             sharedTransitionScope = this@SharedTransitionLayout,
                             animatedVisibilityScope = this
                         )
@@ -385,46 +396,7 @@ fun AppNavHost(
                         pagerState.scrollToPage(1)
                     }
                 }
-                // Search Screen - Slide-down Overlay
-                composable(
-                    route = "search",
-                    enterTransition = {
-                        fadeIn(animationSpec = tween(200)) +
-                        slideInVertically(
-                            initialOffsetY = { -it / 4 },
-                            animationSpec = tween(350, easing = androidx.compose.animation.core.EaseOutCubic)
-                        )
-                    },
-                    exitTransition = {
-                        fadeOut(animationSpec = tween(150)) +
-                        slideOutVertically(
-                            targetOffsetY = { -it / 6 },
-                            animationSpec = tween(250, easing = androidx.compose.animation.core.EaseInCubic)
-                        )
-                    }
-                ) {
-                    if (libraryViewModel != null) {
-                        SearchScreen(
-                            viewModel = libraryViewModel,
-                            onTrackSelected = {
-                                navController.popBackStack()
-                                /* Update pill only, no navigation */
-                            },
-                            onAlbumSelected = { albumName ->
-                                navController.popBackStack()
-                                navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
-                            },
-                            onArtistSelected = { artistName ->
-                                navController.popBackStack()
-                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
-                            },
-                            onClose = { navController.popBackStack() },
-                            contentPadding = innerPadding
-                        )
-                    } else {
-                        LaunchedEffect(Unit) { navController.navigate("discovery") }
-                    }
-                }
+                // Search destination removed to use overlay instead
                 
                 // Artists Tab - Redirecting to main pager
                 composable("artists") {
@@ -588,6 +560,47 @@ fun AppNavHost(
                         }
                     }
                 }
+
+                // --- Search Overlay ---
+                // Renders above all other content inside the Scaffold to respect innerPadding
+                AnimatedVisibility(
+                    visible = showSearch,
+                    enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
+                           slideInVertically(
+                               initialOffsetY = { it },
+                               animationSpec = spring(
+                                   dampingRatio = Spring.DampingRatioLowBouncy,
+                                   stiffness = Spring.StiffnessLow
+                               )
+                           ),
+                    exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
+                          slideOutVertically(
+                              targetOffsetY = { it },
+                              animationSpec = spring(
+                                  stiffness = Spring.StiffnessLow
+                              )
+                          )
+                ) {
+                    if (libraryViewModel != null) {
+                        SearchScreen(
+                            viewModel = libraryViewModel,
+                            onTrackSelected = {
+                                showSearch = false
+                                // NowPlaying is handled by ViewModel
+                            },
+                            onAlbumSelected = { albumName ->
+                                showSearch = false
+                                navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
+                            },
+                            onArtistSelected = { artistName ->
+                                showSearch = false
+                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
+                            },
+                            onClose = { showSearch = false },
+                            contentPadding = innerPadding
+                        )
+                    }
+                }
             }
         } // End of Scaffold
             
@@ -658,7 +671,6 @@ fun AppNavHost(
                 }
             )
         }
-            
     } // End of parent Box
 } // End of SharedTransitionLayout
 }

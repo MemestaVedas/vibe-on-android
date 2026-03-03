@@ -210,7 +210,7 @@ class WebSocketClient {
     fun sendSeek(positionSecs: Double) {
         val message = JSONObject().apply {
             put("type", "seek")
-            put("positionSecs", positionSecs)
+            put("position_secs", positionSecs)
         }
         Log.i("WebSocket", "📍 Seeking to ${String.format("%.2f", positionSecs)}s")
         sendMessage(message)
@@ -301,7 +301,7 @@ class WebSocketClient {
     fun sendMobilePositionUpdate(positionSecs: Double) {
         val message = JSONObject().apply {
             put("type", "mobilePositionUpdate")
-            put("positionSecs", positionSecs) // Server expects camelCase
+            put("position_secs", positionSecs) // Server expects snake_case for enum fields
         }
         sendMessage(message)
     }
@@ -344,7 +344,7 @@ class WebSocketClient {
     fun sendGetPlaylistTracks(playlistId: String) {
         val message = JSONObject().apply {
             put("type", "getPlaylistTracks")
-            put("playlistId", playlistId)
+            put("playlist_id", playlistId)
         }
         Log.i("WebSocket", "📜 Requesting tracks for playlist: $playlistId")
         sendMessage(message)
@@ -353,8 +353,8 @@ class WebSocketClient {
     fun sendAddToPlaylist(playlistId: String, trackPath: String) {
         val message = JSONObject().apply {
             put("type", "addToPlaylist")
-            put("playlistId", playlistId)
-            put("trackPath", trackPath)
+            put("playlist_id", playlistId)
+            put("path", trackPath)
         }
         Log.i("WebSocket", "➕ Adding track to playlist")
         sendMessage(message)
@@ -363,8 +363,8 @@ class WebSocketClient {
     fun sendRemoveFromPlaylist(playlistId: String, playlistTrackId: Long) {
         val message = JSONObject().apply {
             put("type", "removeFromPlaylist")
-            put("playlistId", playlistId)
-            put("playlistTrackId", playlistTrackId)
+            put("playlist_id", playlistId)
+            put("playlist_track_id", playlistTrackId)
         }
         Log.i("WebSocket", "➖ Removing track from playlist")
         sendMessage(message)
@@ -376,8 +376,8 @@ class WebSocketClient {
         
         val message = JSONObject().apply {
             put("type", "reorderPlaylistTracks")
-            put("playlistId", playlistId)
-            put("trackIds", trackIdsArray)
+            put("playlist_id", playlistId)
+            put("track_ids", trackIdsArray)
         }
         Log.i("WebSocket", "↕️ Reordering playlist tracks")
         sendMessage(message)
@@ -502,6 +502,13 @@ class WebSocketClient {
                         client._isShuffled.value = isShuffled
                         client._repeatMode.value = repeatMode
                         
+                        // Parse output to sync mobile playback state
+                        if (json.has("output")) {
+                            val output = json.getString("output")
+                            client._isMobilePlayback.value = (output == "mobile")
+                            Log.i("WebSocket", "🔊 Active output: $output")
+                        }
+                        
                         // Parse favorites if included
                         if (json.has("favorites")) {
                             val favoritesArray = json.optJSONArray("favorites")
@@ -575,8 +582,21 @@ class WebSocketClient {
                     }
                     "handoffPrepare" -> {
                         // Server is ready to stream to mobile
-                        val url = json.optString("url")
+                        var url = json.optString("url")
                         val sample = json.optLong("sample", 0)
+                        
+                        // Robustness: If server returned localhost (127.0.0.1) but we are connected via a real IP,
+                        // swap it out so the phone can actually reach the stream.
+                        client.baseUrl?.let { baseUrl ->
+                            if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) {
+                                val streamIndex = url.indexOf("/stream")
+                                if (streamIndex != -1) {
+                                    url = baseUrl + url.substring(streamIndex)
+                                    Log.w("WebSocket", "⚠️ Replaced localhost with connected baseUrl: $url")
+                                }
+                            }
+                        }
+                        
                         val positionSecs = (sample / 44100.0).coerceAtLeast(0.0)
                         client._streamUrl.value = url
                         client._handoffPosition.value = positionSecs

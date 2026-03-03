@@ -291,15 +291,15 @@ fun LyricGroupItem(
     val textColor by animateColorAsState(
         targetValue = when {
             isActive -> baseTextColor
-            isPast -> baseTextColor.copy(alpha = 0.45f)
-            else -> baseTextColor.copy(alpha = 0.28f)
+            isPast -> baseTextColor.copy(alpha = 0.35f)
+            else -> baseTextColor.copy(alpha = 0.20f)
         },
         animationSpec = tween(durationMillis = 300),
         label = "TextColor"
     )
     
     val scale by animateFloatAsState(
-        targetValue = if (isActive) 1.1f else 1f,
+        targetValue = if (isActive) 1.25f else 0.85f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -334,7 +334,7 @@ fun LyricGroupItem(
         Text(
             text = primaryText,
             style = MaterialTheme.typography.headlineSmall.copy(
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
                 letterSpacing = 0.5.sp,
                 lineHeight = 36.sp
             ),

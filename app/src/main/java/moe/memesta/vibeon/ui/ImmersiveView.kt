@@ -8,14 +8,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -131,6 +136,40 @@ fun ImmersiveView(
                 )
         )
 
+        val isMobilePlayback by playbackViewModel.isMobilePlayback.collectAsState()
+
+        // --- Top Right Controls (System/Output) ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            FilledTonalIconButton(
+                onClick = {
+                    if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
+                    else playbackViewModel.requestMobilePlayback()
+                },
+                modifier = Modifier.size(48.dp),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = if (isMobilePlayback) 
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.8f)
+                    else 
+                        Color.White.copy(alpha = 0.15f),
+                    contentColor = if (isMobilePlayback)
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    else
+                        Color.White
+                )
+            ) {
+                Icon(
+                    imageVector = if (isMobilePlayback) Icons.Rounded.Smartphone else Icons.Rounded.Computer,
+                    contentDescription = "Output Toggle",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
         // --- Main landscape layout: 3 columns ---
         Row(
             modifier = Modifier
@@ -146,9 +185,12 @@ fun ImmersiveView(
                     .fillMaxHeight(),
                 contentAlignment = Alignment.Center
             ) {
+                var isDragging by remember { mutableStateOf(false) }
+                var dragProgress by remember { mutableFloatStateOf(0f) }
+
                 val animatedProgress = animateFloatAsState(
-                    targetValue = playbackState.progress,
-                    animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+                    targetValue = if (isDragging) dragProgress else playbackState.progress,
+                    animationSpec = if (isDragging) spring(stiffness = Spring.StiffnessHigh) else ProgressIndicatorDefaults.ProgressAnimationSpec,
                     label = "progress"
                 )
                 
@@ -188,13 +230,54 @@ fun ImmersiveView(
                     progress = { animatedProgress.value },
                     modifier = Modifier
                         .fillMaxHeight(0.80f)
-                        .aspectRatio(1f),
+                        .aspectRatio(1f)
+                        .pointerInput(playbackState.duration) {
+                            detectTapGestures { offset ->
+                                val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                                val dx = offset.x - center.x
+                                val dy = offset.y - center.y
+                                // Atan2 returns -PI to PI. We want 0 at top (-y), increasing clockwise
+                                var angle = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
+                                if (angle < 0f) angle += 360f
+                                val progress = (angle / 360f).coerceIn(0f, 1f)
+                                val positionMs = (progress * playbackState.duration).toLong()
+                                if (playbackViewModel.isMobilePlayback.value) {
+                                    playbackViewModel.seekTo(positionMs)
+                                } else {
+                                    connectionViewModel.seek(positionMs / 1000.0)
+                                }
+                            }
+                        }
+                        .pointerInput(playbackState.duration) {
+                            detectDragGestures(
+                                onDragStart = { isDragging = true },
+                                onDragEnd = {
+                                    isDragging = false
+                                    val positionMs = (dragProgress * playbackState.duration).toLong()
+                                    if (playbackViewModel.isMobilePlayback.value) {
+                                        playbackViewModel.seekTo(positionMs)
+                                    } else {
+                                        connectionViewModel.seek(positionMs / 1000.0)
+                                    }
+                                },
+                                onDragCancel = { isDragging = false }
+                            ) { change, _ ->
+                                change.consume()
+                                val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                                val dx = change.position.x - center.x
+                                val dy = change.position.y - center.y
+                                var angle = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
+                                if (angle < 0f) angle += 360f
+                                dragProgress = (angle / 360f).coerceIn(0f, 1f)
+                            }
+                        },
                     color = MaterialTheme.colorScheme.primary,
                     stroke = thickStroke,
                     trackStroke = thickStroke,
                     amplitude = { animatedAmplitude.value },
                     wavelength = 80.dp,
-                    waveSpeed = waveSpeed.value
+                    waveSpeed = waveSpeed.value,
+                    gapSize = 8.dp
                 )
             }
 

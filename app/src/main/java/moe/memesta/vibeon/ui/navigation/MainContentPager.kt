@@ -22,6 +22,8 @@ fun MainContentPager(
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     navController: NavController,
     contentPadding: PaddingValues,
+    onNavigateToPlayer: () -> Unit,
+    onSearchClick: () -> Unit,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope
 ) {
@@ -40,7 +42,7 @@ fun MainContentPager(
                 onTrackSelected = { /* Update pill only, no navigation */ },
                 onAlbumSelected = { albumName -> navController.navigate("album/${URLEncoder.encode(albumName, "UTF-8")}") },
                 onArtistSelected = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
-                onSearchClick = { navController.navigate("search") },
+                onSearchClick = onSearchClick,
                 onViewAllSongs = { navController.navigate("all_songs") },
                 onViewStats = { navController.navigate("stats") },
                     onViewTorrents = { navController.navigate("torrents") },

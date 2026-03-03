@@ -161,22 +161,26 @@ class PlaybackService : MediaSessionService() {
     fun startSilentPlayback() {
         if (isSilentMode) return
         
-        val silenceFile = getOrCreateSilenceFile()
-        val silenceUri = android.net.Uri.fromFile(silenceFile)
-        
+        val silenceMediaSource = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(
+            SilenceDataSource.Factory()
+        ).createMediaSource(MediaItem.fromUri("silence://infinite"))
+
         val metadata = MediaMetadata.Builder()
             .setTitle("Vibe-On")
             .setArtist("Connected to PC")
             .build()
-
+            
         val item = MediaItem.Builder()
-            .setUri(silenceUri)
+            .setMediaId("silence")
+            .setUri("silence://infinite")
             .setMediaMetadata(metadata)
             .build()
-
+            
         isForwardingEnabled = false
-        player.setMediaItem(item)
-        player.repeatMode = Player.REPEAT_MODE_ONE
+        player.setMediaSource(silenceMediaSource)
+        player.playWhenReady = true
+        // No need for REPEAT_MODE_ONE since SilenceDataSource is practically infinite
+        player.repeatMode = Player.REPEAT_MODE_OFF
         player.volume = 0f
         player.prepare()
         player.play()
@@ -184,7 +188,7 @@ class PlaybackService : MediaSessionService() {
         
         isSilentMode = true
         refreshCustomLayout()
-        Log.i("PlaybackService", "🔇 Silent playback started — notification should appear")
+        Log.i("PlaybackService", "🔇 Silent playback started using infinite silence source")
     }
 
     fun stopSilentPlayback() {
@@ -200,20 +204,19 @@ class PlaybackService : MediaSessionService() {
      */
     fun updateMetadata(metadata: MediaMetadata) {
         if (isSilentMode) {
-            val silenceFile = getOrCreateSilenceFile()
-            val silenceUri = android.net.Uri.fromFile(silenceFile)
-            
-            val item = MediaItem.Builder()
-                .setUri(silenceUri)
-                .setMediaMetadata(metadata)
-                .build()
-                
+            val metadataWithDuration = metadata.buildUpon().build()
             Log.d("PlaybackService", "📝 Updating Silent Loop Metadata: ${metadata.title}")
+
+            // To update metadata for a MediaSource already playing, we replace the media item
+            val item = MediaItem.Builder()
+                .setMediaId("silence")
+                .setUri("silence://infinite")
+                .setMediaMetadata(metadataWithDuration)
+                .build()
 
             isForwardingEnabled = false
             player.replaceMediaItem(0, item)
             isForwardingEnabled = true
-            // replaceMediaItem keeps the player state, so it stays playing
         } else {
             // In real streaming mode, we just update the player current item's metadata
             // Media3 will automatically refresh the notification.
@@ -311,6 +314,7 @@ class PlaybackService : MediaSessionService() {
                 .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                 .add(Player.COMMAND_SEEK_TO_PREVIOUS)
                 .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
                 .build()
         }
 
@@ -319,8 +323,50 @@ class PlaybackService : MediaSessionService() {
                 Player.COMMAND_SEEK_TO_NEXT,
                 Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
                 Player.COMMAND_SEEK_TO_PREVIOUS,
-                Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
+                Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+                Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM -> true
                 else -> super.isCommandAvailable(command)
+            }
+        }
+
+        override fun getDuration(): Long {
+            if (isSilentMode && MediaNotificationManager.wsClient != null) {
+                return (MediaNotificationManager.wsClient!!.duration.value * 1000).toLong()
+            }
+            return super.getDuration()
+        }
+
+        override fun getCurrentPosition(): Long {
+            if (isSilentMode && MediaNotificationManager.wsClient != null) {
+                return (MediaNotificationManager.wsClient!!.progress.value * 1000).toLong()
+            }
+            return super.getCurrentPosition()
+        }
+
+        override fun getBufferedPosition(): Long {
+            if (isSilentMode && MediaNotificationManager.wsClient != null) {
+                return (MediaNotificationManager.wsClient!!.progress.value * 1000).toLong()
+            }
+            return super.getBufferedPosition()
+        }
+
+        override fun getTotalBufferedDuration(): Long {
+            if (isSilentMode) return 0
+            return super.getTotalBufferedDuration()
+        }
+
+        override fun seekTo(positionMs: Long) {
+            if (isSilentMode) {
+                // In silent mode, everything is on PC
+                if (isForwardingEnabled) {
+                    MediaNotificationManager.wsClient?.sendSeek(positionMs / 1000.0)
+                    Log.i("PlaybackService", "📍 Seek to ${positionMs}ms forwarded to PC (Silent Mode)")
+                }
+            } else {
+                // In real mobile streaming, seek locally
+                // PlaybackViewModel listener will notify PC of the position change
+                super.seekTo(positionMs)
+                Log.i("PlaybackService", "📍 Local playback seeking to ${positionMs}ms")
             }
         }
 
@@ -425,48 +471,5 @@ class PlaybackService : MediaSessionService() {
             }
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
-    }
-
-    // ---------------------------------------------------------------------------
-    // Generate a tiny silent WAV file in cache
-    // ---------------------------------------------------------------------------
-
-    private fun getOrCreateSilenceFile(): File {
-        val file = File(cacheDir, "silence.wav")
-        if (file.exists() && file.length() > 0) return file
-
-        val sampleRate = 44100
-        val numSamples = sampleRate // 1 second of silence
-        val dataSize = numSamples * 2 // 16-bit mono = 2 bytes per sample
-        val fileSize = 36 + dataSize
-
-        DataOutputStream(FileOutputStream(file)).use { out ->
-            // RIFF header
-            out.writeBytes("RIFF")
-            out.writeInt(Integer.reverseBytes(fileSize))
-            out.writeBytes("WAVE")
-            // fmt chunk
-            out.writeBytes("fmt ")
-            out.writeInt(Integer.reverseBytes(16)) // chunk size
-            out.writeShort(java.lang.Short.reverseBytes(1.toShort()).toInt()) // PCM
-            out.writeShort(java.lang.Short.reverseBytes(1.toShort()).toInt()) // mono
-            out.writeInt(Integer.reverseBytes(sampleRate)) // sample rate
-            out.writeInt(Integer.reverseBytes(sampleRate * 2)) // byte rate
-            out.writeShort(java.lang.Short.reverseBytes(2.toShort()).toInt()) // block align
-            out.writeShort(java.lang.Short.reverseBytes(16.toShort()).toInt()) // bits per sample
-            // data chunk
-            out.writeBytes("data")
-            out.writeInt(Integer.reverseBytes(dataSize))
-            // Write silence (zeros)
-            val buffer = ByteArray(4096)
-            var remaining = dataSize
-            while (remaining > 0) {
-                val toWrite = minOf(buffer.size, remaining)
-                out.write(buffer, 0, toWrite)
-                remaining -= toWrite
-            }
-        }
-        Log.i("PlaybackService", "🔇 Created silence.wav (${file.length()} bytes)")
-        return file
     }
 }

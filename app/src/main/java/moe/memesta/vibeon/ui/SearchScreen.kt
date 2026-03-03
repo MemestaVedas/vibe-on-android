@@ -54,7 +54,16 @@ fun SearchScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
-    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val viewModelQuery by viewModel.searchQuery.collectAsState()
+    var searchQuery by rememberSaveable { mutableStateOf(viewModelQuery) }
+    
+    // Sync local state when viewModel query changes (e.g. cleared externally)
+    LaunchedEffect(viewModelQuery) {
+        if (searchQuery != viewModelQuery) {
+            searchQuery = viewModelQuery
+        }
+    }
+
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
@@ -233,6 +242,7 @@ fun SearchScreen(
                                                             track = track,
                                                             onClick = {
                                                                 viewModel.playTrack(track, songResults)
+                                                                viewModel.searchLibrary("") // Clear search
                                                                 onTrackSelected(track)
                                                             }
                                                         )
@@ -254,7 +264,10 @@ fun SearchScreen(
                                                         AlbumCard(
                                                             albumName = album.getDisplayName(displayLanguage),
                                                             coverUrl = album.coverUrl,
-                                                            onClick = { onAlbumSelected(album.name) }
+                                                            onClick = { 
+                                                                viewModel.searchLibrary("") // Clear search
+                                                                onAlbumSelected(album.name) 
+                                                            }
                                                         )
                                                     }
                                                 }
@@ -274,7 +287,10 @@ fun SearchScreen(
                                                         ArtistPill(
                                                             artistName = artist.getDisplayName(displayLanguage),
                                                             photoUrl = artist.photoUrl,
-                                                            onClick = { onArtistSelected(artist.name) }
+                                                            onClick = { 
+                                                                viewModel.searchLibrary("") // Clear search
+                                                                onArtistSelected(artist.name) 
+                                                            }
                                                         )
                                                     }
                                                 }
