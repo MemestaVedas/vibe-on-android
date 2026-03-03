@@ -136,12 +136,14 @@ object MediaNotificationManager {
         client.isShuffled.onEach { shuffled ->
             isShuffled = shuffled
             serviceRef?.refreshCustomLayout()
+            WidgetUpdater.onShuffleChanged(shuffled)
         }.launchIn(scope)
 
         // Favorites
         client.favorites.onEach { favs ->
             isCurrentFavorite = currentTrackPath?.let { favs.contains(it) } ?: false
             serviceRef?.refreshCustomLayout()
+            WidgetUpdater.onFavoriteChanged(isCurrentFavorite)
         }.launchIn(scope)
 
         // Mobile playback state
@@ -150,15 +152,14 @@ object MediaNotificationManager {
             isMobilePlayback = mobile
             
             if (mobile) {
-                // IMPORTANT: Stop silent notification mode so it doesn't fight with real streaming
                 Log.i("MediaNotifManager", "📱 Mobile playback started — exiting silent mode")
                 serviceRef?.exitSilentMode()
             } else if (wasMobile) {
-                // When switching back from mobile → re-enter silent mode for notification
                 Log.i("MediaNotifManager", "🖥️ Mobile playback stopped — re-entering silent mode")
                 serviceRef?.reenterSilentMode()
             }
             serviceRef?.refreshCustomLayout()
+            WidgetUpdater.onOutputChanged(mobile)
         }.launchIn(scope)
     }
 

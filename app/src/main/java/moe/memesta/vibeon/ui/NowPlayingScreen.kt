@@ -495,14 +495,12 @@ fun NowPlayingContent(
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Album Art - Edge to edge at top with rounded bottom corners
+            // Album Art - Immersive Header Style
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = Dimens.SectionSpacing, start = Dimens.SectionSpacing, end = Dimens.SectionSpacing)
-                    .offset(y = 40.dp)
-                    .aspectRatio(1f)
-                    .clip(AlbumSquircleShape)
+                    .aspectRatio(1f) // Restore full 1:1 square layout
+                    .clip(RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp))
                     .pointerInput(Unit) {
                         detectVerticalDragGestures { change, dragAmount ->
                             if (dragAmount > 20f) {
@@ -515,8 +513,7 @@ fun NowPlayingContent(
                         detectTapGestures {
                             onNavigateToAlbum()
                         }
-                    },
-                contentAlignment = Alignment.Center
+                    }
             ) {
                 HorizontalPager(
                     state = pagerState,
@@ -524,20 +521,9 @@ fun NowPlayingContent(
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     val item = pagerItems.getOrNull(page) ?: return@HorizontalPager
-                    val pageOffset = abs(
-                        (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                    ).coerceIn(0f, 1f)
-                    val pageScale = lerp(0.92f, 1f, 1f - pageOffset)
-                    val pageAlpha = lerp(0.6f, 1f, 1f - pageOffset)
-
+                    
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = pageScale
-                                scaleY = pageScale
-                                alpha = pageAlpha
-                            },
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!item.coverUrl.isNullOrEmpty()) {
@@ -545,7 +531,7 @@ fun NowPlayingContent(
                                 model = item.coverUrl,
                                 contentDescription = "Album Art",
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Crop // Immersive crop
                             )
                         } else {
                             Box(
@@ -566,76 +552,98 @@ fun NowPlayingContent(
                 }
             }
                     
-                // Rest of content (inner column) - apply padding here so album art remains full-bleed
-                Column(
+            // Metadata section now below the album art
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 24.dp)
+            ) {
+                Text(
+                    text = title.ifEmpty { "No Track" },
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Dimens.SectionSpacing)
-                        .navigationBarsPadding()
-                        .padding(bottom = lyricsPillHeight),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Track Info
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start
-                ) {
+                        .fillMaxWidth()
+                        .basicMarquee(iterations = Int.MAX_VALUE)
+                )
+                
+                if (romajiSubtitle != null) {
                     Text(
-                        text = title.ifEmpty { "No Track" },
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        text = romajiSubtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .basicMarquee(iterations = Int.MAX_VALUE)
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    // Romaji subtitle for Japanese titles
-                    if (romajiSubtitle != null) {
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = romajiSubtitle,
-                            style = MaterialTheme.typography.bodySmall,
+                            text = artist.ifEmpty { "Unknown Artist" },
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    animationMode = MarqueeAnimationMode.Immediately,
+                                    velocity = 30.dp
+                                )
                         )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    Text(
-                        text = artist.ifEmpty { "Unknown Artist" },
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .basicMarquee(
-                                iterations = Int.MAX_VALUE,
-                                animationMode = MarqueeAnimationMode.Immediately,
-                                velocity = 30.dp
+                        if (artistRomajiSubtitle != null) {
+                            Text(
+                                text = artistRomajiSubtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                    )
-                    // Romaji subtitle for Japanese artist names
-                    if (artistRomajiSubtitle != null) {
-                        Text(
-                            text = artistRomajiSubtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                        }
+                    }
+
+                    // Queue Button
+                    Box(
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                            .size(48.dp)
+                            .bouncyClickable(onClick = onQueueClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.QueueMusic,
+                            contentDescription = "Show Queue",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
+            }
+                    
+                    
+                // Compacted spacing to bring controls closer to metadata
+                Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Squiggly Progress Bar
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Squiggly Progress Bar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -687,8 +695,8 @@ fun NowPlayingContent(
                     // Previous
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
-                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(28.dp))
+                            .size(64.dp)
+                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(22.dp))
                             .bouncyClickable(onClick = onSkipPrevious),
                         contentAlignment = Alignment.Center
                     ) {
@@ -696,7 +704,7 @@ fun NowPlayingContent(
                             Icons.Rounded.Replay10,
                             contentDescription = "Previous",
                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
 
@@ -705,8 +713,8 @@ fun NowPlayingContent(
                     // Play/Pause
                     Box(
                         modifier = Modifier
-                            .size(100.dp)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(36.dp))
+                            .size(80.dp)
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(28.dp))
                             .bouncyClickable(onClick = onPlayPauseToggle),
                         contentAlignment = Alignment.Center
                     ) {
@@ -714,7 +722,7 @@ fun NowPlayingContent(
                             if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = "Play/Pause",
                             tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(40.dp)
                         )
                     }
 
@@ -723,8 +731,8 @@ fun NowPlayingContent(
                     // Next
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
-                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(28.dp))
+                            .size(64.dp)
+                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(22.dp))
                             .bouncyClickable(onClick = onSkipNext),
                         contentAlignment = Alignment.Center
                     ) {
@@ -732,7 +740,7 @@ fun NowPlayingContent(
                             Icons.Rounded.Forward10,
                             contentDescription = "Next",
                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
@@ -892,13 +900,11 @@ fun NowPlayingContent(
                             )
                         }
                     }
-                }
+                } // Closes Enhanced Bar Row
+            } // Closes inner controls Column
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // (Lyrics pill moved out of padded Column to enable edge-to-edge width)
-            }
-        }
+            Spacer(modifier = Modifier.weight(1f))
+        } // Closes Main content Column
 
         // Unified Lyrics Sheet - full-bleed at bottom (edge-to-edge)
         Box(
@@ -948,34 +954,19 @@ fun NowPlayingContent(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), CircleShape)
                     .size(40.dp)
-                    .bouncyClickable(onClick = onQueueClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Rounded.QueueMusic,
-                    contentDescription = "Show Queue",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), CircleShape)
-                    .size(40.dp)
                     .bouncyClickable(onClick = { showPlaylistDialog = true }),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Rounded.MoreHoriz,
-                    contentDescription = "More Options",
+                    Icons.Rounded.PlaylistAdd,
+                    contentDescription = "Add to Playlist",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
-        }
-    }
-
+        } // Closes the Header Row
+    } // Closes the main Box (e.g., PlayerScreen content)
+    
     if (showPlaylistDialog) {
         val playlists by connectionViewModel.playlists.collectAsState()
         

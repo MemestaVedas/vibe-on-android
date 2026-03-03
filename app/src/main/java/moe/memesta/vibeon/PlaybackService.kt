@@ -114,6 +114,23 @@ class PlaybackService : MediaSessionService() {
                 MediaNotificationManager.wsClient?.sendPrevious()
                 Log.i("PlaybackService", "Widget: previous")
             }
+            WidgetActions.ACTION_SHUFFLE -> {
+                MediaNotificationManager.wsClient?.sendToggleShuffle()
+                Log.i("PlaybackService", "Widget: shuffle")
+            }
+            WidgetActions.ACTION_FAVORITE -> {
+                val path = MediaNotificationManager.currentTrackPath
+                if (!path.isNullOrEmpty()) MediaNotificationManager.wsClient?.sendToggleFavorite(path)
+                Log.i("PlaybackService", "Widget: favorite")
+            }
+            WidgetActions.ACTION_TOGGLE_OUTPUT -> {
+                if (MediaNotificationManager.isMobilePlayback) {
+                    MediaNotificationManager.wsClient?.sendStopMobilePlayback()
+                } else {
+                    MediaNotificationManager.wsClient?.sendStartMobilePlayback()
+                }
+                Log.i("PlaybackService", "Widget: toggle output")
+            }
         }
         return super.onStartCommand(intent, flags, startId)
     }

@@ -23,14 +23,30 @@ import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
+import androidx.glance.layout.Row
 import androidx.glance.layout.ContentScale
+import androidx.glance.layout.Column
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.padding
+import androidx.glance.layout.height
+import androidx.compose.ui.graphics.Color
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
+import androidx.glance.text.FontWeight
+import androidx.glance.unit.ColorProvider
+import androidx.compose.ui.unit.sp
+import android.content.ComponentName
+import moe.memesta.vibeon.MainActivity
+
 import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.size
 import moe.memesta.vibeon.PlaybackService
 import moe.memesta.vibeon.R
@@ -61,7 +77,7 @@ class AlbumArtWidget : GlanceAppWidget() {
     private fun AlbumArtContent(state: WidgetPlaybackState, context: Context) {
         val size = LocalSize.current
         val minSide = min(size.width, size.height)
-        val corner = 24.dp
+        val corner = 28.dp
 
         // Decode cached album-art bytes
         val imageProvider = state.albumArtBytes?.let { data ->
@@ -84,23 +100,19 @@ class AlbumArtWidget : GlanceAppWidget() {
             }
         }
 
-        val playPauseParams = actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_PLAY_PAUSE)
-        val previousParams  = actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_PREVIOUS)
-        val nextParams      = actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_NEXT)
-
-        // Outer — centres a perfect square
+        // Outer — centres the card
         Box(
             modifier = GlanceModifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            // Square container — tap for play/pause
+            // Card container
             Box(
                 modifier = GlanceModifier
                     .size(minSide)
-                    .cornerRadius(corner)
-                    .clickable(actionRunCallback<WidgetActionCallback>(playPauseParams)),
+                    .cornerRadius(corner),
                 contentAlignment = Alignment.Center
             ) {
+                // ── Layer 1: Album Art (full-bleed background)
                 if (imageProvider != null) {
                     Image(
                         provider = imageProvider,
@@ -109,42 +121,209 @@ class AlbumArtWidget : GlanceAppWidget() {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Placeholder
                     Box(
                         modifier = GlanceModifier
                             .fillMaxSize()
                             .cornerRadius(corner)
-                            .background(GlanceTheme.colors.surfaceVariant),
+                            .background(ColorProvider(Color(0xFF1C1B1F))),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             provider = ImageProvider(R.drawable.ic_widget_music_note),
                             contentDescription = "No music",
-                            modifier = GlanceModifier.size(minSide * 0.4f),
+                            modifier = GlanceModifier.size(minSide * 0.35f),
                             contentScale = ContentScale.Fit,
-                            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant)
+                            colorFilter = ColorFilter.tint(ColorProvider(Color(0x66FFFFFF)))
                         )
                     }
                 }
 
-                // Left 22 % → previous
-                Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                // ── Layer 2: Bottom gradient scrim (invisible overlay for legibility)
+                Column(modifier = GlanceModifier.fillMaxSize()) {
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    // Scrim covers bottom ~40% of card
                     Box(
                         modifier = GlanceModifier
-                            .fillMaxHeight()
-                            .size(width = minSide * 0.22f, height = minSide)
-                            .clickable(actionRunCallback<WidgetActionCallback>(previousParams))
+                            .fillMaxWidth()
+                            .height(minSide * 0.42f)
+                            .background(ColorProvider(Color(0xCC000000)))
                     ) {}
                 }
 
-                // Right 22 % → next
-                Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
+                // ── Layer 3: UI — top controls + bottom metadata + play button
+                Column(modifier = GlanceModifier.fillMaxSize().padding(16.dp)) {
+
+                    // -- TOP ROW: App label (left) + output toggle + like + shuffle (right)
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // App name
+                        Text(
+                            text = "Vibe-On",
+                            style = TextStyle(
+                                color = ColorProvider(Color.White),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+
+                        Spacer(modifier = GlanceModifier.defaultWeight())
+
+                        // Control pill on top-right: output toggle · like · shuffle
+                        Row(
+                            modifier = GlanceModifier
+                                .background(ColorProvider(Color(0x80000000)))
+                                .cornerRadius(100.dp)
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Output toggle (phone = mobile, computer = PC)
+                            Image(
+                                provider = ImageProvider(
+                                    if (state.isMobilePlayback) android.R.drawable.stat_sys_speakerphone
+                                    else android.R.drawable.ic_media_play
+                                ),
+                                contentDescription = if (state.isMobilePlayback) "Playing on phone" else "Playing on PC",
+                                modifier = GlanceModifier.size(22.dp)
+                                    .clickable(actionRunCallback<WidgetActionCallback>(
+                                        actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_TOGGLE_OUTPUT)
+                                    )),
+                                colorFilter = ColorFilter.tint(ColorProvider(
+                                    if (state.isMobilePlayback) Color(0xFF80DFFF) else Color.White
+                                ))
+                            )
+
+                            Spacer(modifier = GlanceModifier.size(6.dp))
+
+                            // Shuffle
+                            Image(
+                                provider = ImageProvider(
+                                    if (state.isShuffled) android.R.drawable.btn_star_big_on
+                                    else android.R.drawable.btn_star_big_off
+                                ),
+                                contentDescription = "Shuffle",
+                                modifier = GlanceModifier.size(22.dp)
+                                    .clickable(actionRunCallback<WidgetActionCallback>(
+                                        actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_SHUFFLE)
+                                    )),
+                                colorFilter = ColorFilter.tint(ColorProvider(
+                                    if (state.isShuffled) Color(0xFFFFD700) else Color.White
+                                ))
+                            )
+
+                            Spacer(modifier = GlanceModifier.size(6.dp))
+
+                            // Like / Favorite
+                            Image(
+                                provider = ImageProvider(
+                                    if (state.isLiked) android.R.drawable.star_on
+                                    else android.R.drawable.star_off
+                                ),
+                                contentDescription = "Like",
+                                modifier = GlanceModifier.size(22.dp)
+                                    .clickable(actionRunCallback<WidgetActionCallback>(
+                                        actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_FAVORITE)
+                                    )),
+                                colorFilter = ColorFilter.tint(ColorProvider(
+                                    if (state.isLiked) Color(0xFFFF6B6B) else Color.White
+                                ))
+                            )
+                        }
+                    }
+
+                    // Spacer pushes content to bottom
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+
+                    // -- BOTTOM ROW: Title+Artist (left) + large Play/Pause circle (right)
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        // Title + Artist
+                        Column(modifier = GlanceModifier.defaultWeight()) {
+                            Text(
+                                text = state.title,
+                                style = TextStyle(
+                                    color = ColorProvider(Color.White),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                maxLines = 1
+                            )
+                            Text(
+                                text = state.artist,
+                                style = TextStyle(
+                                    color = ColorProvider(Color(0xCCFFFFFF)),
+                                    fontSize = 13.sp
+                                ),
+                                maxLines = 1
+                            )
+                        }
+
+                        Spacer(modifier = GlanceModifier.size(12.dp))
+
+                        // Large circular Play/Pause button
+                        Box(
+                            modifier = GlanceModifier
+                                .size(56.dp)
+                                .cornerRadius(100.dp)
+                                .background(ColorProvider(Color(0xFFE8DEF8))) // Material You tonal container
+                                .clickable(actionRunCallback<WidgetActionCallback>(
+                                    actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_PLAY_PAUSE)
+                                )),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                provider = ImageProvider(
+                                    if (state.isPlaying) android.R.drawable.ic_media_pause
+                                    else android.R.drawable.ic_media_play
+                                ),
+                                contentDescription = if (state.isPlaying) "Pause" else "Play",
+                                modifier = GlanceModifier.size(28.dp),
+                                colorFilter = ColorFilter.tint(ColorProvider(Color(0xFF21005D)))
+                            )
+                        }
+                    }
+                }
+
+                // ── Layer 4: Invisible tap zones (on top of everything, full coverage)
+                Column(modifier = GlanceModifier.fillMaxSize()) {
+                    // TOP zone → open app
                     Box(
-                        modifier = GlanceModifier
-                            .fillMaxHeight()
-                            .size(width = minSide * 0.22f, height = minSide)
-                            .clickable(actionRunCallback<WidgetActionCallback>(nextParams))
+                        modifier = GlanceModifier.fillMaxWidth().defaultWeight()
+                            .clickable(actionStartActivity(
+                                Intent(context, MainActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                }
+                            ))
                     ) {}
+
+                    // MIDDLE row → prev (left) / play-pause (centre) / next (right)
+                    Row(modifier = GlanceModifier.fillMaxWidth().height(minSide * 0.35f)) {
+                        Box(
+                            modifier = GlanceModifier.defaultWeight().fillMaxHeight()
+                                .clickable(actionRunCallback<WidgetActionCallback>(
+                                    actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_PREVIOUS)
+                                ))
+                        ) {}
+                        Box(
+                            modifier = GlanceModifier.defaultWeight().fillMaxHeight()
+                                .clickable(actionRunCallback<WidgetActionCallback>(
+                                    actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_PLAY_PAUSE)
+                                ))
+                        ) {}
+                        Box(
+                            modifier = GlanceModifier.defaultWeight().fillMaxHeight()
+                                .clickable(actionRunCallback<WidgetActionCallback>(
+                                    actionParametersOf(WidgetActionCallback.actionKey to WidgetActions.ACTION_NEXT)
+                                ))
+                        ) {}
+                    }
+
+                    // BOTTOM zone → transparent (visible bottom row buttons handle clicks above)
+                    Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {}
                 }
             }
         }
@@ -176,7 +355,10 @@ class WidgetActionCallback : ActionCallback {
 }
 
 object WidgetActions {
-    const val ACTION_PLAY_PAUSE = "moe.memesta.vibeon.WIDGET_PLAY_PAUSE"
-    const val ACTION_NEXT       = "moe.memesta.vibeon.WIDGET_NEXT"
-    const val ACTION_PREVIOUS   = "moe.memesta.vibeon.WIDGET_PREVIOUS"
+    const val ACTION_PLAY_PAUSE    = "moe.memesta.vibeon.WIDGET_PLAY_PAUSE"
+    const val ACTION_NEXT          = "moe.memesta.vibeon.WIDGET_NEXT"
+    const val ACTION_PREVIOUS      = "moe.memesta.vibeon.WIDGET_PREVIOUS"
+    const val ACTION_SHUFFLE       = "moe.memesta.vibeon.WIDGET_SHUFFLE"
+    const val ACTION_FAVORITE      = "moe.memesta.vibeon.WIDGET_FAVORITE"
+    const val ACTION_TOGGLE_OUTPUT = "moe.memesta.vibeon.WIDGET_TOGGLE_OUTPUT"
 }

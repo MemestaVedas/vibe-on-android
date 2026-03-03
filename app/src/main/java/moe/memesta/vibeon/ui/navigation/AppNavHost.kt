@@ -38,6 +38,7 @@ import moe.memesta.vibeon.ui.onboarding.WelcomeScreen
 import moe.memesta.vibeon.ui.onboarding.OnboardingOverlay
 import moe.memesta.vibeon.data.local.OnboardingManager
 import moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl
+import moe.memesta.vibeon.ui.utils.rememberIsLandscape
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -576,6 +577,20 @@ fun AppNavHost(
             }
         } // End of Scaffold
             
+        // --- Immersive Landscape Dock Mode overlay ---
+        // Sits above all other content; shown only when device is physically landscape.
+        val isLandscape = rememberIsLandscape()
+        AnimatedVisibility(
+            visible = isLandscape,
+            enter = fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.97f, animationSpec = tween(400)),
+            exit = fadeOut(animationSpec = tween(350)) + scaleOut(targetScale = 0.97f, animationSpec = tween(350))
+        ) {
+            ImmersiveView(
+                connectionViewModel = connectionViewModel,
+                playbackViewModel = playbackViewModel
+            )
+        }
+
         // Pairing Overlay - Covers the app until dismissed, placed OUTSIDE Scaffold
         if (!userDismissedPairing && !showWelcome) {
             // We need to manage scanning

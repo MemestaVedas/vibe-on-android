@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.VibeonApp
+import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.data.MediaSessionData
 import java.io.ByteArrayOutputStream
 
@@ -47,6 +48,9 @@ object WidgetUpdater {
                 title = track.title.ifEmpty { "No Track" },
                 artist = track.artist.ifEmpty { "Unknown Artist" },
                 isPlaying = isPlaying,
+                isLiked = MediaNotificationManager.isCurrentFavorite,
+                isShuffled = MediaNotificationManager.isShuffled,
+                isMobilePlayback = MediaNotificationManager.isMobilePlayback,
                 albumArtBytes = artBytes
             ))
         }
@@ -56,6 +60,27 @@ object WidgetUpdater {
         val ctx = VibeonApp.instance
         scope.launch {
             pushStateUpdate(ctx) { it.copy(isPlaying = isPlaying) }
+        }
+    }
+
+    fun onOutputChanged(isMobilePlayback: Boolean) {
+        val ctx = VibeonApp.instance
+        scope.launch {
+            pushStateUpdate(ctx) { it.copy(isMobilePlayback = isMobilePlayback) }
+        }
+    }
+
+    fun onShuffleChanged(isShuffled: Boolean) {
+        val ctx = VibeonApp.instance
+        scope.launch {
+            pushStateUpdate(ctx) { it.copy(isShuffled = isShuffled) }
+        }
+    }
+
+    fun onFavoriteChanged(isLiked: Boolean) {
+        val ctx = VibeonApp.instance
+        scope.launch {
+            pushStateUpdate(ctx) { it.copy(isLiked = isLiked) }
         }
     }
 
@@ -93,7 +118,7 @@ object WidgetUpdater {
     private suspend fun loadCoverBytes(context: Context, url: String): ByteArray? {
         return try {
             val loader = ImageLoader(context)
-            val req = ImageRequest.Builder(context).data(url).size(300).build()
+            val req = ImageRequest.Builder(context).data(url).size(1024).build()
             val result = loader.execute(req)
             val bitmap = (result as? SuccessResult)?.drawable?.let { d ->
                 if (d is android.graphics.drawable.BitmapDrawable) d.bitmap else null
