@@ -26,18 +26,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
 import moe.memesta.vibeon.ui.components.ArtistPill
@@ -45,9 +39,11 @@ import moe.memesta.vibeon.ui.components.VibeContainedLoadingIndicator
 import moe.memesta.vibeon.ui.components.SectionHeader
 import moe.memesta.vibeon.ui.components.SquareTrackCard
 import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayName
 
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun SearchScreen(
     viewModel: LibraryViewModel,
@@ -74,69 +70,23 @@ fun SearchScreen(
 
     val accentColor = MaterialTheme.colorScheme.primary
 
-    // --- Spring slide-up animation ---
-    val slideOffset = remember { Animatable(1f) }   // 1 = off-screen bottom, 0 = resting
-    val scrimAlpha  = remember { Animatable(0f) }
+    val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
-    val scope = rememberCoroutineScope()
-
-    // Ensure dialog window is transparent to avoid "purple bar" (primary color) leaks
-    val currentView = LocalView.current
-    androidx.compose.runtime.SideEffect {
-        val window = (currentView.parent as? DialogWindowProvider)?.window
-        window?.let {
-            it.statusBarColor = android.graphics.Color.TRANSPARENT
-            it.navigationBarColor = android.graphics.Color.TRANSPARENT
-            WindowCompat.getInsetsController(it, currentView).isAppearanceLightStatusBars = false
-        }
-    }
-
-    // Enter animation
+    // Request focus after a short delay to allow the enter animation to start first
     LaunchedEffect(Unit) {
-        launch {
-            slideOffset.animateTo(
-                targetValue = 0f,
-                animationSpec = spring(
-                    dampingRatio = 0.68f,       // slightly bouncy
-                    stiffness = Spring.StiffnessLow
-                )
-            )
-        }
-        launch {
-            scrimAlpha.animateTo(1f, tween(320))
-        }
-        delay(80) // small delay so the sheet is partially visible before keyboard opens
+        delay(120)
         focusRequester.requestFocus()
     }
 
-    // Animated dismiss helper
-    val animatedClose: () -> Unit = remember(onClose) {
-        {
-            scope.launch {
-                launch {
-                    slideOffset.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(260, easing = FastOutSlowInEasing)
-                    )
-                }
-                launch { scrimAlpha.animateTo(0f, tween(220)) }
-                delay(270)
-                onClose()
-            }
-        }
-    }
-
-    val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-
-    // Scrim + sheet container
+    // Full-screen scrim with bottom-anchored sheet
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.36f * scrimAlpha.value))
+            .background(Color.Black.copy(alpha = 0.4f))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = animatedClose
+                onClick = onClose
             ),
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -145,9 +95,6 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.75f)
-                .graphicsLayer {
-                    translationY = slideOffset.value * size.height
-                }
                 .shadow(
                     elevation = 24.dp,
                     shape = sheetShape,
@@ -160,7 +107,7 @@ fun SearchScreen(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { } // consume clicks so they don't dismiss
+                    onClick = { } // consume clicks
                 )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {

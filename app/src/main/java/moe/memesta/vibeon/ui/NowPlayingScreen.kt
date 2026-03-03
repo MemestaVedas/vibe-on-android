@@ -111,7 +111,7 @@ import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.components.AlbumSquircleShape
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingScreen(
     playbackViewModel: PlaybackViewModel,
@@ -522,30 +522,37 @@ fun NowPlayingContent(
                 ) { page ->
                     val item = pagerItems.getOrNull(page) ?: return@HorizontalPager
                     
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (!item.coverUrl.isNullOrEmpty()) {
-                            AsyncImage(
-                                model = item.coverUrl,
-                                contentDescription = "Album Art",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop // Immersive crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surface),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Rounded.MusicNote,
-                                    null,
-                                    tint = Color.White.copy(alpha = 0.15f),
-                                    modifier = Modifier.size(100.dp)
+                    with(sharedTransitionScope) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "album-${item.path.ifEmpty { "no-track" }}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!item.coverUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = item.coverUrl,
+                                    contentDescription = "Album Art",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop // Immersive crop
                                 )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.MusicNote,
+                                        null,
+                                        tint = Color.White.copy(alpha = 0.15f),
+                                        modifier = Modifier.size(100.dp)
+                                    )
+                                }
                             }
                         }
                     }

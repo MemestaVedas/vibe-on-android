@@ -152,14 +152,18 @@ fun LyricsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(32.dp)
             ) {
-                itemsIndexed(lyrics) { index, lyricGroup ->
+                itemsIndexed(
+                    items = lyrics,
+                    key = { _, lyricGroup -> lyricGroup.timestamp }
+                ) { index, lyricGroup ->
                     LyricGroupItem(
                         lyricGroup = lyricGroup,
                         isActive = index == currentLineIndex,
                         isPast = index < currentLineIndex,
                         viewMode = viewMode,
                         baseTextColor = lyricsTextColor,
-                        secondaryTextColor = lyricsSubtleTextColor
+                        secondaryTextColor = lyricsSubtleTextColor,
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -281,7 +285,8 @@ fun LyricGroupItem(
     isPast: Boolean,
     viewMode: LyricsViewMode,
     baseTextColor: Color,
-    secondaryTextColor: Color
+    secondaryTextColor: Color,
+    modifier: Modifier = Modifier
 ) {
     val textColor by animateColorAsState(
         targetValue = when {
@@ -316,7 +321,7 @@ fun LyricGroupItem(
     } else null
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = scale

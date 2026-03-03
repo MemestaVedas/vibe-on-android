@@ -11,6 +11,7 @@ import moe.memesta.vibeon.ui.*
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun MainContentPager(
     pagerState: PagerState,
@@ -20,7 +21,9 @@ fun MainContentPager(
     favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     navController: NavController,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
@@ -53,7 +56,9 @@ fun MainContentPager(
                     }
                 },
                 contentPadding = contentPadding,
-                connectionViewModel = connectionViewModel
+                connectionViewModel = connectionViewModel,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
             )
             1 -> AlbumsGridScreen(
                 viewModel = libraryViewModel,
@@ -63,7 +68,9 @@ fun MainContentPager(
                     libraryViewModel.playAlbum(albumName)
                     navController.navigate("now_playing")
                 },
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
             )
             2 -> PlaylistsScreen(
                 viewModel = connectionViewModel,
@@ -79,7 +86,9 @@ fun MainContentPager(
                     libraryViewModel.playArtist(artistName)
                     navController.navigate("now_playing")
                 },
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
             )
             4 -> SettingsScreen(
                 connectionViewModel = connectionViewModel,

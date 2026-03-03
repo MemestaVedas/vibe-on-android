@@ -57,7 +57,7 @@ import moe.memesta.vibeon.ui.components.SectionHeader
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun AlbumDetailScreen(
     albumName: String,
@@ -65,7 +65,9 @@ fun AlbumDetailScreen(
     navController: NavController,
     onBackClick: () -> Unit,
     onTrackSelected: (TrackInfo) -> Unit,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     val displayLanguage = LocalDisplayLanguage.current
     val tracks by viewModel.tracks.collectAsState()
@@ -158,6 +160,16 @@ fun AlbumDetailScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .then(
+                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                    with(sharedTransitionScope) {
+                                         Modifier.sharedElement(
+                                            sharedContentState = rememberSharedContentState(key = "album-${decodedAlbumName}"),
+                                            animatedVisibilityScope = animatedVisibilityScope
+                                        )
+                                    }
+                                } else Modifier
+                            )
                             .background(animatedVibrant.copy(alpha = 0.9f))
                     ) {
                         if (coverUrl != null) {

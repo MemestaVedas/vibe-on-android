@@ -18,13 +18,16 @@ import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.ui.components.ArtistGridItem
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun ArtistsListScreen(
     viewModel: LibraryViewModel,
     onBackClick: () -> Unit,
     onArtistClick: (String) -> Unit,
     onPlayArtist: (String) -> Unit,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     val tracks by viewModel.tracks.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -91,7 +94,9 @@ fun ArtistsListScreen(
                 ArtistGridItem(
                     artistName = artist.name,
                     photoUrl = artist.photoUrl,
-                    onClick = { onArtistClick(artist.name) }
+                    onClick = { onArtistClick(artist.name) },
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }

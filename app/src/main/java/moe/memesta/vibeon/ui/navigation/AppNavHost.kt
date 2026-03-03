@@ -338,7 +338,9 @@ fun AppNavHost(
                             favoritesManager = favoritesManager,
                             playerSettingsRepository = playerSettingsRepository,
                             navController = navController,
-                            contentPadding = innerPadding
+                            contentPadding = innerPadding,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this
                         )
                     } else {
                         // Keep a placeholder behind the overlay while pairing
@@ -383,15 +385,23 @@ fun AppNavHost(
                         pagerState.scrollToPage(1)
                     }
                 }
-                // Search Screen - Global Overlay Dialog
-                dialog(
+                // Search Screen - Slide-down Overlay
+                composable(
                     route = "search",
-                    dialogProperties = androidx.compose.ui.window.DialogProperties(
-                        usePlatformDefaultWidth = false,
-                        dismissOnBackPress = true,
-                        dismissOnClickOutside = true,
-                        decorFitsSystemWindows = false
-                    )
+                    enterTransition = {
+                        fadeIn(animationSpec = tween(200)) +
+                        slideInVertically(
+                            initialOffsetY = { -it / 4 },
+                            animationSpec = tween(350, easing = androidx.compose.animation.core.EaseOutCubic)
+                        )
+                    },
+                    exitTransition = {
+                        fadeOut(animationSpec = tween(150)) +
+                        slideOutVertically(
+                            targetOffsetY = { -it / 6 },
+                            animationSpec = tween(250, easing = androidx.compose.animation.core.EaseInCubic)
+                        )
+                    }
                 ) {
                     if (libraryViewModel != null) {
                         SearchScreen(
@@ -441,7 +451,9 @@ fun AppNavHost(
                             navController = navController,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { /* Update pill only, no navigation */ },
-                            contentPadding = innerPadding
+                            contentPadding = innerPadding,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this
                         )
                     }
                 }
@@ -460,7 +472,9 @@ fun AppNavHost(
                             navController = navController,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { /* Update pill only, no navigation */ },
-                            contentPadding = innerPadding
+                            contentPadding = innerPadding,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this
                         )
                     }
                 }

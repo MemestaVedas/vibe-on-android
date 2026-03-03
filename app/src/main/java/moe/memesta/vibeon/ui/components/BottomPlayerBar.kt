@@ -414,6 +414,10 @@ private fun AlbumArtWithPulse(
             Box(
                 modifier = Modifier
                     .size(52.dp)
+                    .sharedElement(
+                        sharedContentState = rememberSharedContentState(key = "album-$sharedKey"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
                     .clip(moe.memesta.vibeon.ui.components.AlbumArtStarShape)
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), moe.memesta.vibeon.ui.components.AlbumArtStarShape)
                     .background(Color.DarkGray)

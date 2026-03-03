@@ -98,15 +98,32 @@ object VibeAnimations {
 
 /**
  * A modifier that adds a bouncy click effect.
- * Handles scale, rotation (subtle), and alpha changes on press.
+ * Handles scale and spring-based press animations.
+ *
+ * @param indication Pass `null` to suppress ripple. Pass `LocalIndication.current` (default) for system ripple.
+ */
+/**
+ * A modifier that adds a bouncy click effect.
+ * Handles scale and spring-based press animations.
+ *
+ * @param indication Pass `null` to suppress ripple. Pass `LocalIndication.current` (default) for system ripple.
  */
 fun Modifier.bouncyClickable(
     enabled: Boolean = true,
     scaleDown: Float = 0.92f,
+    // Use a sentinel object to distinguish "not provided" from explicit null
+    indication: Any? = IndicationSentinel,
     onClick: () -> Unit
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    
+    // Resolve indication: if it's our sentinel, use LocalIndication.current
+    val resolvedIndication = if (indication === IndicationSentinel) {
+        LocalIndication.current
+    } else {
+        indication as? androidx.compose.foundation.Indication
+    }
 
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
@@ -121,8 +138,12 @@ fun Modifier.bouncyClickable(
         }
         .clickable(
             interactionSource = interactionSource,
-            indication = LocalIndication.current,
+            indication = resolvedIndication,
             enabled = enabled,
             onClick = onClick
         )
 }
+
+/** Sentinel to detect when `indication` was not provided — avoids calling a @Composable at param site. */
+private object IndicationSentinel 
+

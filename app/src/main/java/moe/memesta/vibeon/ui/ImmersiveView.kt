@@ -37,7 +37,19 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 
 /**
  * Immersive landscape dock mode screen.
@@ -86,8 +98,17 @@ fun ImmersiveView(
             .background(Color.Black)
     ) {
         // --- Full-bleed blurred album art background ---
+        val context = LocalContext.current
+        val blurRequest = remember(currentTrack.coverUrl) {
+            ImageRequest.Builder(context)
+                .data(currentTrack.coverUrl)
+                .size(200) // Downsample to dramatically reduce GPU load for blur
+                .crossfade(true)
+                .build()
+        }
+
         AsyncImage(
-            model = currentTrack.coverUrl,
+            model = blurRequest,
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
@@ -125,41 +146,55 @@ fun ImmersiveView(
                     .fillMaxHeight(),
                 contentAlignment = Alignment.Center
             ) {
-                val animatedProgress by animateFloatAsState(
+                val animatedProgress = animateFloatAsState(
                     targetValue = playbackState.progress,
                     animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
                     label = "progress"
                 )
                 
-                val waveSpeed by animateDpAsState(
+                val waveSpeed = animateDpAsState(
                     targetValue = if (playbackState.isPlaying) 60.dp else 0.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
                     label = "waveSpeed"
+                )
+
+                val animatedAmplitude = animateFloatAsState(
+                    targetValue = if (playbackState.isPlaying) 3f else 0f,
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                    label = "amplitude"
                 )
                 
                 val thickStrokeWidth = with(LocalDensity.current) { 8.dp.toPx() }
                 val thickStroke = remember(thickStrokeWidth) { Stroke(width = thickStrokeWidth, cap = StrokeCap.Round) }
 
-                AsyncImage(
-                    model = currentTrack.coverUrl,
-                    contentDescription = "Album art",
+                AnimatedContent(
+                    targetState = currentTrack.coverUrl,
+                    transitionSpec = { fadeIn(tween(500)) togetherWith fadeOut(tween(500)) },
+                    label = "coverFade",
                     modifier = Modifier
                         .fillMaxHeight(0.60f)
                         .aspectRatio(1f)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+                        .clip(CircleShape)
+                ) { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Album art",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
 
                 CircularWavyProgressIndicator(
-                    progress = { animatedProgress },
+                    progress = { animatedProgress.value },
                     modifier = Modifier
                         .fillMaxHeight(0.80f)
                         .aspectRatio(1f),
+                    color = MaterialTheme.colorScheme.primary,
                     stroke = thickStroke,
                     trackStroke = thickStroke,
-                    amplitude = { 1f },
-                    gapSize = 1.dp,
-                    wavelength = 50.dp,
-                    waveSpeed = 30.dp
+                    amplitude = { animatedAmplitude.value },
+                    wavelength = 80.dp,
+                    waveSpeed = waveSpeed.value
                 )
             }
 
@@ -203,9 +238,20 @@ fun ImmersiveView(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Previous
+                    val prevInteraction = remember { MutableInteractionSource() }
+                    val prevPressed by prevInteraction.collectIsPressedAsState()
+                    val prevScale by animateFloatAsState(
+                        targetValue = if (prevPressed) 0.85f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                        label = "prevScale"
+                    )
+
                     FilledTonalIconButton(
                         onClick = { connectionViewModel.previous() },
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier
+                            .scale(prevScale)
+                            .size(52.dp),
+                        interactionSource = prevInteraction,
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = Color.White.copy(alpha = 0.15f),
                             contentColor = Color.White
@@ -219,15 +265,26 @@ fun ImmersiveView(
                     }
 
                     // Play / Pause — large tonal button
+                    val playInteraction = remember { MutableInteractionSource() }
+                    val playPressed by playInteraction.collectIsPressedAsState()
+                    val playScale by animateFloatAsState(
+                        targetValue = if (playPressed) 0.85f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                        label = "playScale"
+                    )
+
                     FilledIconButton(
                         onClick = {
                             if (playbackState.isPlaying) connectionViewModel.pause()
                             else connectionViewModel.play()
                         },
-                        modifier = Modifier.size(68.dp),
+                        modifier = Modifier
+                            .scale(playScale)
+                            .size(68.dp),
+                        interactionSource = playInteraction,
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Icon(
@@ -238,9 +295,20 @@ fun ImmersiveView(
                     }
 
                     // Next
+                    val nextInteraction = remember { MutableInteractionSource() }
+                    val nextPressed by nextInteraction.collectIsPressedAsState()
+                    val nextScale by animateFloatAsState(
+                        targetValue = if (nextPressed) 0.85f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                        label = "nextScale"
+                    )
+
                     FilledTonalIconButton(
                         onClick = { connectionViewModel.next() },
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier
+                            .scale(nextScale)
+                            .size(52.dp),
+                        interactionSource = nextInteraction,
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                             containerColor = Color.White.copy(alpha = 0.15f),
                             contentColor = Color.White

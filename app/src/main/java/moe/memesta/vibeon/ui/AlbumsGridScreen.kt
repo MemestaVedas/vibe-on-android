@@ -20,13 +20,16 @@ import moe.memesta.vibeon.ui.AlbumGridItem
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.data.SortOption
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun AlbumsGridScreen(
     viewModel: LibraryViewModel,
     onBackClick: () -> Unit,
     onAlbumClick: (String) -> Unit,
     onPlayAlbum: (String) -> Unit,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     val albums by viewModel.filteredAlbums.collectAsState()
     val currentSortOption by viewModel.currentAlbumSortOption.collectAsState()
@@ -105,7 +108,9 @@ fun AlbumsGridScreen(
                     artistName = album.artist,
                     coverUrl = album.coverUrl,
                     songCount = album.songCount,
-                    onClick = { onAlbumClick(album.name) }
+                    onClick = { onAlbumClick(album.name) },
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }

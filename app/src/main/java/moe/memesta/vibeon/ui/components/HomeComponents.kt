@@ -1,38 +1,29 @@
 package moe.memesta.vibeon.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.clickable
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.SongCoverShape
 import moe.memesta.vibeon.ui.theme.ArtistCoverShape
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
@@ -45,15 +36,7 @@ private val CardBorderColor = Color.White.copy(alpha = 0.09f)
 /**
  * Scale + border on press — replaces bouncyClickable for card scale up UX.
  */
-@Composable
-private fun scaleModifier(pressed: Boolean): Float {
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.96f else 1.0f,
-        animationSpec = tween(200),
-        label = "cardScale"
-    )
-    return scale
-}
+// Removed scaleModifier helper as per instruction
 
 @Composable
 fun GridTrackCard(
@@ -66,17 +49,12 @@ fun GridTrackCard(
     val title = track.getDisplayName(displayLanguage)
     val artist = track.getDisplayArtist(displayLanguage)
 
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale = scaleModifier(isPressed)
-
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(Dimens.ListItemHeight)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(Dimens.CornerRadiusMedium))
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .bouncyClickable(scaleDown = 0.97f, indication = null) { onClick() }
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -141,15 +119,10 @@ fun SquareTrackCard(
     val title = track.getDisplayName(displayLanguage)
     val artist = track.getDisplayArtist(displayLanguage)
 
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale = scaleModifier(isPressed)
-
     Column(
         modifier = modifier
             .width(Dimens.StandardCardWidth)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .bouncyClickable(scaleDown = 0.96f, indication = null) { onClick() }
     ) {
         Box(
             modifier = Modifier
@@ -192,27 +165,35 @@ fun SquareTrackCard(
     }
 }
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun AlbumCard(
     albumName: String,
     coverUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    allowImageLoad: Boolean = true
+    allowImageLoad: Boolean = true,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale = scaleModifier(isPressed)
-
     Column(
         modifier = modifier
             .width(Dimens.StandardCardWidth)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .bouncyClickable(scaleDown = 0.96f, indication = null) { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .size(Dimens.StandardCardWidth)
+                .then(
+                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "album-${albumName}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                        }
+                    } else Modifier
+                )
                 .clip(AlbumSquircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                 .border(1.dp, CardBorderColor, AlbumSquircleShape),
@@ -255,36 +236,44 @@ fun AlbumCard(
     }
 }
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun ArtistPill(
     artistName: String,
     photoUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    allowImageLoad: Boolean = true
+    allowImageLoad: Boolean = true,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale = scaleModifier(isPressed)
-
     Surface(
         color = Color.Transparent,
         shape = CircleShape,
         modifier = modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
     ) {
         Row(
             modifier = Modifier
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                 .border(1.dp, CardBorderColor, CircleShape)
-                .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+                .bouncyClickable(scaleDown = 0.95f, indication = null) { onClick() }
                 .padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
+                    .then(
+                        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                            with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "artist-${artistName}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
+                        } else Modifier
+                    )
                     .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), ArtistCoverShape)
                     .clip(ArtistCoverShape)
                     .background(MaterialTheme.colorScheme.primaryContainer),

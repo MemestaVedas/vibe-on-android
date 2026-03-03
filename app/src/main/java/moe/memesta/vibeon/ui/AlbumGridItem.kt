@@ -36,13 +36,16 @@ import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.components.AlbumSquircleShape
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun AlbumGridItem(
     albumName: String,
     artistName: String,
     coverUrl: String?,
     songCount: Int = 0,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     // Dynamic color state for each album
     var dominantColor by remember(coverUrl) { mutableStateOf<Color?>(null) }
@@ -94,6 +97,16 @@ fun AlbumGridItem(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f) // Force square aspect ratio on the entire card
+            .then(
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "album-${albumName}-grid"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    }
+                } else Modifier
+            )
             .bouncyClickable(onClick = onClick),
         shape = AlbumSquircleShape,
         colors = CardDefaults.cardColors(

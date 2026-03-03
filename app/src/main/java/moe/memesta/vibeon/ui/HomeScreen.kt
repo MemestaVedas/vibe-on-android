@@ -74,6 +74,7 @@ import moe.memesta.vibeon.ui.utils.getDisplayName
 
 // Accent color — now uses MaterialTheme.colorScheme.primary for dynamic theming
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun HomeScreen(
     viewModel: LibraryViewModel,
@@ -89,7 +90,9 @@ fun HomeScreen(
     onViewAllAlbums: () -> Unit,
     onViewAllArtists: () -> Unit,
     contentPadding: PaddingValues,
-    connectionViewModel: ConnectionViewModel
+    connectionViewModel: ConnectionViewModel,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     val tracks by viewModel.tracks.collectAsState()
     val albums by viewModel.homeAlbums.collectAsState()
@@ -445,7 +448,9 @@ fun HomeScreen(
                                 AlbumCard(
                                     albumName = album.getDisplayName(displayLanguage),
                                     coverUrl = album.coverUrl,
-                                    onClick = { onAlbumSelected(album.name) }
+                                    onClick = { onAlbumSelected(album.name) },
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
                                 )
                             }
                         }
@@ -494,7 +499,9 @@ fun HomeScreen(
                                 ArtistPill(
                                     artistName = artist.getDisplayName(displayLanguage),
                                     photoUrl = artist.photoUrl,
-                                    onClick = { onArtistSelected(artist.name) }
+                                    onClick = { onArtistSelected(artist.name) },
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
                                 )
                             }
                         }

@@ -50,7 +50,7 @@ import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun ArtistDetailScreen(
     artistName: String,
@@ -58,7 +58,9 @@ fun ArtistDetailScreen(
     navController: NavController,
     onBackClick: () -> Unit,
     onTrackSelected: (TrackInfo) -> Unit,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     val displayLanguage = LocalDisplayLanguage.current
     val tracks by viewModel.tracks.collectAsState()
@@ -167,6 +169,16 @@ fun ArtistDetailScreen(
                     Box(
                         modifier = Modifier
                             .size(200.dp)
+                            .then(
+                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                    with(sharedTransitionScope) {
+                                        Modifier.sharedElement(
+                                            sharedContentState = rememberSharedContentState(key = "artist-${decodedArtistName}"),
+                                            animatedVisibilityScope = animatedVisibilityScope
+                                        )
+                                    }
+                                } else Modifier
+                            )
                             .clip(RoundedCornerShape(100.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
@@ -372,7 +384,9 @@ fun ArtistDetailScreen(
                                          onClick = { 
                                              navController.navigate("album/${java.net.URLEncoder.encode(albumId, "UTF-8")}")
                                          },
-                                         modifier = Modifier.weight(1f)
+                                         modifier = Modifier.weight(1f),
+                                         sharedTransitionScope = sharedTransitionScope,
+                                         animatedVisibilityScope = animatedVisibilityScope
                                      )
                                  }
                                  if (rowAlbums.size < 2) {

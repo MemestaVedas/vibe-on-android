@@ -33,11 +33,14 @@ import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.theme.ArtistCoverShape
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 
+@androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun ArtistGridItem(
     artistName: String,
     photoUrl: String?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     var dominantColor by remember(photoUrl) { mutableStateOf<Color?>(null) }
     val defaultColor = MaterialTheme.colorScheme.primary
@@ -81,6 +84,16 @@ fun ArtistGridItem(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .then(
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "artist-${artistName}-grid"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    }
+                } else Modifier
+            )
             .clip(ArtistCoverShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .bouncyClickable(onClick = onClick)
