@@ -113,9 +113,7 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-        val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
-
-
+    val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
     SharedTransitionLayout {
         // Enclose everything in a Box so the PairingScreen can overlay the entire Scaffold
         Box(modifier = Modifier.fillMaxSize()) {
@@ -262,6 +260,11 @@ fun AppNavHost(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToScan = {
                             // TODO: Implement QR Scanning
+                        },
+                        onNavigateToOffline = {
+                            navController.navigate("offline_songs") {
+                                launchSingleTop = true
+                            }
                         }
                     )
                 }
@@ -329,7 +332,12 @@ fun AppNavHost(
                             connectionViewModel.connectToDevice(device)
                         },
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToScan = { /* TODO: QR pairing */ }
+                        onNavigateToScan = { /* TODO: QR pairing */ },
+                        onNavigateToOffline = {
+                            navController.navigate("offline_songs") {
+                                launchSingleTop = true
+                            }
+                        }
                     )
                 }
                 
@@ -519,6 +527,13 @@ fun AppNavHost(
                             }
                         )
                     }
+
+                    composable("offline_songs") {
+                        OfflineSongsScreen(
+                            contentPadding = innerPadding,
+                            playbackViewModel = playbackViewModel
+                        )
+                    }
                 }
 
                 // Home screen walkthrough — one-time overlay after first connection
@@ -666,6 +681,11 @@ fun AppNavHost(
                     // Trigger walkthrough for new users after first connection
                     if (!onboardingManager.isWalkthroughCompleted) {
                         showWalkthrough = true
+                    }
+                },
+                onNavigateToOffline = {
+                    navController.navigate("offline_songs") {
+                        launchSingleTop = true
                     }
                 },
                 onTroubleshoot = {

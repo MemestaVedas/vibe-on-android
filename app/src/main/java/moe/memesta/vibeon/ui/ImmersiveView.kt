@@ -128,9 +128,9 @@ fun ImmersiveView(
                 .background(
                     Brush.horizontalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.65f),
-                            Color.Black.copy(alpha = 0.40f),
-                            Color.Black.copy(alpha = 0.65f)
+                            Color.Black.copy(alpha = 0.75f),
+                            Color.Black.copy(alpha = 0.50f),
+                            Color.Black.copy(alpha = 0.75f)
                         )
                     )
                 )
@@ -153,9 +153,9 @@ fun ImmersiveView(
                 modifier = Modifier.size(48.dp),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = if (isMobilePlayback) 
-                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.8f)
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.9f)
                     else 
-                        Color.White.copy(alpha = 0.15f),
+                        Color.White.copy(alpha = 0.2f),
                     contentColor = if (isMobilePlayback)
                         MaterialTheme.colorScheme.onTertiaryContainer
                     else
@@ -336,7 +336,7 @@ fun ImmersiveView(
                             .size(52.dp),
                         interactionSource = prevInteraction,
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.White.copy(alpha = 0.15f),
+                            containerColor = Color.White.copy(alpha = 0.25f),
                             contentColor = Color.White
                         )
                     ) {
@@ -393,7 +393,7 @@ fun ImmersiveView(
                             .size(52.dp),
                         interactionSource = nextInteraction,
                         colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.White.copy(alpha = 0.15f),
+                            containerColor = Color.White.copy(alpha = 0.25f),
                             contentColor = Color.White
                         )
                     ) {

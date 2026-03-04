@@ -49,7 +49,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -416,50 +415,6 @@ fun NowPlayingContent(
         }
     }
     
-    // Album scale - no breathing effect
-    val albumScale = 1f
-
-    // Pulse halo visualizer around album art
-    val haloTransition = rememberInfiniteTransition(label = "halo")
-    val haloScaleOuter by haloTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.25f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "haloScaleOuter"
-    )
-    val haloScaleInner by haloTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-            initialStartOffset = StartOffset(1100)
-        ),
-        label = "haloScaleInner"
-    )
-    val haloAlphaOuter by haloTransition.animateFloat(
-        initialValue = 0.28f,
-        targetValue = 0.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "haloAlphaOuter"
-    )
-    val haloAlphaInner by haloTransition.animateFloat(
-        initialValue = 0.22f,
-        targetValue = 0.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-            initialStartOffset = StartOffset(1100)
-        ),
-        label = "haloAlphaInner"
-    )
-    
     // Japanese dual-text: show romaji subtitle if the display title differs from original
     val showRomajiSubtitle = !titleRomaji.isNullOrBlank() && !titleRomaji.equals(title, ignoreCase = true) && !titleRomaji.equals(originalTitle, ignoreCase = true)
     val romajiSubtitle = if (showRomajiSubtitle) titleRomaji else null
@@ -708,8 +663,8 @@ fun NowPlayingContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.Rounded.Replay10,
-                            contentDescription = "Previous",
+                            Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous track",
                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(28.dp)
                         )
@@ -744,8 +699,8 @@ fun NowPlayingContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.Rounded.Forward10,
-                            contentDescription = "Next",
+                            Icons.Rounded.SkipNext,
+                            contentDescription = "Next track",
                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(28.dp)
                         )
@@ -1046,49 +1001,11 @@ fun SquigglyProgressBar(
     val clampedProgress = progress.let { if (it.isNaN()) 0f else it.coerceIn(0f, 1f) }
     val currentTarget = if (isDragging) dragProgress else clampedProgress
 
-    val renderedProgress = remember { mutableFloatStateOf(currentTarget) }
-    var lastProgressUpdateNanos by remember { mutableLongStateOf(0L) }
-
-    LaunchedEffect(clampedProgress, isDragging) {
-        if (!isDragging) {
-            dragProgress = clampedProgress
-        }
-    }
-
-    LaunchedEffect(currentTarget, isDragging) {
-        if (isDragging) {
-            renderedProgress.floatValue = currentTarget
-            lastProgressUpdateNanos = System.nanoTime()
-            return@LaunchedEffect
-        }
-
-        val target = currentTarget.coerceIn(0f, 1f)
-        val nowNanos = System.nanoTime()
-        val intervalMs = if (lastProgressUpdateNanos == 0L) {
-            180L
-        } else {
-            ((nowNanos - lastProgressUpdateNanos) / 1_000_000L).coerceAtLeast(1L)
-        }
-        lastProgressUpdateNanos = nowNanos
-
-        val start = renderedProgress.floatValue
-        if (abs(start - target) <= 0.0001f) {
-            renderedProgress.floatValue = target
-            return@LaunchedEffect
-        }
-
-        val durationNanos = (intervalMs * 900_000L).coerceAtLeast(1_000_000L)
-        var startFrameNanos = 0L
-        while (isActive) {
-            val frameNanos = withFrameNanos { it }
-            if (startFrameNanos == 0L) startFrameNanos = frameNanos
-            val elapsedNanos = (frameNanos - startFrameNanos).coerceAtLeast(0L)
-            val fraction = (elapsedNanos.toDouble() / durationNanos.toDouble()).toFloat().coerceIn(0f, 1f)
-            renderedProgress.floatValue = start + (target - start) * fraction
-            if (fraction >= 1f) break
-        }
-        renderedProgress.floatValue = target
-    }
+    val renderedProgress = animateFloatAsState(
+        targetValue = currentTarget,
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
+        label = "SquigglyAnim"
+    )
 
     val thumbInteractionFraction by animateFloatAsState(
         targetValue = if (isDragging) 1f else 0f,
@@ -1179,7 +1096,7 @@ fun SquigglyProgressBar(
             val trackStart = thumbRadiusPx
             val trackEnd = (size.width - thumbRadiusPx).coerceAtLeast(trackStart)
             val trackWidth = (trackEnd - trackStart).coerceAtLeast(0f)
-            val progressValue = renderedProgress.floatValue.coerceIn(0f, 1f)
+            val progressValue = renderedProgress.value.coerceIn(0f, 1f)
             val progressPxEnd = trackStart + (trackWidth * progressValue)
 
             if (progressPxEnd < trackEnd) {

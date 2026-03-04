@@ -341,15 +341,37 @@ class WidgetActionCallback : ActionCallback {
 
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val action = parameters[actionKey] ?: return
-        val intent = Intent(context, PlaybackService::class.java).apply { this.action = action }
+        val wsClient = moe.memesta.vibeon.MediaNotificationManager.wsClient
+        
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            when (action) {
+                WidgetActions.ACTION_PLAY_PAUSE -> {
+                    val isPlaying = moe.memesta.vibeon.MediaNotificationManager.wsClient?.isPlaying?.value == true
+                    if (isPlaying) wsClient?.sendPause() else wsClient?.sendPlay()
+                }
+                WidgetActions.ACTION_NEXT -> wsClient?.sendNext()
+                WidgetActions.ACTION_PREVIOUS -> wsClient?.sendPrevious()
+                WidgetActions.ACTION_SHUFFLE -> wsClient?.sendToggleShuffle()
+                WidgetActions.ACTION_FAVORITE -> {
+                    val trackPath = moe.memesta.vibeon.MediaNotificationManager.currentTrackPath
+                    if (!trackPath.isNullOrEmpty()) wsClient?.sendToggleFavorite(trackPath)
+                }
+                WidgetActions.ACTION_TOGGLE_OUTPUT -> {
+                    val isMobile = moe.memesta.vibeon.MediaNotificationManager.isMobilePlayback
+                    if (isMobile) wsClient?.sendStopMobilePlayback() else wsClient?.sendStartMobilePlayback()
+                }
+                else -> {
+                    // Start service as fallback if action is unknown
+                    val intent = Intent(context, PlaybackService::class.java).apply { this.action = action }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                }
             }
         } catch (e: Exception) {
-            Log.w("WidgetAction", "Cannot start service for $action", e)
+            Log.w("WidgetAction", "Cannot execute action for $action", e)
         }
     }
 }

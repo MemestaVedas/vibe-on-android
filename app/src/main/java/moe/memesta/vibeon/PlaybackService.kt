@@ -35,6 +35,7 @@ class PlaybackService : MediaSessionService() {
 
     companion object {
         var streamRepository: StreamRepository? = null
+        var isOfflineMode = false
 
         const val ACTION_SHUFFLE = "moe.memesta.vibeon.ACTION_SHUFFLE"
         const val ACTION_FAVORITE = "moe.memesta.vibeon.ACTION_FAVORITE"
@@ -161,9 +162,7 @@ class PlaybackService : MediaSessionService() {
     fun startSilentPlayback() {
         if (isSilentMode) return
         
-        val silenceMediaSource = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(
-            SilenceDataSource.Factory()
-        ).createMediaSource(MediaItem.fromUri("silence://infinite"))
+            val silenceMediaSource = androidx.media3.exoplayer.source.SilenceMediaSource(Long.MAX_VALUE)
 
         val metadata = MediaMetadata.Builder()
             .setTitle("Vibe-On")
@@ -177,6 +176,8 @@ class PlaybackService : MediaSessionService() {
             .build()
             
         isForwardingEnabled = false
+        // SilenceMediaSource doesn't need MediaItem set via setMediaSource this way, it has its own empty item. Wait, SilenceMediaSource takes duration.
+        // Wait, Media3 SilenceMediaSource constructor is `SilenceMediaSource(Long)`
         player.setMediaSource(silenceMediaSource)
         player.playWhenReady = true
         // No need for REPEAT_MODE_ONE since SilenceDataSource is practically infinite
@@ -356,7 +357,7 @@ class PlaybackService : MediaSessionService() {
         }
 
         override fun seekTo(positionMs: Long) {
-            if (isSilentMode) {
+            if (isSilentMode && !isOfflineMode) {
                 // In silent mode, everything is on PC
                 if (isForwardingEnabled) {
                     MediaNotificationManager.wsClient?.sendSeek(positionMs / 1000.0)
@@ -372,7 +373,7 @@ class PlaybackService : MediaSessionService() {
 
         override fun play() {
             super.play()
-            if (isForwardingEnabled) {
+            if (isForwardingEnabled && !isOfflineMode) {
                 MediaNotificationManager.wsClient?.sendPlay()
                 Log.i("PlaybackService", "▶️ Play forwarded to PC")
             }
@@ -380,46 +381,46 @@ class PlaybackService : MediaSessionService() {
 
         override fun pause() {
             super.pause()
-            if (isForwardingEnabled) {
+            if (isForwardingEnabled && !isOfflineMode) {
                 MediaNotificationManager.wsClient?.sendPause()
                 Log.i("PlaybackService", "⏸️ Pause forwarded to PC")
             }
         }
 
         override fun seekToNext() {
-            if (isForwardingEnabled) {
+            if (isForwardingEnabled && !isOfflineMode) {
                 val now = System.currentTimeMillis()
                 if (now - lastNextSentTime > SKIP_DEBOUNCE_MS) {
                     lastNextSentTime = now
                     MediaNotificationManager.wsClient?.sendNext()
                     Log.i("PlaybackService", "⏭️ Next forwarded to PC")
                 }
-            } else if (!isSilentMode) {
+            } else if (!isSilentMode || isOfflineMode) {
                 super.seekToNext()
             }
         }
 
         override fun seekToPrevious() {
-            if (isForwardingEnabled) {
+            if (isForwardingEnabled && !isOfflineMode) {
                 MediaNotificationManager.wsClient?.sendPrevious()
                 Log.i("PlaybackService", "⏮️ Previous forwarded to PC")
-            } else if (!isSilentMode) {
+            } else if (!isSilentMode || isOfflineMode) {
                 super.seekToPrevious()
             }
         }
 
         override fun seekToNextMediaItem() {
-            if (isForwardingEnabled) {
+            if (isForwardingEnabled && !isOfflineMode) {
                 MediaNotificationManager.wsClient?.sendNext()
-            } else if (!isSilentMode) {
+            } else if (!isSilentMode || isOfflineMode) {
                 super.seekToNextMediaItem()
             }
         }
 
         override fun seekToPreviousMediaItem() {
-            if (isForwardingEnabled) {
+            if (isForwardingEnabled && !isOfflineMode) {
                 MediaNotificationManager.wsClient?.sendPrevious()
-            } else if (!isSilentMode) {
+            } else if (!isSilentMode || isOfflineMode) {
                 super.seekToPreviousMediaItem()
             }
         }

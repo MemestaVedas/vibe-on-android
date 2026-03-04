@@ -1,6 +1,7 @@
 package moe.memesta.vibeon.ui
 
 import android.util.Log
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaMetadata
@@ -13,11 +14,15 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.WebSocketClient
 import moe.memesta.vibeon.MediaNotificationManager
 import uniffi.vibe_on_core.StreamHeader
+import moe.memesta.vibeon.PlaybackService
 
 class PlaybackViewModel(
     private val webSocketClient: WebSocketClient,
     private var player: Player? = null
 ) : ViewModel() {
+    
+    private val _offlineSong = MutableStateFlow<OfflineSong?>(null)
+    val offlineSong: StateFlow<OfflineSong?> = _offlineSong.asStateFlow()
     
     fun setPlayer(player: Player) {
         this.player = player
@@ -30,10 +35,14 @@ class PlaybackViewModel(
     val isMobilePlayback: StateFlow<Boolean> = _isMobilePlayback.asStateFlow()
 
     init {
-        // Listen for WebSocket stream URL updates
+        // Listen for WebSocket stream URL updates — consume-and-clear to prevent stale re-triggers
         viewModelScope.launch {
             webSocketClient.streamUrl.collect { url ->
-                url?.let { startMobileStreaming(it) }
+                if (url != null) {
+                    // Immediately consume so re-subscriptions don't re-trigger this
+                    webSocketClient.consumeStreamUrl()
+                    startMobileStreaming(url)
+                }
             }
         }
         
@@ -89,8 +98,16 @@ class PlaybackViewModel(
     }
     
     private var streamingListener: Player.Listener? = null
+    private var currentStreamUrl: String? = null
 
     private fun startMobileStreaming(url: String) {
+        // Guard: skip if already playing this exact URL
+        if (url == currentStreamUrl && player?.playbackState == Player.STATE_READY) {
+            Log.i("PlaybackViewModel", "⏭️ Already streaming $url — skipping re-trigger")
+            return
+        }
+        currentStreamUrl = url
+
         // Exit silent notification mode before loading real audio
         MediaNotificationManager.exitSilentMode()
         Log.i("PlaybackViewModel", "🔓 Exited silent mode for mobile streaming")
@@ -113,6 +130,10 @@ class PlaybackViewModel(
 
             p.setMediaItem(mediaItem)
             p.prepare()
+
+            // Remove any previous streaming listener before adding a new one
+            streamingListener?.let { p.removeListener(it) }
+            streamingListener = null
 
             val handoffSecs = webSocketClient.handoffPosition.value
             if (handoffSecs > 0) {
@@ -197,6 +218,7 @@ class PlaybackViewModel(
     
     private fun stopMobileStreaming() {
         progressJob?.cancel()
+        currentStreamUrl = null
         player?.let { p ->
             Log.i("PlaybackViewModel", "⏹️ Stopping mobile streaming")
             streamingListener?.let { p.removeListener(it) }
@@ -246,8 +268,60 @@ class PlaybackViewModel(
     fun seekTo(positionMs: Long) {
         player?.seekTo(positionMs)
     }
+
+    fun playOfflineSong(song: OfflineSong) {
+        PlaybackService.isOfflineMode = true
+        _offlineSong.value = song
+        _playbackState.value = _playbackState.value.copy(
+            title = song.title,
+            artist = song.artist,
+            duration = song.duration
+        )
+        
+        MediaNotificationManager.exitSilentMode()
+
+        player?.let { p ->
+            val metadata = MediaMetadata.Builder()
+                .setTitle(song.title)
+                .setArtist(song.artist)
+                // Use a generic placeholder, media session handles real art if needed via MNM
+                .build()
+
+            val mediaItem = MediaItem.Builder()
+                .setUri(song.uri)
+                .setMediaId(song.uri)
+                .setMediaMetadata(metadata)
+                .build()
+
+            p.setMediaItem(mediaItem)
+            p.prepare()
+            p.play()
+            
+            // Re-use progress polling
+            _isMobilePlayback.value = true
+            startProgressPolling()
+        }
+    }
+
+    fun stopOfflinePlayback() {
+        if (_offlineSong.value != null) {
+            PlaybackService.isOfflineMode = false
+            _offlineSong.value = null
+            _isMobilePlayback.value = false
+            stopMobileStreaming()
+            // Reset to current track from PC
+            webSocketClient.currentTrack.value.let { track ->
+                _playbackState.value = _playbackState.value.copy(
+                    title = track.title,
+                    artist = track.artist,
+                    duration = track.duration.toLong() * 1000
+                )
+            }
+        }
+    }
 }
 
+@Stable
 data class PlaybackState(
     val title: String = "No Track",
     val artist: String = "Unknown Artist",

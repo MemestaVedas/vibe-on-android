@@ -174,9 +174,10 @@ fun BottomPlayerBar(
                         scaleX = scale
                         scaleY = scale
                     }
-                    .clip(RoundedCornerShape(40.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(40.dp))
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                    .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(32.dp))
+                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(32.dp), spotColor = Color.Black.copy(alpha = 0.05f))
                     .pointerInput(connectionViewModel) {
                         detectDragGestures(
                             onDragStart = { },

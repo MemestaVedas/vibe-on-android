@@ -269,13 +269,13 @@ fun TrackListItem(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
-        shape = RoundedCornerShape(Dimens.CornerRadiusLarge),
+        shape = RoundedCornerShape(16.dp), // Softened corner radius
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(14.dp), // Increased padding
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -293,7 +293,7 @@ fun TrackListItem(
                     contentDescription = title,
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(SongCoverShape),
+                        .clip(RoundedCornerShape(10.dp)), // Softer cover shape
                     contentScale = ContentScale.Crop
                 )
             } else if (track.coverUrl != null && !allowImageLoad) {
@@ -301,14 +301,14 @@ fun TrackListItem(
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(SongCoverShape)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .clip(SongCoverShape)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {

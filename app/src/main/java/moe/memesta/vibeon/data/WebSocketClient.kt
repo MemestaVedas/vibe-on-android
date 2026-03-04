@@ -1,12 +1,14 @@
 package moe.memesta.vibeon.data
 
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.*
 import org.json.JSONObject
 
+@Immutable
 data class MediaSessionData(
     val title: String = "No Track",
     val artist: String = "Unknown Artist",
@@ -23,6 +25,7 @@ data class MediaSessionData(
     val path: String = ""
 )
 
+@Immutable
 data class QueueItem(
     val path: String,
     val title: String,
@@ -38,6 +41,7 @@ data class QueueItem(
     val albumEn: String? = null
 )
 
+@Immutable
 data class LyricsData(
     val trackPath: String = "",
     val hasSynced: Boolean = false,
@@ -47,6 +51,7 @@ data class LyricsData(
     val instrumental: Boolean = false
 )
 
+@Immutable
 data class PlaylistInfo(
     val id: String,
     val name: String,
@@ -150,12 +155,10 @@ class WebSocketClient {
         webSocket = okHttpClient.newWebSocket(request, VibeonWebSocketListener(this, clientName))
     }
     
-    fun getLyrics() {
-        val message = JSONObject().apply {
-            put("type", "getLyrics")
-        }
+    /** Requests lyrics for the current track from the server. */
+    fun sendGetLyricsForCurrentTrack() {
         _isLoadingLyrics.value = true
-        sendMessage(message)
+        sendGetLyrics()
     }
     
     fun disconnect() {
@@ -243,6 +246,14 @@ class WebSocketClient {
             put("type", "getLibrary")
         }
         sendMessage(message)
+    }
+
+    /**
+     * Consumes the pending stream URL so it won't re-trigger [PlaybackViewModel]
+     * on recomposition. Call this immediately after starting mobile streaming.
+     */
+    fun consumeStreamUrl() {
+        _streamUrl.value = null
     }
 
     
@@ -446,20 +457,11 @@ class WebSocketClient {
                             client.lastTrackId = trackId
                             // Clear old lyrics and fetch new ones
                             client._lyrics.value = null
-                            client.getLyrics()
+                            client.sendGetLyricsForCurrentTrack()
                         }
-                        var coverUrl = json.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
+                        val rawCover = json.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
                             ?: json.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
-
-                        if (coverUrl != null && !coverUrl.startsWith("http")) {
-                            coverUrl = if (coverUrl.startsWith("/")) {
-                                "${client.baseUrl}$coverUrl"
-                            } else {
-                                "${client.baseUrl}/$coverUrl"
-                            }
-                        }
-                        
-                        Log.i("WebSocket", "🖼️ Resolved Cover URL: $coverUrl (Base: ${client.baseUrl}, Original: ${json.optString("cover_url") ?: json.optString("coverUrl")})")
+                        val coverUrl = resolveCoverUrl(rawCover, client.baseUrl)
                         
                         val hasLyrics = json.has("lyrics")
                         val lyricsLen = json.optString("lyrics", "").length
@@ -532,44 +534,14 @@ class WebSocketClient {
                         Log.i("WebSocket", "▶️ Playback state: Playing=$isPlaying, Position=$position")
                     }
                     "progressUpdate" -> {
-                        // Handle progress updates
                         val position = json.optDouble("positionSecs", 0.0)
                         client._progress.value = position
-                        Log.d("WebSocket", "⏱️ Progress: $position")
+                        // High-frequency: no log to avoid spam
                     }
                     "queueUpdate" -> {
-                        // Handle queue updates
-                        val queueArray = json.optJSONArray("queue") ?: return
-                        val queueItems = mutableListOf<QueueItem>()
-
-                        for (i in 0 until queueArray.length()) {
-                            val trackObj = queueArray.getJSONObject(i)
-                            var qCoverUrl = trackObj.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
-                                ?: trackObj.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
-                            
-                            if (qCoverUrl != null && !qCoverUrl.startsWith("http")) {
-                                qCoverUrl = if (qCoverUrl.startsWith("/")) {
-                                    "${client.baseUrl}$qCoverUrl"
-                                } else {
-                                    "${client.baseUrl}/$qCoverUrl"
-                                }
-                            }
-                            queueItems.add(
-                                QueueItem(
-                                    path = trackObj.getString("path"),
-                                    title = trackObj.getString("title"),
-                                    artist = trackObj.getString("artist"),
-                                    album = trackObj.getString("album"),
-                                    duration = trackObj.optDouble("durationSecs", 0.0),
-                                    coverUrl = qCoverUrl,
-                                    titleRomaji = trackObj.optString("titleRomaji", null).takeIf { it != "null" },
-                                    titleEn = trackObj.optString("titleEn", null).takeIf { it != "null" },
-                                    artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
-                                    artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
-                                    albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
-                                    albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" }
-                                )
-                            )
+                        val queueArray = json.optJSONArray("items") ?: return
+                        val queueItems = (0 until queueArray.length()).map { i ->
+                            queueArray.getJSONObject(i).toQueueItem(client.baseUrl)
                         }
                         client._queue.value = queueItems
                         client._currentIndex.value = json.optInt("currentIndex", 0)
@@ -661,44 +633,12 @@ class WebSocketClient {
                         Log.i("WebSocket", "📚 Received ${playlistsList.size} playlists")
                     }
                     "library" -> {
-                        // Handle library update
                         val tracksArray = json.optJSONArray("tracks")
-                        val tracksList = mutableListOf<TrackInfo>()
-                        
-                        if (tracksArray != null) {
-                            for (i in 0 until tracksArray.length()) {
-                                val trackObj = tracksArray.getJSONObject(i)
-                                var libCoverUrl = trackObj.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
-                                    ?: trackObj.optString("cover_url", null)?.takeIf { it != "null" && it.isNotEmpty() }
-                                
-                                if (libCoverUrl != null && !libCoverUrl.startsWith("http")) {
-                                    libCoverUrl = if (libCoverUrl.startsWith("/")) {
-                                        "${client.baseUrl}$libCoverUrl"
-                                    } else {
-                                        "${client.baseUrl}/$libCoverUrl"
-                                    }
-                                }
-                                
-                                tracksList.add(
-                                    TrackInfo(
-                                        path = trackObj.getString("path"),
-                                        title = trackObj.getString("title"),
-                                        artist = trackObj.getString("artist"),
-                                        album = trackObj.getString("album"),
-                                        duration = trackObj.optDouble("durationSecs", 0.0),
-                                        coverUrl = libCoverUrl,
-                                        titleRomaji = trackObj.optString("titleRomaji", null).takeIf { it != "null" },
-                                        titleEn = trackObj.optString("titleEn", null).takeIf { it != "null" },
-                                        artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
-                                        artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
-                                        albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
-                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" },
-                                        playlistTrackId = trackObj.optLong("playlistTrackId", -1L).takeIf { it != -1L }
-                                    )
-                                )
+                        val tracksList = if (tracksArray != null) {
+                            (0 until tracksArray.length()).map { i ->
+                                tracksArray.getJSONObject(i).toTrackInfo(client.baseUrl)
                             }
-                        }
-                        
+                        } else emptyList()
                         client._library.value = tracksList
                         Log.i("WebSocket", "📚 Library updated with ${tracksList.size} tracks")
                     }
@@ -720,41 +660,13 @@ class WebSocketClient {
                         client._streamUrl.value = null
                     }
                     "playlistTracks" -> {
-                        // Handle playlist tracks response
                         val tracksArray = json.optJSONArray("tracks")
                         val playlistId = json.optString("playlistId", "")
-                        val tracksList = mutableListOf<TrackInfo>()
-                        
-                        if (tracksArray != null) {
-                            for (i in 0 until tracksArray.length()) {
-                                val trackObj = tracksArray.getJSONObject(i)
-                                var coverUrl = trackObj.optString("coverUrl", null)
-                                    ?: trackObj.optString("cover_url", null)
-                                
-                                if (coverUrl != null && !coverUrl.startsWith("http")) {
-                                    coverUrl = "${client.baseUrl}$coverUrl"
-                                }
-                                
-                                tracksList.add(
-                                    TrackInfo(
-                                        path = trackObj.getString("path"),
-                                        title = trackObj.getString("title"),
-                                        artist = trackObj.getString("artist"),
-                                        album = trackObj.getString("album"),
-                                        duration = trackObj.optDouble("durationSecs", 0.0),
-                                        coverUrl = coverUrl,
-                                        titleRomaji = trackObj.optString("titleRomaji", null).takeIf { it != "null" },
-                                        titleEn = trackObj.optString("titleEn", null).takeIf { it != "null" },
-                                        artistRomaji = trackObj.optString("artistRomaji", null).takeIf { it != "null" },
-                                        artistEn = trackObj.optString("artistEn", null).takeIf { it != "null" },
-                                        albumRomaji = trackObj.optString("albumRomaji", null).takeIf { it != "null" },
-                                        albumEn = trackObj.optString("albumEn", null).takeIf { it != "null" },
-                                        playlistTrackId = trackObj.optLong("playlistTrackId", -1L).takeIf { it != -1L }
-                                    )
-                                )
+                        val tracksList = if (tracksArray != null) {
+                            (0 until tracksArray.length()).map { i ->
+                                tracksArray.getJSONObject(i).toTrackInfo(client.baseUrl)
                             }
-                        }
-                        
+                        } else emptyList()
                         client._currentPlaylistTracks.value = tracksList
                         Log.i("WebSocket", "📚 Playlist $playlistId received ${tracksList.size} tracks")
                     }
