@@ -18,6 +18,7 @@ fun MainContentPager(
     libraryViewModel: LibraryViewModel,
     statsViewModel: moe.memesta.vibeon.ui.stats.StatsViewModel?,
     connectionViewModel: ConnectionViewModel,
+    playbackViewModel: PlaybackViewModel,
     favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     navController: NavController,
@@ -44,6 +45,7 @@ fun MainContentPager(
                 onArtistSelected = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
                 onSearchClick = onSearchClick,
                 onViewAllSongs = { navController.navigate("all_songs") },
+                onViewPlaylists = { navController.navigate("playlists") },
                 onViewStats = { navController.navigate("stats") },
                     onViewTorrents = { navController.navigate("torrents") },
                     onViewServerDetails = { navController.navigate("server_details") },
@@ -74,11 +76,9 @@ fun MainContentPager(
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope
             )
-            2 -> PlaylistsScreen(
-                viewModel = connectionViewModel,
-                libraryViewModel = libraryViewModel,
+            2 -> OfflineSongsScreen(
                 contentPadding = contentPadding,
-                onPlaylistSelected = { playlistId -> navController.navigate("playlist/${URLEncoder.encode(playlistId, "UTF-8")}") }
+                playbackViewModel = playbackViewModel
             )
             3 -> ArtistsListScreen(
                 viewModel = libraryViewModel,

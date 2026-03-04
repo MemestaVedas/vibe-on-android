@@ -344,6 +344,7 @@ fun AppNavHost(
                             libraryViewModel = libraryViewModel,
                             statsViewModel = statsViewModel,
                             connectionViewModel = connectionViewModel,
+                            playbackViewModel = playbackViewModel,
                             favoritesManager = favoritesManager,
                             playerSettingsRepository = playerSettingsRepository,
                             navController = navController,
@@ -472,6 +473,19 @@ fun AppNavHost(
                     }
                 }
                 // (Discovery, library, albums, search, artists, detail screens are above)
+                
+                composable("playlists") {
+                    if (libraryViewModel != null) {
+                        PlaylistsScreen(
+                            viewModel = connectionViewModel,
+                            libraryViewModel = libraryViewModel,
+                            contentPadding = innerPadding,
+                            onPlaylistSelected = { playlistId ->
+                                navController.navigate("playlist/${java.net.URLEncoder.encode(playlistId, "UTF-8")}")
+                            }
+                        )
+                    }
+                }
                 
                 composable("settings") {
                     LaunchedEffect(Unit) {

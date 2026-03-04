@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,6 +85,7 @@ fun HomeScreen(
     onArtistSelected: (String) -> Unit,
     onSearchClick: () -> Unit,
     onViewAllSongs: () -> Unit,
+    onViewPlaylists: () -> Unit,
     onViewStats: () -> Unit,
         onViewTorrents: () -> Unit,
         onViewServerDetails: () -> Unit,
@@ -282,6 +284,23 @@ fun HomeScreen(
                             onClick = {
                                 scope.launch { drawerState.close() }
                                 onViewAllSongs()
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.PlaylistPlay,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            label = { Text("Playlists") },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                onViewPlaylists()
                             },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )

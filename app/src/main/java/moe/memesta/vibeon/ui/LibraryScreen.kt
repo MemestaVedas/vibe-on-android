@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.VibeContainedLoadingIndicator
 import moe.memesta.vibeon.ui.theme.Dimens
