@@ -2,6 +2,7 @@ package moe.memesta.vibeon.data
 
 import android.util.Log
 import androidx.compose.runtime.Immutable
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,6 +75,14 @@ class WebSocketClient {
     var port: Int = 5000
         private set
     private var baseUrl: String = ""
+    private var clientName: String = "Android"
+
+    // Reconnection state
+    private var reconnectJob: Job? = null
+    private var reconnectAttempts = 0
+    private val maxReconnectAttempts = 10
+    private val baseReconnectDelay = 1000L // 1 second
+    private val reconnectScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     
     private val _messages = MutableStateFlow<String>("")
@@ -143,7 +152,9 @@ class WebSocketClient {
     fun connect(host: String, port: Int, clientName: String = "Android") {
         this.host = host
         this.port = port
+        this.clientName = clientName
         baseUrl = "http://$host:$port"
+        reconnectAttempts = 0 // Reset on explicit connect
 
         val wsUrl = "ws://$host:$port/control"
         Log.d("WebSocket", "Connecting to $wsUrl")
@@ -155,6 +166,25 @@ class WebSocketClient {
         webSocket = okHttpClient.newWebSocket(request, VibeonWebSocketListener(this, clientName))
     }
     
+    private fun scheduleReconnect() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            Log.w("WebSocket", "⚠️ Max reconnect attempts ($maxReconnectAttempts) reached. Giving up.")
+            return
+        }
+        val delay = baseReconnectDelay * (1L shl reconnectAttempts.coerceAtMost(5)) // Cap at 32s
+        reconnectAttempts++
+        Log.i("WebSocket", "🔄 Reconnecting in ${delay}ms (attempt $reconnectAttempts/$maxReconnectAttempts)")
+        reconnectJob?.cancel()
+        reconnectJob = reconnectScope.launch {
+            delay(delay)
+            try {
+                connect(host, port, clientName)
+            } catch (e: Exception) {
+                Log.e("WebSocket", "Reconnect failed: ${e.message}")
+            }
+        }
+    }
+    
     /** Requests lyrics for the current track from the server. */
     fun sendGetLyricsForCurrentTrack() {
         _isLoadingLyrics.value = true
@@ -162,6 +192,8 @@ class WebSocketClient {
     }
     
     fun disconnect() {
+        reconnectJob?.cancel() // Cancel any pending reconnect
+        reconnectAttempts = maxReconnectAttempts // Prevent auto-reconnect
         webSocket?.close(1000, "Client disconnecting")
         webSocket = null
         _isConnected.value = false
@@ -498,7 +530,12 @@ class WebSocketClient {
                         // Update status (volume, shuffle, repeat, favorites)
                         val volume = json.optDouble("volume", 0.5)
                         val isShuffled = json.optBoolean("shuffle", false) || json.optBoolean("isShuffled", false)
-                        val repeatMode = json.optString("repeat", "off").takeIf { it.isNotEmpty() } ?: "off"
+                        // Server sends "repeatMode" (via serde camelCase), fallback to other variants
+                        val repeatMode = json.optString("repeatMode", "").ifEmpty {
+                            json.optString("repeat_mode", "")
+                        }.ifEmpty {
+                            json.optString("repeat", "off")
+                        }
                         
                         client._volume.value = volume
                         client._isShuffled.value = isShuffled
@@ -538,13 +575,16 @@ class WebSocketClient {
                         client._progress.value = position
                         // High-frequency: no log to avoid spam
                     }
-                    "queueUpdate" -> {
-                        val queueArray = json.optJSONArray("items") ?: return
+                    "queueUpdate", "QueueUpdate" -> {
+                        val queueArray = json.optJSONArray("queue")
+                            ?: json.optJSONArray("items")
+                            ?: return
                         val queueItems = (0 until queueArray.length()).map { i ->
                             queueArray.getJSONObject(i).toQueueItem(client.baseUrl)
                         }
                         client._queue.value = queueItems
-                        client._currentIndex.value = json.optInt("currentIndex", 0)
+                        client._currentIndex.value = json.optInt("currentIndex", 
+                            json.optInt("current_index", 0))
                         Log.i("WebSocket", "📋 Queue updated with ${queueItems.size} tracks")
                     }
                     "statsUpdated" -> {
@@ -557,14 +597,14 @@ class WebSocketClient {
                         var url = json.optString("url")
                         val sample = json.optLong("sample", 0)
                         
-                        // Robustness: If server returned localhost (127.0.0.1) but we are connected via a real IP,
+                        // Robustness: If server returned localhost/loopback but we are connected via a real IP,
                         // swap it out so the phone can actually reach the stream.
                         client.baseUrl?.let { baseUrl ->
-                            if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) {
+                            if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost") || url.startsWith("http://0.0.0.0")) {
                                 val streamIndex = url.indexOf("/stream")
                                 if (streamIndex != -1) {
                                     url = baseUrl + url.substring(streamIndex)
-                                    Log.w("WebSocket", "⚠️ Replaced localhost with connected baseUrl: $url")
+                                    Log.w("WebSocket", "⚠️ Replaced loopback address with connected baseUrl: $url")
                                 }
                             }
                         }
@@ -685,11 +725,15 @@ class WebSocketClient {
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             Log.d("WebSocket", "Closed: $code $reason")
             client._isConnected.value = false
+            if (code != 1000) { // Don't reconnect if we closed intentionally
+                client.scheduleReconnect()
+            }
         }
         
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            Log.e("WebSocket", "Error: ${t.message}")
+            Log.e("WebSocket", "❌ Connection error: ${t.message}")
             client._isConnected.value = false
+            client.scheduleReconnect()
         }
     }
 }
