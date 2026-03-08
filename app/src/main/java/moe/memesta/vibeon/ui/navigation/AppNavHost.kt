@@ -8,17 +8,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.core.EaseInCubic
-import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.*
 import androidx.compose.foundation.layout.*
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
@@ -41,7 +38,6 @@ import moe.memesta.vibeon.ui.onboarding.WelcomeScreen
 import moe.memesta.vibeon.ui.onboarding.OnboardingOverlay
 import moe.memesta.vibeon.data.local.OnboardingManager
 import moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl
-import moe.memesta.vibeon.ui.utils.rememberIsLandscape
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -68,7 +64,6 @@ fun AppNavHost(
         mutableStateOf(!onboardingManager.isWelcomeCompleted)
     }
     var showWalkthrough by remember { mutableStateOf(false) }
-    var showSearch by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     
     // Handle optimistic navigation when auto-connecting to favorites
     val connectionState by connectionViewModel.connectionState.collectAsState()
@@ -113,7 +108,9 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
+        val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
+
+
     SharedTransitionLayout {
         // Enclose everything in a Box so the PairingScreen can overlay the entire Scaffold
         Box(modifier = Modifier.fillMaxSize()) {
@@ -135,7 +132,6 @@ fun AppNavHost(
                                 launchSingleTop = true
                             }
                         },
-                        onNavigateToSearch = { showSearch = true },
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this,
                         pagerState = pagerState
@@ -147,10 +143,6 @@ fun AppNavHost(
             val syncStatus by libraryViewModel?.syncStatus?.collectAsState() ?: remember { mutableStateOf(SyncStatus()) }
             
             Box(modifier = Modifier.fillMaxSize()) {
-                if (showSearch) {
-                    BackHandler { showSearch = false }
-                }
-
                 NavHost(
                 navController = navController, 
                 startDestination = startDestination,
@@ -260,11 +252,6 @@ fun AppNavHost(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToScan = {
                             // TODO: Implement QR Scanning
-                        },
-                        onNavigateToOffline = {
-                            navController.navigate("offline_songs") {
-                                launchSingleTop = true
-                            }
                         }
                     )
                 }
@@ -332,12 +319,7 @@ fun AppNavHost(
                             connectionViewModel.connectToDevice(device)
                         },
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToScan = { /* TODO: QR pairing */ },
-                        onNavigateToOffline = {
-                            navController.navigate("offline_songs") {
-                                launchSingleTop = true
-                            }
-                        }
+                        onNavigateToScan = { /* TODO: QR pairing */ }
                     )
                 }
                 
@@ -352,15 +334,10 @@ fun AppNavHost(
                             libraryViewModel = libraryViewModel,
                             statsViewModel = statsViewModel,
                             connectionViewModel = connectionViewModel,
-                            playbackViewModel = playbackViewModel,
                             favoritesManager = favoritesManager,
                             playerSettingsRepository = playerSettingsRepository,
                             navController = navController,
-                            contentPadding = innerPadding,
-                            onNavigateToPlayer = { navController.navigate("now_playing") },
-                            onSearchClick = { showSearch = true },
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this
+                            contentPadding = innerPadding
                         )
                     } else {
                         // Keep a placeholder behind the overlay while pairing
@@ -405,7 +382,38 @@ fun AppNavHost(
                         pagerState.scrollToPage(1)
                     }
                 }
-                // Search destination removed to use overlay instead
+                // Search Screen - Global Overlay Dialog
+                dialog(
+                    route = "search",
+                    dialogProperties = androidx.compose.ui.window.DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = true,
+                        decorFitsSystemWindows = false
+                    )
+                ) {
+                    if (libraryViewModel != null) {
+                        SearchScreen(
+                            viewModel = libraryViewModel,
+                            onTrackSelected = {
+                                navController.popBackStack()
+                                /* Update pill only, no navigation */
+                            },
+                            onAlbumSelected = { albumName ->
+                                navController.popBackStack()
+                                navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
+                            },
+                            onArtistSelected = { artistName ->
+                                navController.popBackStack()
+                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
+                            },
+                            onClose = { navController.popBackStack() },
+                            contentPadding = innerPadding
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                    }
+                }
                 
                 // Artists Tab - Redirecting to main pager
                 composable("artists") {
@@ -432,9 +440,7 @@ fun AppNavHost(
                             navController = navController,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { /* Update pill only, no navigation */ },
-                            contentPadding = innerPadding,
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this
+                            contentPadding = innerPadding
                         )
                     }
                 }
@@ -453,9 +459,7 @@ fun AppNavHost(
                             navController = navController,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { /* Update pill only, no navigation */ },
-                            contentPadding = innerPadding,
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this
+                            contentPadding = innerPadding
                         )
                     }
                 }
@@ -481,19 +485,6 @@ fun AppNavHost(
                     }
                 }
                 // (Discovery, library, albums, search, artists, detail screens are above)
-                
-                composable("playlists") {
-                    if (libraryViewModel != null) {
-                        PlaylistsScreen(
-                            viewModel = connectionViewModel,
-                            libraryViewModel = libraryViewModel,
-                            contentPadding = innerPadding,
-                            onPlaylistSelected = { playlistId ->
-                                navController.navigate("playlist/${java.net.URLEncoder.encode(playlistId, "UTF-8")}")
-                            }
-                        )
-                    }
-                }
                 
                 composable("settings") {
                     LaunchedEffect(Unit) {
@@ -527,24 +518,6 @@ fun AppNavHost(
                             }
                         )
                     }
-
-                    composable("offline_songs") {
-                        OfflineSongsScreen(
-                            contentPadding = innerPadding,
-                            playbackViewModel = playbackViewModel
-                        )
-                    }
-                }
-
-                // Home screen walkthrough — one-time overlay after first connection
-                // Placed here inside the Box hosting the NavHost so it renders UNDER the global UI
-                if (showWalkthrough) {
-                    OnboardingOverlay(
-                        onDismiss = {
-                            onboardingManager.isWalkthroughCompleted = true
-                            showWalkthrough = false
-                        }
-                    )
                 }
             
                 // Global Sync Banner
@@ -589,64 +562,9 @@ fun AppNavHost(
                         }
                     }
                 }
-
-                // --- Search Overlay ---
-                // Renders above all other content inside the Scaffold to respect innerPadding
-                AnimatedVisibility(
-                    visible = showSearch,
-                    enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
-                           slideInVertically(
-                               initialOffsetY = { it },
-                               animationSpec = spring(
-                                   dampingRatio = Spring.DampingRatioLowBouncy,
-                                   stiffness = Spring.StiffnessLow
-                               )
-                           ),
-                    exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessLow)) + 
-                          slideOutVertically(
-                              targetOffsetY = { it },
-                              animationSpec = spring(
-                                  stiffness = Spring.StiffnessLow
-                              )
-                          )
-                ) {
-                    if (libraryViewModel != null) {
-                        SearchScreen(
-                            viewModel = libraryViewModel,
-                            onTrackSelected = {
-                                showSearch = false
-                                // NowPlaying is handled by ViewModel
-                            },
-                            onAlbumSelected = { albumName ->
-                                showSearch = false
-                                navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
-                            },
-                            onArtistSelected = { artistName ->
-                                showSearch = false
-                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
-                            },
-                            onClose = { showSearch = false },
-                            contentPadding = innerPadding
-                        )
-                    }
-                }
             }
         } // End of Scaffold
             
-        // --- Immersive Landscape Dock Mode overlay ---
-        // Sits above all other content; shown only when device is physically landscape.
-        val isLandscape = rememberIsLandscape()
-        AnimatedVisibility(
-            visible = isLandscape,
-            enter = fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.97f, animationSpec = tween(400)),
-            exit = fadeOut(animationSpec = tween(350)) + scaleOut(targetScale = 0.97f, animationSpec = tween(350))
-        ) {
-            ImmersiveView(
-                connectionViewModel = connectionViewModel,
-                playbackViewModel = playbackViewModel
-            )
-        }
-
         // Pairing Overlay - Covers the app until dismissed, placed OUTSIDE Scaffold
         if (!userDismissedPairing && !showWelcome) {
             // We need to manage scanning
@@ -683,11 +601,6 @@ fun AppNavHost(
                         showWalkthrough = true
                     }
                 },
-                onNavigateToOffline = {
-                    navController.navigate("offline_songs") {
-                        launchSingleTop = true
-                    }
-                },
                 onTroubleshoot = {
                     // Restart scanning
                     connectionViewModel.stopScanning()
@@ -705,6 +618,17 @@ fun AppNavHost(
                 }
             )
         }
+        
+        // Home screen walkthrough — one-time overlay after first connection
+        if (showWalkthrough) {
+            OnboardingOverlay(
+                onDismiss = {
+                    onboardingManager.isWalkthroughCompleted = true
+                    showWalkthrough = false
+                }
+            )
+        }
+            
     } // End of parent Box
 } // End of SharedTransitionLayout
 }

@@ -3,7 +3,6 @@ package moe.memesta.vibeon.ui.onboarding
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -19,13 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
 
 /**
@@ -83,7 +80,7 @@ fun OnboardingOverlay(
                 when (step) {
                     0 -> WalkthroughStep(
                         title = "SEARCH",
-                        subtitle = "Tap the vibe button to search your library",
+                        subtitle = "Tap the nav button to search your library",
                         icon = Icons.Rounded.Search,
                         accentPink = accentPink,
                         contentColor = contentColor,
@@ -92,8 +89,8 @@ fun OnboardingOverlay(
                         alignment = Alignment.BottomEnd
                     )
                     1 -> WalkthroughStep(
-                        title = "VIBE",
-                        subtitle = "Hold the vibe button to switch between pages.\nRelease over a page to jump there.",
+                        title = "NAVIGATE",
+                        subtitle = "Hold the nav button to switch between pages.\nRelease over a page to jump there.",
                         icon = Icons.Rounded.TouchApp,
                         accentPink = accentPink,
                         contentColor = contentColor,
@@ -132,191 +129,6 @@ fun OnboardingOverlay(
 }
 
 @Composable
-private fun GhostHandAnimation(
-    stepNumber: Int,
-    accentPink: Color,
-    contentColor: Color
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "ghost_anim_$stepNumber")
-    val handAnimation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ghost_anim"
-    )
-
-    // Base item (Vibe button for steps 1 & 2, Player Pill for step 3)
-    Box(contentAlignment = Alignment.Center) {
-        if (stepNumber == 1 || stepNumber == 2) {
-            // Mock Vibe button (Matching DynamicNavButton Search)
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(accentPink)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Search,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(24.dp).align(Alignment.Center)
-                )
-            }
-        } else {
-            // Mock Player Pill
-            Box(
-                modifier = Modifier
-                    .width(160.dp)
-                    .height(64.dp)
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(contentColor)
-            ) {
-                // simple pill representation
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(accentPink.copy(alpha=0.5f)))
-                    Box(modifier = Modifier.weight(1f).height(8.dp).padding(horizontal = 12.dp).clip(RoundedCornerShape(4.dp)).background(accentPink.copy(alpha=0.2f)))
-                }
-            }
-        }
-
-        // Ghost Hand Logic based on step
-        val animValues = when (stepNumber) {
-            1 -> { // Search (Tap)
-                // Phases: 0.0-0.3 Move in, 0.3-0.5 Hold (Tap), 0.5-0.7 Ripple scale, 0.7-1.0 Move out
-                val x = when {
-                    handAnimation < 0.3f -> androidx.compose.ui.util.lerp(120f, 0f, handAnimation / 0.3f)
-                    handAnimation < 0.7f -> 0f
-                    else -> androidx.compose.ui.util.lerp(0f, 120f, (handAnimation - 0.7f) / 0.3f)
-                }
-                val y = x
-                val scale = if (handAnimation in 0.3f..0.7f) 0.85f else 1f
-                val hAlpha = when {
-                    handAnimation < 0.2f -> handAnimation / 0.2f
-                    handAnimation < 0.8f -> 1f
-                    else -> 1f - ((handAnimation - 0.8f) / 0.2f)
-                }
-                val rAlpha = if (handAnimation in 0.4f..0.7f) 1f - ((handAnimation - 0.4f) / 0.3f) else 0f
-                val rScale = if (handAnimation in 0.4f..0.7f) androidx.compose.ui.util.lerp(1f, 2.0f, (handAnimation - 0.4f) / 0.3f) else 0f
-                listOf(x, y, scale, hAlpha, rAlpha, rScale, 0f)
-            }
-            2 -> { // Vibe (Hold)
-                // Phases: 0.0-0.2 Move in, 0.2-0.8 Hold, 0.8-1.0 Move out
-                val x = when {
-                    handAnimation < 0.2f -> androidx.compose.ui.util.lerp(120f, 0f, handAnimation / 0.2f)
-                    handAnimation < 0.8f -> 0f
-                    else -> androidx.compose.ui.util.lerp(0f, 120f, (handAnimation - 0.8f) / 0.2f)
-                }
-                val y = x
-                val scale = if (handAnimation in 0.2f..0.8f) 0.85f else 1f
-                val hAlpha = when {
-                    handAnimation < 0.1f -> handAnimation / 0.1f
-                    handAnimation < 0.9f -> 1f
-                    else -> 1f - ((handAnimation - 0.9f) / 0.1f)
-                }
-                // Continuous rippling while holding
-                val rAlpha = if (handAnimation in 0.3f..0.8f) {
-                    val progress = ((handAnimation - 0.3f) / 0.5f) * 3f // 3 ripples
-                    1f - (progress % 1f)
-                } else 0f
-                val rScale = if (handAnimation in 0.3f..0.8f) {
-                    val progress = ((handAnimation - 0.3f) / 0.5f) * 3f
-                    androidx.compose.ui.util.lerp(1f, 1.8f, progress % 1f)
-                } else 0f
-                listOf(x, y, scale, hAlpha, rAlpha, rScale, 0f)
-            }
-            else -> { // Swipe (Left/Right)
-                // Phases: 0.0-0.2 Move to right edge of pill, 0.2-0.3 Press (scale down), 0.3-0.6 Swipe to left edge, 0.6-0.7 Release (scale up), 0.7-1.0 Move out
-                val x = when {
-                    handAnimation < 0.2f -> androidx.compose.ui.util.lerp(120f, 60f, handAnimation / 0.2f)
-                    handAnimation < 0.3f -> 60f
-                    handAnimation < 0.6f -> androidx.compose.ui.util.lerp(60f, -60f, (handAnimation - 0.3f) / 0.3f)
-                    handAnimation < 0.7f -> -60f
-                    else -> androidx.compose.ui.util.lerp(-60f, -120f, (handAnimation - 0.7f) / 0.3f)
-                }
-                val y = when {
-                    handAnimation < 0.2f -> androidx.compose.ui.util.lerp(120f, 0f, handAnimation / 0.2f)
-                    handAnimation < 0.7f -> 0f
-                    else -> androidx.compose.ui.util.lerp(0f, 120f, (handAnimation - 0.7f) / 0.3f)
-                }
-                val scale = if (handAnimation in 0.2f..0.7f) 0.85f else 1f
-                val hAlpha = when {
-                    handAnimation < 0.1f -> handAnimation / 0.1f
-                    handAnimation < 0.9f -> 1f
-                    else -> 1f - ((handAnimation - 0.9f) / 0.1f)
-                }
-                
-                // Track swipe trail
-                val rAlpha = if (handAnimation in 0.3f..0.6f) 0.6f else 0f
-                val rScale = 1f
-                val rx = x
-                listOf(x, y, scale, hAlpha, rAlpha, rScale, rx)
-            }
-        }
-        val handX = animValues[0]
-        val handY = animValues[1]
-        val handScale = animValues[2]
-        val handAlpha = animValues[3]
-        val rippleAlpha = animValues[4]
-        val rippleScale = animValues[5]
-        val rippleOffsetX = animValues[6]
-
-        // Ripple Effect (depends on step)
-        if (stepNumber == 1 || stepNumber == 2) {
-            if (rippleAlpha > 0f) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .graphicsLayer {
-                            scaleX = rippleScale
-                            scaleY = rippleScale
-                            alpha = rippleAlpha
-                        }
-                        .clip(CircleShape)
-                        .border(4.dp, accentPink, CircleShape)
-                )
-            }
-        } else {
-            // Swipe Trail
-            if (rippleAlpha > 0f) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .graphicsLayer {
-                            translationX = rippleOffsetX
-                            alpha = rippleAlpha
-                        }
-                        .clip(CircleShape)
-                        .background(accentPink.copy(alpha = 0.5f))
-                )
-            }
-        }
-
-        // The Ghost Hand
-        Icon(
-            imageVector = Icons.Rounded.TouchApp,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier
-                .size(64.dp)
-                .graphicsLayer {
-                    translationX = handX
-                    translationY = handY
-                    alpha = handAlpha
-                    scaleX = handScale
-                    scaleY = handScale
-                }
-        )
-    }
-}
-
-@Composable
 private fun WalkthroughStep(
     title: String,
     subtitle: String,
@@ -327,6 +139,17 @@ private fun WalkthroughStep(
     totalSteps: Int,
     alignment: Alignment
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "step_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "icon_pulse"
+    )
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -335,16 +158,37 @@ private fun WalkthroughStep(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Animated Ghost Hand
+            // Icon with glow ring
             Box(
-                modifier = Modifier.size(160.dp),
+                modifier = Modifier.size(100.dp),
                 contentAlignment = Alignment.Center
             ) {
-                GhostHandAnimation(
-                    stepNumber = stepNumber,
-                    accentPink = accentPink,
-                    contentColor = contentColor
+                // Glow ring
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .graphicsLayer {
+                            scaleX = pulseScale
+                            scaleY = pulseScale
+                        }
+                        .clip(CircleShape)
+                        .background(accentPink.copy(alpha = 0.1f))
                 )
+                // Inner circle
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(accentPink.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentPink,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
 
             // Title
@@ -378,7 +222,7 @@ private fun WalkthroughStep(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 140.dp),
+                .padding(bottom = 80.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {

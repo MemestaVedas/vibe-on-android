@@ -71,8 +71,8 @@ import moe.memesta.vibeon.ui.utils.getDisplayName
 import android.os.Build
 
 // Design tokens for non-accent colors
-private val NavBarBg = Color(0x0F0F14E0)  // rgba(15,15,20,0.88)
-private val NavBorderColor = Color.White.copy(alpha = 0.1f)
+private val NavBarBg = Color(0xFF0F0F14)
+private val NavBorderColor = Color.White
 // NavAccent is now MaterialTheme.colorScheme.primary for dynamic theming
 private val NavInactive = Color(0xFF8A8A9A)
 
@@ -119,14 +119,18 @@ fun BottomPlayerBar(
         currentRoute
     }
 
-    // --- Unified Bottom Bar: Player + Navigation in One Pill ---
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 32.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.BottomCenter
     ) {
+        // --- Unified Bottom Bar: Player + Navigation in One Pill ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(0.82f)
+                .padding(top = 12.dp, bottom = 48.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         // --- Left Pill: Now Playing Info ---
         AnimatedVisibility(
             visible = currentTrack.title != "No Track",
@@ -174,10 +178,10 @@ fun BottomPlayerBar(
                         scaleX = scale
                         scaleY = scale
                     }
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                    .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(32.dp))
-                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(32.dp), spotColor = Color.Black.copy(alpha = 0.05f))
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    .shadow(elevation = 8.dp, shape = CircleShape, spotColor = Color.Black)
                     .pointerInput(connectionViewModel) {
                         detectDragGestures(
                             onDragStart = { },
@@ -267,7 +271,7 @@ fun BottomPlayerBar(
                                     Text(
                                         text = artist,
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier
@@ -323,6 +327,7 @@ fun BottomPlayerBar(
         )
     }
 }
+}
 
 @Composable
 private fun NavTabItem(
@@ -371,7 +376,7 @@ private fun NavTabItem(
                 .then(
                     if (isSelected) Modifier
                         .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            MaterialTheme.colorScheme.primary,
                             RoundedCornerShape(12.dp)
                         )
                     else Modifier
@@ -418,7 +423,7 @@ private fun AlbumArtWithPulse(
                         animatedVisibilityScope = animatedVisibilityScope
                     )
                     .clip(moe.memesta.vibeon.ui.components.AlbumArtStarShape)
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), moe.memesta.vibeon.ui.components.AlbumArtStarShape)
+                    .border(1.dp, MaterialTheme.colorScheme.primary, moe.memesta.vibeon.ui.components.AlbumArtStarShape)
                     .background(Color.DarkGray)
             ) {
                 if (coverUrl != null) {

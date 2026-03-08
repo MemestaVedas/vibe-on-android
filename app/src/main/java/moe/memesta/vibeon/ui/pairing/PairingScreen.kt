@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,7 +37,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -105,7 +103,6 @@ fun PairingScreen(
     onDeviceSelected: (DiscoveredDevice) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToScan: () -> Unit,
-    onNavigateToOffline: () -> Unit,
     onDismiss: () -> Unit = {},
     onTroubleshoot: () -> Unit = {}
 ) {
@@ -163,12 +160,12 @@ fun PairingScreen(
     }
     val bottomBackgroundColor = Color(0xFF141414)
     
-    // Radial expansion animation (slowed down for performance)
+    // Radial expansion animation
     val radiusPulse by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+        initialValue = 0.9f,
+        targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = FastOutSlowInEasing),
+            animation = tween(5000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "radius_pulse"
@@ -281,18 +278,6 @@ fun PairingScreen(
             }
         }
 
-        // Animated radial brush, remembered to avoid allocations on every frame
-        val animatedBrush = remember(animPrimary, animSecondary, animTertiary, animOnPrimary) {
-            Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to animPrimary,
-                    0.3f to animSecondary.copy(alpha = 0.8f),
-                    0.6f to animTertiary.copy(alpha = 0.5f),
-                    1.0f to animOnPrimary.copy(alpha = 0.0f)
-                )
-            )
-        }
-
         // --- TOP CONTAINER (Gradient with wavy bottom + animated radial) ---
         Box(
             modifier = Modifier
@@ -303,13 +288,24 @@ fun PairingScreen(
                 }
                 .clip(WavyBottomShape(10.dp, 8.0f))
                 .drawBehind {
-                    val center = Offset(size.width / 2f, size.height / 2f)
-                    val maxDim = size.maxDimension
-                    val scaleFactor = (maxDim * 0.8f) / (size.minDimension / 2f) // Approximate manual sizing to implicit brush
+                    val center = Offset(size.width / 2f, size.height * 0.4f)
+                    val baseRadius = size.maxDimension * 0.8f
                     
-                    // Use scale to perform radius pulsing instead of recreating brush
-                    scale(scaleX = scaleFactor * radiusPulse, scaleY = scaleFactor * radiusPulse, pivot = center) {
-                        drawRect(brush = animatedBrush)
+                    // Animated radial gradient from center outward
+                    rotate(rotationAngle * 0.05f, pivot = center) {
+                        drawRect(
+                            brush = Brush.radialGradient(
+                                colorStops = arrayOf(
+                                    0.0f to animPrimary,
+                                    0.3f to animSecondary,
+                                    0.6f to animTertiary,
+                                    1.0f to animOnPrimary
+                                ),
+                                center = center,
+                                radius = baseRadius * radiusPulse
+                            ),
+                            size = size
+                        )
                     }
                     
                     // Grain overlay
@@ -324,7 +320,7 @@ fun PairingScreen(
                     .fillMaxSize()
                     .statusBarsPadding()
             ) {
-                // Top Action Bar: Offline Button + Connection Status Indicator
+                // Back Button + Connection Status Indicator
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -332,16 +328,10 @@ fun PairingScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    
-                    // Offline Library Button
-                    IconButton(
-                        onClick = onNavigateToOffline,
-                        modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.15f), CircleShape)
-                    ) {
+                    IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.Rounded.LibraryMusic,
-                            contentDescription = "Offline Library",
+                            imageVector = Icons.Rounded.ArrowBack,
+                            contentDescription = "Back",
                             tint = topContentColor
                         )
                     }

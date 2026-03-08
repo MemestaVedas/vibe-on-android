@@ -1,36 +1,28 @@
 package moe.memesta.vibeon.ui.onboarding
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DesktopWindows
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Smartphone
-import androidx.compose.material.icons.rounded.SwipeRight
-import androidx.compose.material.icons.rounded.TouchApp
-import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -41,24 +33,34 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.WavyBottomShape
 import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DesktopWindows
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SwipeRight
 
+/**
+ * Welcome to VIBE-ON! — first-launch tutorial.
+ *
+ * Design language matches PairingScreen:
+ * - Warm pink→purple radial gradient
+ * - NorlineFont display text
+ * - Wavy clip shape dividers
+ * - Dark bottom area with CTA
+ *
+ * 3-page walkthrough:
+ *   1. Welcome splash
+ *   2. "Connect to a server" instructions
+ *   3. "Navigate with gestures" intro
+ */
 @Composable
 fun WelcomeScreen(
     onComplete: () -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
-    
-    val infiniteTransition = rememberInfiniteTransition(label = "welcome_logo")
-    val logoRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "logo_rotate"
-    )
 
     // Background gradient matching PairingScreen
     val gradientBrush = Brush.radialGradient(
@@ -74,17 +76,35 @@ fun WelcomeScreen(
     val bottomBg = Color(0xFF141414)
     val accentPink = Color(0xFFF5B7B4)
 
-    BoxWithConstraints(
+    // Logo rotation for page 0
+    val infiniteTransition = rememberInfiniteTransition(label = "welcome_anim")
+    val logoRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(20000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "logo_rotate"
+    )
+
+    // Pulse for decorative elements
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
             .navigationBarsPadding()
     ) {
-        val screenWidth = maxWidth
-        val screenHeight = maxHeight
-        val scrollProgress = (pagerState.currentPage + pagerState.currentPageOffsetFraction)
-        val logoTransitionProgress = scrollProgress.coerceIn(0f, 1f)
-
         // --- BOTTOM CONTAINER ---
         Box(
             modifier = Modifier
@@ -134,21 +154,14 @@ fun WelcomeScreen(
                 }
 
                 // CTA text
-                val ctaText = when (pagerState.currentPage) {
-                    0 -> "GET STARTED"
-                    1 -> "NEXT"
-                    2 -> "LET'S GO!"
-                    else -> ""
-                }
-
                 Text(
-                    text = ctaText,
+                    text = if (pagerState.currentPage < 2) "CONTINUE" else "LET'S GO!",
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 32.sp,
+                        fontSize = 52.sp,
                         fontFamily = NorlineFontFamily,
                         fontWeight = FontWeight.Normal,
                         letterSpacing = 1.sp,
-                        lineHeight = 36.sp,
+                        lineHeight = 56.sp,
                         textAlign = TextAlign.Center
                     ),
                     maxLines = 1,
@@ -166,7 +179,7 @@ fun WelcomeScreen(
                 .clip(WavyBottomShape(10.dp, 8.0f))
                 .background(gradientBrush)
         ) {
-            // Grain / Dim overlay
+            // Grain overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -181,59 +194,24 @@ fun WelcomeScreen(
                     .statusBarsPadding()
             ) { page ->
                 when (page) {
-                    0 -> WelcomePage(contentColor = contentColor)
-                    1 -> VibeSetupPage(contentColor = contentColor)
-                    2 -> ConnectServerPage(contentColor = contentColor)
+                    0 -> WelcomePage(
+                        contentColor = contentColor,
+                        logoRotation = logoRotation,
+                        pulseScale = pulseScale
+                    )
+                    1 -> ConnectServerPage(contentColor = contentColor)
+                    2 -> GestureIntroPage(contentColor = contentColor)
                 }
             }
-        }
-
-        // Floating dynamic Logo overlaid on top (moves to top left on pages > 0)
-        val density = LocalDensity.current
-        val startSize = 240.dp
-        val endSize = 40.dp
-        
-        Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_vibe_logo),
-                contentDescription = "Vibe-On",
-                modifier = Modifier
-                    .size(startSize)
-                    .graphicsLayer {
-                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Center
-                        
-                        // Interpolate size via scaling
-                        val currentSize = androidx.compose.ui.unit.lerp(startSize, endSize, logoTransitionProgress)
-                        val baseScale = currentSize / startSize
-                        
-                        scaleX = baseScale
-                        scaleY = baseScale
-                        
-                        val startX = (screenWidth - startSize) / 2
-                        val endX = 16.dp - (startSize - endSize) / 2
-                        val currentX = androidx.compose.ui.unit.lerp(startX, endX, logoTransitionProgress)
-                        
-                        // Exact mathematical layout matching WelcomePage's 0.20f over 1f weights
-                        val topSpace = (screenHeight - 504.dp) / 6f
-                        val startY = topSpace + 168.dp
-                        val endY = 16.dp - (startSize - endSize) / 2
-                        val currentY = androidx.compose.ui.unit.lerp(startY, endY, logoTransitionProgress)
-                        
-                        translationX = with(density) { currentX.toPx() }
-                        translationY = with(density) { currentY.toPx() }
-                        
-                        // Rotation only active when it transitions (logoTransitionProgress > 0)
-                        val rotation = if (logoTransitionProgress > 0.01f) logoRotation else 0f
-                        rotationZ = androidx.compose.ui.util.lerp(0f, rotation, logoTransitionProgress)
-                    }
-            )
         }
     }
 }
 
 @Composable
 private fun WelcomePage(
-    contentColor: Color
+    contentColor: Color,
+    logoRotation: Float,
+    pulseScale: Float
 ) {
     Column(
         modifier = Modifier
@@ -241,15 +219,16 @@ private fun WelcomePage(
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(0.20f))
+        Spacer(modifier = Modifier.weight(0.5f))
 
+        // Title
         Text(
             text = "WELCOME TO",
             style = MaterialTheme.typography.headlineLarge.copy(
-                fontSize = 24.sp,
+                fontSize = 36.sp,
                 fontFamily = NorlineFontFamily,
                 fontWeight = FontWeight.Normal,
-                letterSpacing = 2.sp,
+                letterSpacing = 4.sp,
                 textAlign = TextAlign.Center
             ),
             color = contentColor.copy(alpha = 0.7f)
@@ -260,11 +239,11 @@ private fun WelcomePage(
         Text(
             text = "VIBE-ON!",
             style = MaterialTheme.typography.headlineLarge.copy(
-                fontSize = 72.sp,
+                fontSize = 84.sp,
                 fontFamily = NorlineFontFamily,
                 fontWeight = FontWeight.Normal,
                 letterSpacing = 2.sp,
-                lineHeight = 76.sp,
+                lineHeight = 88.sp,
                 textAlign = TextAlign.Center
             ),
             maxLines = 1,
@@ -272,97 +251,33 @@ private fun WelcomePage(
             color = contentColor
         )
 
-        Spacer(modifier = Modifier.height(64.dp))
-
-        // Replaced Static Image with Spacer of exact size to maintain mathematical layout
-        Spacer(modifier = Modifier.size(240.dp))
-
-        Spacer(modifier = Modifier.height(64.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Your music, your way",
+            text = "Your music, everywhere",
             style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 28.sp,
-                fontFamily = NorlineFontFamily,
-                fontWeight = FontWeight.Normal,
-                textAlign = TextAlign.Center,
-                lineHeight = 32.sp
-            ),
-            color = contentColor
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun VibeSetupPage(contentColor: Color) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.weight(0.2f))
-
-        Text(
-            text = "THE VIBE",
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontSize = 64.sp,
-                fontFamily = NorlineFontFamily,
-                fontWeight = FontWeight.Normal,
-                letterSpacing = 2.sp,
-                lineHeight = 68.sp,
+                fontSize = 16.sp,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center
             ),
-            color = contentColor
+            color = contentColor.copy(alpha = 0.7f)
         )
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        Surface(
+        // Rotating logo
+        Image(
+            painter = painterResource(id = R.drawable.ic_vibe_logo),
+            contentDescription = "Vibe-On",
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(WavyBottomShape(6.dp, 4f)),
-            color = contentColor.copy(alpha = 0.08f)
-        ) {
-            Column(modifier = Modifier.padding(top=24.dp, start=24.dp, end=24.dp, bottom=36.dp)) {
-                Text(
-                    text = "Connect & Play",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = contentColor
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Vibe-On connects seamlessly to your PC. Your music library remains right where it is.",
-                    color = contentColor.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            color = contentColor.copy(alpha = 0.08f)
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(
-                    text = "Ultimate Control",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = contentColor
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Stream songs to your phone, or use it as the ultimate desktop media remote.",
-                    color = contentColor.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
+                .size(200.dp)
+                .graphicsLayer {
+                    rotationZ = logoRotation
+                    scaleX = pulseScale
+                    scaleY = pulseScale
+                }
+        )
 
         Spacer(modifier = Modifier.weight(1f))
     }
@@ -376,7 +291,7 @@ private fun ConnectServerPage(contentColor: Color) {
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(0.4f))
+        Spacer(modifier = Modifier.weight(0.5f))
 
         Text(
             text = "CONNECT",
@@ -417,10 +332,12 @@ private fun ConnectServerPage(contentColor: Color) {
 
         Spacer(modifier = Modifier.height(48.dp))
 
+        // Desktop + phone illustration
         Row(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Desktop icon
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -428,7 +345,7 @@ private fun ConnectServerPage(contentColor: Color) {
                     .background(contentColor.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                androidx.compose.material3.Icon(
                     imageVector = Icons.Rounded.DesktopWindows,
                     contentDescription = null,
                     tint = contentColor,
@@ -436,6 +353,7 @@ private fun ConnectServerPage(contentColor: Color) {
                 )
             }
 
+            // Connection dots
             val infiniteTransition = rememberInfiniteTransition(label = "connect_dots")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 repeat(3) { i ->
@@ -457,6 +375,7 @@ private fun ConnectServerPage(contentColor: Color) {
                 }
             }
 
+            // Phone icon
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -464,7 +383,7 @@ private fun ConnectServerPage(contentColor: Color) {
                     .background(contentColor.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                androidx.compose.material3.Icon(
                     imageVector = Icons.Rounded.Smartphone,
                     contentDescription = null,
                     tint = contentColor,
@@ -475,6 +394,7 @@ private fun ConnectServerPage(contentColor: Color) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Same WiFi reminder card
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -487,7 +407,7 @@ private fun ConnectServerPage(contentColor: Color) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
+                androidx.compose.material3.Icon(
                     imageVector = Icons.Rounded.Wifi,
                     contentDescription = null,
                     tint = contentColor.copy(alpha = 0.7f),
@@ -507,3 +427,159 @@ private fun ConnectServerPage(contentColor: Color) {
     }
 }
 
+@Composable
+private fun GestureIntroPage(contentColor: Color) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.weight(0.5f))
+
+        Text(
+            text = "NAVIGATE",
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontSize = 72.sp,
+                fontFamily = NorlineFontFamily,
+                fontWeight = FontWeight.Normal,
+                letterSpacing = 2.sp,
+                lineHeight = 76.sp,
+                textAlign = TextAlign.Center
+            ),
+            maxLines = 1,
+            softWrap = false,
+            color = contentColor
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Hold to navigate",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            ),
+            color = contentColor.copy(alpha = 0.8f)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Press and hold the nav button\nto switch between pages",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                textAlign = TextAlign.Center,
+                fontFamily = FontFamily.SansSerif
+            ),
+            color = contentColor.copy(alpha = 0.6f)
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Gesture demonstration
+        val infiniteTransition = rememberInfiniteTransition(label = "gesture_demo")
+        val holdProgress by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "hold_demo"
+        )
+
+        Box(
+            modifier = Modifier.size(120.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            // Progress ring
+            Canvas(modifier = Modifier.size(100.dp)) {
+                val strokeWidth = 4.dp.toPx()
+                // Background ring
+                drawArc(
+                    color = contentColor.copy(alpha = 0.15f),
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = strokeWidth,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                )
+                // Progress ring
+                drawArc(
+                    color = contentColor,
+                    startAngle = -90f,
+                    sweepAngle = 360f * holdProgress,
+                    useCenter = false,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = strokeWidth,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                )
+            }
+
+            // Center finger icon
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Rounded.TouchApp,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Gesture hints
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            GestureHint(
+                icon = Icons.Rounded.Search,
+                text = "Tap the nav button to search",
+                contentColor = contentColor
+            )
+            GestureHint(
+                icon = Icons.Rounded.SwipeRight,
+                text = "Swipe the player pill to skip tracks",
+                contentColor = contentColor
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun GestureHint(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    contentColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(contentColor.copy(alpha = 0.06f))
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        androidx.compose.material3.Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor.copy(alpha = 0.7f),
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontWeight = FontWeight.Medium
+            ),
+            color = contentColor.copy(alpha = 0.7f)
+        )
+    }
+}
