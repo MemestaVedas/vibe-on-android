@@ -1,6 +1,31 @@
 package moe.memesta.vibeon.widget
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import android.util.Base64
+
+/** Custom serializer for ByteArray using Base64 encoding. */
+@Serializer(forClass = ByteArray::class)
+object ByteArrayAsBase64Serializer : KSerializer<ByteArray> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("ByteArrayAsBase64", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: ByteArray) {
+        val base64 = Base64.encodeToString(value, Base64.NO_WRAP)
+        encoder.encodeString(base64)
+    }
+
+    override fun deserialize(decoder: Decoder): ByteArray {
+        val base64 = decoder.decodeString()
+        return Base64.decode(base64, Base64.NO_WRAP)
+    }
+}
 
 /** Slim playlist metadata carried in the widget state (up to 4 entries). */
 @Serializable
@@ -17,12 +42,14 @@ data class PlaylistWidgetInfo(
 data class WidgetPlaybackState(
     val title: String = "No Track",
     val artist: String = "Unknown Artist",
+    val album: String = "",
     val isPlaying: Boolean = false,
     val isLiked: Boolean = false,
     val isShuffled: Boolean = false,
     val isMobilePlayback: Boolean = false,
-    /** Absolute path to the cached album art JPEG file, or null when there's no art. */
-    val albumArtPath: String? = null,
+    /** Compressed album art as a ByteArray, or null when there's no art. */
+    @Serializable(with = ByteArrayAsBase64Serializer::class)
+    val albumArtBitmapData: ByteArray? = null,
     // Palette colours (ARGB Int) extracted from the album art
     val colorPrimary:     Int = 0xFF1C1B1F.toInt(),  // scrim + card bg
     val colorOnPrimary:   Int = 0xFFFFFFFF.toInt(),  // title, artist, app logo
@@ -50,11 +77,13 @@ data class WidgetPlaybackState(
         if (other !is WidgetPlaybackState) return false
         if (title != other.title) return false
         if (artist != other.artist) return false
+        if (album != other.album) return false
         if (isPlaying != other.isPlaying) return false
         if (isLiked != other.isLiked) return false
         if (isShuffled != other.isShuffled) return false
         if (isMobilePlayback != other.isMobilePlayback) return false
-        if (albumArtPath != other.albumArtPath) return false
+        if (albumArtBitmapData != null && other.albumArtBitmapData != null && !albumArtBitmapData.contentEquals(other.albumArtBitmapData)) return false
+        if ((albumArtBitmapData == null) != (other.albumArtBitmapData == null)) return false
         if (colorPrimary     != other.colorPrimary)     return false
         if (colorOnPrimary   != other.colorOnPrimary)   return false
         if (colorSecondary   != other.colorSecondary)   return false
@@ -76,11 +105,12 @@ data class WidgetPlaybackState(
     override fun hashCode(): Int {
         var result = title.hashCode()
         result = 31 * result + artist.hashCode()
+        result = 31 * result + album.hashCode()
         result = 31 * result + isPlaying.hashCode()
         result = 31 * result + isLiked.hashCode()
         result = 31 * result + isShuffled.hashCode()
         result = 31 * result + isMobilePlayback.hashCode()
-        result = 31 * result + (albumArtPath?.hashCode() ?: 0)
+        result = 31 * result + (albumArtBitmapData?.contentHashCode() ?: 0)
         result = 31 * result + colorPrimary
         result = 31 * result + colorOnPrimary
         result = 31 * result + colorSecondary

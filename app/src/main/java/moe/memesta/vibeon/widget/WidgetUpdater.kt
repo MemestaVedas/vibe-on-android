@@ -2,13 +2,16 @@ package moe.memesta.vibeon.widget
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
-import androidx.palette.graphics.Palette
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.appwidget.updateAll
 import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.google.android.material.color.utilities.Hct
+import com.google.android.material.color.utilities.QuantizerCelebi
+import com.google.android.material.color.utilities.Score
+import com.google.android.material.color.utilities.SchemeTonalSpot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,260 +19,274 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.VibeonApp
 import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.data.MediaSessionData
-import java.io.File
+import java.io.ByteArrayOutputStream
 
 /**
- * Singleton that pushes playback state into the Glance DataStore
- * and triggers widget recomposition. Call the update methods from
- * [moe.memesta.vibeon.MediaNotificationManager] whenever track or
- * play-state changes.
+ * Singleton that updates widget state when playback changes.
+ * Call methods from MediaNotificationManager on track/state changes.
  */
 object WidgetUpdater {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var lastCoverUrl: String? = null
-    private var cachedArtPath: String? = null
-    private var cachedColors: IntArray = defaultPaletteColors()
+    private var cachedAlbumArtData: ByteArray? = null
+    private var cachedColors: PaletteColors? = null
 
+    private data class PaletteColors(
+        val primary: Int,
+        val onPrimary: Int,
+        val secondary: Int,
+        val onSecondary: Int,
+        val error: Int,
+        val primaryContainer: Int,
+        val onPrimaryContainer: Int,
+        val secondaryContainer: Int,
+        val onSecondaryContainer: Int,
+        val errorContainer: Int,
+        val onErrorContainer: Int
+    )
+
+    /**
+     * Updates widget with new track information.
+     */
     fun onTrackChanged(track: MediaSessionData, isPlaying: Boolean) {
-        val ctx = VibeonApp.instance
+        val context = VibeonApp.instance
         scope.launch {
-            // Fetch cover art (and extract palette) only when the URL changes
-            val (artPath, colors) = when {
+            // Download and cache album art only when URL changes
+            val albumArtData = when {
                 track.coverUrl != null && track.coverUrl != lastCoverUrl -> {
                     lastCoverUrl = track.coverUrl
-                    loadCoverData(ctx, track.coverUrl)
+                    downloadAlbumArt(context, track.coverUrl)
                 }
-                track.coverUrl == lastCoverUrl -> Pair(cachedArtPath, cachedColors)
+                track.coverUrl == lastCoverUrl -> cachedAlbumArtData
                 else -> {
                     lastCoverUrl = null
-                    Pair(null, defaultPaletteColors())
+                    null
                 }
             }
-            cachedArtPath  = artPath
-            cachedColors   = colors
+            cachedAlbumArtData = albumArtData
 
-            pushState(ctx, WidgetPlaybackState(
-                title            = track.title.ifEmpty { "No Track" },
-                artist           = track.artist.ifEmpty { "Unknown Artist" },
-                isPlaying        = isPlaying,
-                isLiked          = MediaNotificationManager.isCurrentFavorite,
-                isShuffled       = MediaNotificationManager.isShuffled,
+            // Extract colors from album art
+            val colors = albumArtData?.let { data ->
+                try {
+                    val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
+                    bitmap?.let { extractColorsFromBitmap(it) }
+                } catch (e: Exception) {
+                    Log.e("WidgetUpdater", "Failed to extract colors", e)
+                    null
+                }
+            }
+            cachedColors = colors
+
+            updateWidget(context, WidgetPlaybackState(
+                title = track.title.ifEmpty { "No Track" },
+                artist = track.artist.ifEmpty { "Unknown Artist" },
+                album = track.album,
+                isPlaying = isPlaying,
+                isLiked = MediaNotificationManager.isCurrentFavorite,
+                isShuffled = MediaNotificationManager.isShuffled,
                 isMobilePlayback = MediaNotificationManager.isMobilePlayback,
-                albumArtPath     = artPath,
-                colorPrimary               = colors[0],
-                colorOnPrimary             = colors[1],
-                colorSecondary             = colors[2],
-                colorOnSecondary           = colors[3],
-                colorError                 = colors[4],
-                colorPrimaryContainer      = colors[5],
-                colorOnPrimaryContainer    = colors[6],
-                colorSecondaryContainer    = colors[7],
-                colorOnSecondaryContainer  = colors[8],
-                colorErrorContainer        = colors[9],
-                colorOnErrorContainer      = colors[10],
-                repeatMode       = MediaNotificationManager.repeatMode,
-                volumeLevel      = volumeDoubleToLevel(MediaNotificationManager.volume),
-                widgetPlaylists  = MediaNotificationManager.widgetPlaylists
+                albumArtBitmapData = albumArtData,
+                colorPrimary = colors?.primary ?: 0xFF1C1B1F.toInt(),
+                colorOnPrimary = colors?.onPrimary ?: 0xFFFFFFFF.toInt(),
+                colorSecondary = colors?.secondary ?: 0xFF49454F.toInt(),
+                colorOnSecondary = colors?.onSecondary ?: 0xFFFFFFFF.toInt(),
+                colorError = colors?.error ?: 0xFFE53935.toInt(),
+                colorPrimaryContainer = colors?.primaryContainer ?: 0xFF1F3140.toInt(),
+                colorOnPrimaryContainer = colors?.onPrimaryContainer ?: 0xFFD3E4F7.toInt(),
+                colorSecondaryContainer = colors?.secondaryContainer ?: 0xFF2B2535.toInt(),
+                colorOnSecondaryContainer = colors?.onSecondaryContainer ?: 0xFFEADDFF.toInt(),
+                colorErrorContainer = colors?.errorContainer ?: 0xFF8C1D18.toInt(),
+                colorOnErrorContainer = colors?.onErrorContainer ?: 0xFFF9DEDC.toInt()
             ))
         }
     }
 
+    /**
+     * Updates only play/pause state.
+     */
     fun onPlayStateChanged(isPlaying: Boolean) {
-        val ctx = VibeonApp.instance
+        val context = VibeonApp.instance
         scope.launch {
-            pushStateUpdate(ctx) { it.copy(isPlaying = isPlaying) }
+            updateWidgetField(context) { it.copy(isPlaying = isPlaying) }
         }
     }
 
-    fun onOutputChanged(isMobilePlayback: Boolean) {
-        val ctx = VibeonApp.instance
+    /**
+     * Updates favorite state.
+     */
+    fun onFavoriteChanged(isFavorite: Boolean) {
+        val context = VibeonApp.instance
         scope.launch {
-            pushStateUpdate(ctx) { it.copy(isMobilePlayback = isMobilePlayback) }
+            updateWidgetField(context) { it.copy(isLiked = isFavorite) }
         }
     }
 
+    /**
+     * Updates shuffle state.
+     */
     fun onShuffleChanged(isShuffled: Boolean) {
-        val ctx = VibeonApp.instance
+        val context = VibeonApp.instance
         scope.launch {
-            pushStateUpdate(ctx) { it.copy(isShuffled = isShuffled) }
+            updateWidgetField(context) { it.copy(isShuffled = isShuffled) }
         }
     }
 
-    fun onFavoriteChanged(isLiked: Boolean) {
-        val ctx = VibeonApp.instance
+    /**
+     * Updates playback source (mobile/PC).
+     */
+    fun onOutputChanged(isMobilePlayback: Boolean) {
+        val context = VibeonApp.instance
         scope.launch {
-            pushStateUpdate(ctx) { it.copy(isLiked = isLiked) }
+            updateWidgetField(context) { it.copy(isMobilePlayback = isMobilePlayback) }
         }
     }
 
-    fun onRepeatChanged(repeatMode: String) {
-        val ctx = VibeonApp.instance
+    /**
+     * Updates repeat mode.
+     */
+    fun onRepeatChanged(mode: String) {
+        val context = VibeonApp.instance
         scope.launch {
-            pushStateUpdate(ctx) { it.copy(repeatMode = repeatMode) }
+            updateWidgetField(context) { it.copy(repeatMode = mode) }
         }
     }
 
+    /**
+     * Updates volume.
+     */
     fun onVolumeChanged(volume: Double) {
-        val ctx = VibeonApp.instance
+        val context = VibeonApp.instance
         scope.launch {
-            pushStateUpdate(ctx) { it.copy(volumeLevel = volumeDoubleToLevel(volume)) }
-        }
-    }
-
-    fun onPlaylistsChanged(playlists: List<PlaylistWidgetInfo>) {
-        val ctx = VibeonApp.instance
-        scope.launch {
-            pushStateUpdate(ctx) { it.copy(widgetPlaylists = playlists) }
-        }
-    }
-
-    /** Toggles the more-options overlay on all widget instances. */
-    fun onMoreOptionsChanged(showing: Boolean) {
-        val ctx = VibeonApp.instance
-        scope.launch {
-            pushStateUpdate(ctx) { it.copy(showingMoreOptions = showing) }
-        }
-    }
-
-    // ------------------------------------------------------------------
-
-    private suspend fun pushState(context: Context, state: WidgetPlaybackState) {
-        try {
-            val manager = GlanceAppWidgetManager(context)
-            for (widgetClass in listOf(AlbumArtWidget::class.java, AlbumArtWidgetSolid::class.java)) {
-                val ids = manager.getGlanceIds(widgetClass)
-                ids.forEach { id ->
-                    updateAppWidgetState(context, WidgetStateDefinition, id) { state }
-                }
+            val volumeLevel = when {
+                volume <= 0.0 -> 0
+                volume < 0.66 -> 1
+                else -> 2
             }
-            // Trigger recomposition after all state is written
-            manager.getGlanceIds(AlbumArtWidget::class.java).forEach { AlbumArtWidget().update(context, it) }
-            manager.getGlanceIds(AlbumArtWidgetSolid::class.java).forEach { AlbumArtWidgetSolid().update(context, it) }
-        } catch (e: Exception) {
-            Log.w("WidgetUpdater", "pushState failed", e)
+            updateWidgetField(context) { it.copy(volumeLevel = volumeLevel) }
         }
     }
 
-    private suspend fun pushStateUpdate(
+    /**
+     * Updates playlists.
+     */
+    fun onPlaylistsChanged(playlists: List<moe.memesta.vibeon.widget.PlaylistWidgetInfo>) {
+        val context = VibeonApp.instance
+        scope.launch {
+            updateWidgetField(context) { it.copy(widgetPlaylists = playlists.take(4)) }
+        }
+    }
+
+    // --- Private helpers ---
+
+    private suspend fun updateWidget(context: Context, playbackState: WidgetPlaybackState) {
+        try {
+            val dataStore = WidgetStateDefinition.getDataStore(context, "")
+            dataStore.updateData { playbackState }
+            // Update all widget types
+            VibeonWidget().updateAll(context)
+            LikedWidget().updateAll(context)
+            MoreDetailWidget().updateAll(context)
+            Log.d("WidgetUpdater", "Widgets updated: ${playbackState.title}")
+        } catch (e: Exception) {
+            Log.e("WidgetUpdater", "Failed to update widgets", e)
+        }
+    }
+
+    private suspend fun updateWidgetField(
         context: Context,
         transform: (WidgetPlaybackState) -> WidgetPlaybackState
     ) {
         try {
-            val manager = GlanceAppWidgetManager(context)
-            for (widgetClass in listOf(AlbumArtWidget::class.java, AlbumArtWidgetSolid::class.java)) {
-                val ids = manager.getGlanceIds(widgetClass)
-                ids.forEach { id ->
-                    updateAppWidgetState(context, WidgetStateDefinition, id, transform)
-                }
-            }
-            manager.getGlanceIds(AlbumArtWidget::class.java).forEach { AlbumArtWidget().update(context, it) }
-            manager.getGlanceIds(AlbumArtWidgetSolid::class.java).forEach { AlbumArtWidgetSolid().update(context, it) }
+            val dataStore = WidgetStateDefinition.getDataStore(context, "")
+            dataStore.updateData { transform(it) }
+            // Update all widget types
+            VibeonWidget().updateAll(context)
+            LikedWidget().updateAll(context)
+            MoreDetailWidget().updateAll(context)
         } catch (e: Exception) {
-            Log.w("WidgetUpdater", "pushStateUpdate failed", e)
+            Log.e("WidgetUpdater", "Failed to update widget field", e)
         }
     }
 
-    private suspend fun loadCoverData(context: Context, url: String): Pair<String?, IntArray> {
+    private suspend fun downloadAlbumArt(context: Context, url: String): ByteArray? {
         return try {
             val loader = ImageLoader(context)
-            // Keep album art small — Glance RemoteViews has a tight bundle size limit
-            // 192 px keeps the decompressed ARGB_8888 bitmap under ~150 KB.
-            // That comfortably fits inside the ~500 KB practical limit for all
-            // bitmaps in a single RemoteViews Binder parcel.
-            val req = ImageRequest.Builder(context).data(url).size(192).build()
-            val result = loader.execute(req)
-            val bitmap = (result as? SuccessResult)?.drawable?.let { d ->
-                if (d is android.graphics.drawable.BitmapDrawable) d.bitmap else null
-            } ?: return Pair(null, defaultPaletteColors())
-            // Extract palette on the full-quality bitmap before compression
-            val colors = extractPaletteColors(bitmap)
-            // Save to internal storage — passing a file path through RemoteViews IPC
-            // avoids the 1 MB bundle size limit that would otherwise kill the bitmap.
-            val file = File(context.filesDir, "widget_art.jpg")
-            file.outputStream().use { out ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
-            }
-            Pair(file.absolutePath, colors)
+            // Download at 192px to keep size small (~50KB JPEG)
+            val request = ImageRequest.Builder(context)
+                .data(url)
+                .size(192)
+                .build()
+            
+            val result = loader.execute(request)
+            val bitmap = (result as? SuccessResult)?.drawable?.let { drawable ->
+                if (drawable is android.graphics.drawable.BitmapDrawable) {
+                    drawable.bitmap
+                } else null
+            } ?: return null
+
+            // Compress to JPEG ByteArray
+            val outputStream = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+            val byteArray = outputStream.toByteArray()
+            
+            Log.d("WidgetUpdater", "Album art downloaded: ${byteArray.size} bytes")
+            byteArray
         } catch (e: Exception) {
-            Log.w("WidgetUpdater", "Cover art download failed: ${e.message}")
-            Pair(null, defaultPaletteColors())
+            Log.e("WidgetUpdater", "Failed to download album art", e)
+            null
         }
     }
 
-    private fun extractPaletteColors(bitmap: Bitmap): IntArray {
-        val palette = Palette.from(bitmap).maximumColorCount(16).generate()
-        val primary = palette.vibrantSwatch
-            ?: palette.dominantSwatch
-            ?: palette.darkVibrantSwatch
-            ?: palette.darkMutedSwatch
-        val secondary = palette.mutedSwatch
-            ?: palette.lightVibrantSwatch
-            ?: palette.lightMutedSwatch
+    /**
+     * Extracts Material 3 color scheme from album art bitmap using MCU.
+     * Uses dark theme colors since widgets typically appear on home screens with dark mode.
+     */
+    private fun extractColorsFromBitmap(bitmap: Bitmap): PaletteColors {
+        try {
+            // Scale down for fast quantization
+            val scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, false)
+            val pixels = IntArray(scaled.width * scaled.height)
+            scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
+            if (scaled != bitmap) scaled.recycle()
 
-        val primaryRgb   = primary?.rgb           ?: 0xFF1C1B1F.toInt()
-        val secondaryRgb = secondary?.rgb          ?: 0xFF49454F.toInt()
+            // Quantize → score → pick dominant source color
+            val quantized = QuantizerCelebi.quantize(pixels, 128)
+            val scored = Score.score(quantized)
+            val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF1C1B1F.toInt()
 
-        // Derive Material-3-style dark-theme container colours from the palette swatches.
-        // Container = same hue, heavily darkened value (dark bg) with near-black saturation.
-        // OnContainer = same hue, dramatically lightened (mostly-white tinted with hue).
-        val primaryContainer    = deriveContainerColor(primaryRgb)
-        val onPrimaryContainer  = deriveOnContainerColor(primaryRgb)
-        val secondContainer     = deriveContainerColor(secondaryRgb)
-        val onSecondContainer   = deriveOnContainerColor(secondaryRgb)
+            // Generate Material 3 scheme using dark theme tones
+            val hct = Hct.fromInt(sourceColor)
+            val scheme = SchemeTonalSpot(hct, true, 0.0)  // true = dark theme
 
-        return intArrayOf(
-            primaryRgb,                             // [0] colorPrimary
-            primary?.bodyTextColor ?: 0xFFFFFFFF.toInt(), // [1] colorOnPrimary
-            secondaryRgb,                           // [2] colorSecondary
-            secondary?.bodyTextColor ?: 0xFFFFFFFF.toInt(), // [3] colorOnSecondary
-            0xFFE53935.toInt(),                     // [4] colorError (constant)
-            primaryContainer,                       // [5] colorPrimaryContainer
-            onPrimaryContainer,                     // [6] colorOnPrimaryContainer
-            secondContainer,                        // [7] colorSecondaryContainer
-            onSecondContainer,                      // [8] colorOnSecondaryContainer
-            0xFF8C1D18.toInt(),                     // [9] colorErrorContainer
-            0xFFF9DEDC.toInt()                      // [10] colorOnErrorContainer
-        )
-    }
-
-    /** Darkens a colour's HSV Value to produce a dark M3-style container. */
-    private fun deriveContainerColor(rgb: Int): Int {
-        val hsv = FloatArray(3)
-        android.graphics.Color.colorToHSV(rgb, hsv)
-        // Compress saturation and clamp value to a dark range (0.10 – 0.30)
-        hsv[1] = (hsv[1] * 0.6f).coerceIn(0f, 1f)
-        hsv[2] = (hsv[2] * 0.28f + 0.05f).coerceIn(0.05f, 0.35f)
-        return android.graphics.Color.HSVToColor(hsv)
-    }
-
-    /** Produces a light on-container colour from the same hue (near-white tinted). */
-    private fun deriveOnContainerColor(rgb: Int): Int {
-        val hsv = FloatArray(3)
-        android.graphics.Color.colorToHSV(rgb, hsv)
-        // Same hue, very low saturation, very high value → near-white with hue tint
-        hsv[1] = (hsv[1] * 0.15f).coerceIn(0f, 1f)
-        hsv[2] = 0.93f
-        return android.graphics.Color.HSVToColor(hsv)
-    }
-
-    private fun defaultPaletteColors() = intArrayOf(
-        0xFF1C1B1F.toInt(), // colorPrimary
-        0xFFFFFFFF.toInt(), // colorOnPrimary
-        0xFF49454F.toInt(), // colorSecondary
-        0xFFFFFFFF.toInt(), // colorOnSecondary
-        0xFFE53935.toInt(), // colorError
-        0xFF1F3140.toInt(), // colorPrimaryContainer
-        0xFFD3E4F7.toInt(), // colorOnPrimaryContainer
-        0xFF2B2535.toInt(), // colorSecondaryContainer
-        0xFFEADDFF.toInt(), // colorOnSecondaryContainer
-        0xFF8C1D18.toInt(), // colorErrorContainer
-        0xFFF9DEDC.toInt()  // colorOnErrorContainer
-    )
-
-    private fun volumeDoubleToLevel(volume: Double): Int = when {
-        volume > 0.75 -> 2
-        volume > 0.1  -> 1
-        else          -> 0
+            return PaletteColors(
+                primary = scheme.primaryPalette.tone(80),
+                onPrimary = scheme.primaryPalette.tone(20),
+                secondary = scheme.secondaryPalette.tone(80),
+                onSecondary = scheme.secondaryPalette.tone(20),
+                error = 0xFFE53935.toInt(),  // Fixed error color
+                primaryContainer = scheme.primaryPalette.tone(30),
+                onPrimaryContainer = scheme.primaryPalette.tone(90),
+                secondaryContainer = scheme.secondaryPalette.tone(30),
+                onSecondaryContainer = scheme.secondaryPalette.tone(90),
+                errorContainer = 0xFF8C1D18.toInt(),  // Fixed error container
+                onErrorContainer = 0xFFF9DEDC.toInt()  // Fixed on-error container
+            )
+        } catch (e: Exception) {
+            Log.e("WidgetUpdater", "Failed to extract colors, using defaults", e)
+            return PaletteColors(
+                primary = 0xFF1C1B1F.toInt(),
+                onPrimary = 0xFFFFFFFF.toInt(),
+                secondary = 0xFF49454F.toInt(),
+                onSecondary = 0xFFFFFFFF.toInt(),
+                error = 0xFFE53935.toInt(),
+                primaryContainer = 0xFF1F3140.toInt(),
+                onPrimaryContainer = 0xFFD3E4F7.toInt(),
+                secondaryContainer = 0xFF2B2535.toInt(),
+                onSecondaryContainer = 0xFFEADDFF.toInt(),
+                errorContainer = 0xFF8C1D18.toInt(),
+                onErrorContainer = 0xFFF9DEDC.toInt()
+            )
+        }
     }
 }

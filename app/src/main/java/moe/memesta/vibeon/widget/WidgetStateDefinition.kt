@@ -17,7 +17,7 @@ import java.io.OutputStream
  */
 object WidgetStateDefinition : GlanceStateDefinition<WidgetPlaybackState> {
 
-    private const val FILE_NAME = "vibeon_widget_state_json"
+    private const val FILE_NAME = "vibeon_widget_player_info"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -56,6 +56,8 @@ private class WidgetPlaybackStateSerializer(
     }
 
     override suspend fun writeTo(t: WidgetPlaybackState, output: OutputStream) {
-        output.bufferedWriter().use { it.write(json.encodeToString(WidgetPlaybackState.serializer(), t)) }
+        output.bufferedWriter().use { 
+            it.write(json.encodeToString(WidgetPlaybackState.serializer(), t)) 
+        }
     }
 }

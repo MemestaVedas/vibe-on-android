@@ -44,26 +44,30 @@
             </intent-filter>
         </service>
 
+        <!-- Vibe-on Widget -->
         <receiver
-            android:name=".widget.AlbumArtWidgetReceiver"
-            android:exported="false">
+            android:name=".widget.VibeonWidgetReceiver"
+            android:exported="true"
+            android:label="Vibe-on Player">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/albumart_widget_info" />
+                android:resource="@xml/vibeon_widget_info" />
         </receiver>
 
+        <!-- More Detail Widget -->
         <receiver
-            android:name=".widget.AlbumArtWidgetSolidReceiver"
-            android:exported="false">
+            android:name=".widget.MoreDetailWidgetReceiver"
+            android:exported="true"
+            android:label="Vibe-on More Detail">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/albumart_widget_solid_info" />
+                android:resource="@xml/more_detail_widget_info" />
         </receiver>
     </application>
 

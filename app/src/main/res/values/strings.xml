@@ -1,5 +1,8 @@
 <resources>
     <string name="app_name">Vibe-on</string>
+    <string name="widget_description">Vibe-on playback widget with album art and controls</string>
     <string name="widget_albumart_desc">Clean album art — tap to pause, edges to skip</string>
     <string name="widget_albumart_solid_desc">Solid album art — tap to pause, edges to skip</string>
+    <string name="liked_widget_description">Vibe-on now-playing widget with liked tracks and playback controls</string>
+    <string name="more_detail_widget_description">Vibe-on detailed widget with album art, track info, and dynamic theming</string>
 </resources>

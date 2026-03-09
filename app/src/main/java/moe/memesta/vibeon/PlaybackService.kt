@@ -26,7 +26,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import moe.memesta.vibeon.data.P2PDataSource
 import moe.memesta.vibeon.data.StreamRepository
-import moe.memesta.vibeon.widget.WidgetActions
+// WidgetActions removed; use local action constants instead
 import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -40,6 +40,9 @@ class PlaybackService : MediaSessionService() {
         const val ACTION_SHUFFLE = "moe.memesta.vibeon.ACTION_SHUFFLE"
         const val ACTION_FAVORITE = "moe.memesta.vibeon.ACTION_FAVORITE"
         const val ACTION_TOGGLE_OUTPUT = "moe.memesta.vibeon.ACTION_TOGGLE_OUTPUT"
+        const val ACTION_PLAY_PAUSE = "moe.memesta.vibeon.ACTION_PLAY_PAUSE"
+        const val ACTION_NEXT = "moe.memesta.vibeon.ACTION_NEXT"
+        const val ACTION_PREVIOUS = "moe.memesta.vibeon.ACTION_PREVIOUS"
     }
 
     private var mediaSession: MediaSession? = null
@@ -95,7 +98,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            WidgetActions.ACTION_PLAY_PAUSE -> {
+            ACTION_PLAY_PAUSE -> {
                 if (isSilentMode) {
                     // In silent mode, forward to PC
                     val ws = MediaNotificationManager.wsClient
@@ -107,24 +110,24 @@ class PlaybackService : MediaSessionService() {
                 }
                 Log.i("PlaybackService", "Widget: play/pause")
             }
-            WidgetActions.ACTION_NEXT -> {
+            ACTION_NEXT -> {
                 MediaNotificationManager.wsClient?.sendNext()
                 Log.i("PlaybackService", "Widget: next")
             }
-            WidgetActions.ACTION_PREVIOUS -> {
+            ACTION_PREVIOUS -> {
                 MediaNotificationManager.wsClient?.sendPrevious()
                 Log.i("PlaybackService", "Widget: previous")
             }
-            WidgetActions.ACTION_SHUFFLE -> {
+            ACTION_SHUFFLE -> {
                 MediaNotificationManager.wsClient?.sendToggleShuffle()
                 Log.i("PlaybackService", "Widget: shuffle")
             }
-            WidgetActions.ACTION_FAVORITE -> {
+            ACTION_FAVORITE -> {
                 val path = MediaNotificationManager.currentTrackPath
                 if (!path.isNullOrEmpty()) MediaNotificationManager.wsClient?.sendToggleFavorite(path)
                 Log.i("PlaybackService", "Widget: favorite")
             }
-            WidgetActions.ACTION_TOGGLE_OUTPUT -> {
+            ACTION_TOGGLE_OUTPUT -> {
                 if (MediaNotificationManager.isMobilePlayback) {
                     MediaNotificationManager.wsClient?.sendStopMobilePlayback()
                 } else {
