@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Vibe-on</string>
     <string name="widget_albumart_desc">Clean album art — tap to pause, edges to skip</string>
+    <string name="widget_albumart_solid_desc">Solid album art — tap to pause, edges to skip</string>
 </resources>

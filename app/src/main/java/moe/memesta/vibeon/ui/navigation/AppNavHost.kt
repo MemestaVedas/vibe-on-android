@@ -132,6 +132,7 @@ fun AppNavHost(
                                 launchSingleTop = true
                             }
                         },
+                        onNavigateToSearch = { navController.navigate("search") },
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this,
                         pagerState = pagerState
@@ -334,10 +335,15 @@ fun AppNavHost(
                             libraryViewModel = libraryViewModel,
                             statsViewModel = statsViewModel,
                             connectionViewModel = connectionViewModel,
+                            playbackViewModel = playbackViewModel,
                             favoritesManager = favoritesManager,
                             playerSettingsRepository = playerSettingsRepository,
                             navController = navController,
-                            contentPadding = innerPadding
+                            contentPadding = innerPadding,
+                            onNavigateToPlayer = { navController.navigate("now_playing") { launchSingleTop = true } },
+                            onSearchClick = { navController.navigate("search") },
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this
                         )
                     } else {
                         // Keep a placeholder behind the overlay while pairing

@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="120dp"
+    android:viewportWidth="400"
+    android:viewportHeight="120">
+    <!--
+        Wave shape: transparent above the S-curve, solid below it.
+        Apply colorFilter tint at runtime to colour with palette primary.
+    -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M0,48 C60,8 120,80 200,44 C280,8 340,72 400,40 L400,120 L0,120 Z"/>
+</vector>

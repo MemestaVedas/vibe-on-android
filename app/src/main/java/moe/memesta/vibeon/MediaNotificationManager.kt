@@ -37,7 +37,14 @@ object MediaNotificationManager {
         private set
     var isMobilePlayback: Boolean = false
         private set
+    var repeatMode: String = "off"
+        private set
+    var volume: Double = 0.5
+        private set
     var currentTrackPath: String? = null
+        private set
+    /** Up to 4 most-recent playlists pushed into widget state. */
+    var widgetPlaylists: List<moe.memesta.vibeon.widget.PlaylistWidgetInfo> = emptyList()
         private set
 
     private var serviceRef: PlaybackService? = null
@@ -160,6 +167,26 @@ object MediaNotificationManager {
             }
             serviceRef?.refreshCustomLayout()
             WidgetUpdater.onOutputChanged(mobile)
+        }.launchIn(scope)
+
+        // Repeat mode
+        client.repeatMode.onEach { mode ->
+            repeatMode = mode
+            WidgetUpdater.onRepeatChanged(mode)
+        }.launchIn(scope)
+
+        // Volume
+        client.volume.onEach { vol ->
+            volume = vol
+            WidgetUpdater.onVolumeChanged(vol)
+        }.launchIn(scope)
+
+        // Playlists — keep a condensed list for the widget
+        client.playlists.onEach { playlists ->
+            widgetPlaylists = playlists.take(4).map { p ->
+                moe.memesta.vibeon.widget.PlaylistWidgetInfo(id = p.id, name = p.name)
+            }
+            WidgetUpdater.onPlaylistsChanged(widgetPlaylists)
         }.launchIn(scope)
     }
 

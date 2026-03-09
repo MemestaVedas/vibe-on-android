@@ -292,21 +292,19 @@ fun PairingScreen(
                     val baseRadius = size.maxDimension * 0.8f
                     
                     // Animated radial gradient from center outward
-                    rotate(rotationAngle * 0.05f, pivot = center) {
-                        drawRect(
-                            brush = Brush.radialGradient(
-                                colorStops = arrayOf(
-                                    0.0f to animPrimary,
-                                    0.3f to animSecondary,
-                                    0.6f to animTertiary,
-                                    1.0f to animOnPrimary
-                                ),
-                                center = center,
-                                radius = baseRadius * radiusPulse
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0.0f to animPrimary,
+                                0.3f to animSecondary,
+                                0.6f to animTertiary,
+                                1.0f to animOnPrimary
                             ),
-                            size = size
-                        )
-                    }
+                            center = center,
+                            radius = baseRadius * radiusPulse
+                        ),
+                        size = size
+                    )
                     
                     // Grain overlay
                     drawRect(
