@@ -51,6 +51,7 @@ private const val ACT_PREV       = "prev"
 private const val ACT_NEXT       = "next"
 private const val ACT_TOGGLE_OUT = "toggle_output"
 private const val ACT_LIKE       = "like"
+private const val ACT_MORE       = "more_options"
 
 /**
  * Main Vibe-on widget displaying current track and playback controls.
@@ -107,186 +108,195 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
 
     val primaryColor = Color(playerInfo.colorPrimary)
     val onPrimaryColor = Color(playerInfo.colorOnPrimary)
-    val secondaryColor = Color(playerInfo.colorSecondary)
+    val onSecondaryColor = Color(playerInfo.colorOnSecondary)
     val secondaryContainer = Color(playerInfo.colorSecondaryContainer)
+    val onSecondaryContainer = Color(playerInfo.colorOnSecondaryContainer)
     val errorContainer = Color(playerInfo.colorErrorContainer)
 
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(28.dp)
-            .background(ColorProvider(primaryColor.copy(alpha = 0.15f)))
+            .background(ColorProvider(Color.Black)) // Fallback behind image
     ) {
-        Column(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            // Album Art
+        // 1. Full-screen Album Art
+        if (albumBitmap != null) {
+            Image(
+                provider = ImageProvider(albumBitmap),
+                contentDescription = "Background",
+                contentScale = ContentScale.Crop,
+                modifier = GlanceModifier.fillMaxSize()
+            )
+        } else {
+            // Default background if no album art
             Box(
                 modifier = GlanceModifier
-                    .size(120.dp)
-                    .cornerRadius(16.dp),
+                    .fillMaxSize()
+                    .background(ColorProvider(primaryColor.copy(alpha = 0.4f))),
                 contentAlignment = Alignment.Center
             ) {
-                if (albumBitmap != null) {
+                Image(
+                    provider = ImageProvider(R.drawable.finalmono),
+                    contentDescription = "No Album Art",
+                    modifier = GlanceModifier.size(80.dp),
+                    colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor.copy(alpha = 0.5f)))
+                )
+            }
+        }
+
+        // 2. 3x3 Adaptive Tap Zones Grid
+        Column(modifier = GlanceModifier.fillMaxSize()) {
+            // ROW 1: Top (Zone 1: Logo | Zone 3: Open App | Zone 2: Output Toggle)
+            Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                // Top Left: Logo (Zone 1 - No Action specified but holds the logo)
+                Box(
+                    modifier = GlanceModifier.defaultWeight().fillMaxHeight().padding(16.dp),
+                    contentAlignment = Alignment.TopStart
+                ) {
                     Image(
-                        provider = ImageProvider(albumBitmap),
-                        contentDescription = "Album Art",
-                        modifier = GlanceModifier
-                            .fillMaxSize()
-                            .cornerRadius(16.dp),
-                        contentScale = ContentScale.Crop
+                        provider = ImageProvider(R.drawable.finalmono),
+                        contentDescription = "Vibe-on Logo",
+                        colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)),
+                        modifier = GlanceModifier.size(24.dp)
                     )
-                } else {
+                }
+                
+                // Top Middle: Tap Zone 3 - Open App
+                Box(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .fillMaxHeight()
+                        .clickable(actionStartActivity<MainActivity>()),
+                    contentAlignment = Alignment.Center
+                ) {}
+
+                // Top Right: Phone/PC toggle (Clickable independently to toggle output)
+                Box(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .fillMaxHeight()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.TopEnd
+                ) {
                     Box(
                         modifier = GlanceModifier
-                            .fillMaxSize()
-                            .cornerRadius(16.dp)
-                            .background(ColorProvider(primaryColor.copy(alpha = 0.4f))),
+                            .size(36.dp)
+                            .cornerRadius(18.dp)
+                            .background(ColorProvider(secondaryContainer))
+                            .clickable(
+                                actionRunCallback<WidgetActionCallback>(
+                                    actionParametersOf(keyAction to ACT_TOGGLE_OUT)
+                                )
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            provider = ImageProvider(R.drawable.finalmono),
-                            contentDescription = "No Album Art",
-                            modifier = GlanceModifier.size(60.dp),
-                            colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor))
+                            provider = if (playerInfo.isMobilePlayback)
+                                ImageProvider(R.drawable.ic_widget_phone)
+                            else
+                                ImageProvider(R.drawable.ic_widget_computer),
+                            contentDescription = if (playerInfo.isMobilePlayback) "Mobile" else "PC",
+                            modifier = GlanceModifier.size(20.dp),
+                            colorFilter = ColorFilter.tint(ColorProvider(onSecondaryContainer))
                         )
                     }
                 }
             }
 
-            // Song Info
-            Column(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = playerInfo.title.ifEmpty { "No Track Playing" },
-                    style = TextStyle(
-                        color = ColorProvider(onPrimaryColor),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    maxLines = 1
-                )
-                Text(
-                    text = playerInfo.artist.ifEmpty { "Unknown Artist" },
-                    style = TextStyle(
-                        color = ColorProvider(secondaryColor),
-                        fontSize = 14.sp
-                    ),
-                    maxLines = 1,
-                    modifier = GlanceModifier.padding(top = 4.dp)
-                )
-            }
-
-            Spacer(modifier = GlanceModifier.height(12.dp))
-
-            // Playback Controls - Previous, Play/Pause, Next
-            Row(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Previous
+            // ROW 2: Middle (Zone 1: Prev | Zone 5: Play/Pause | Zone 2: Next)
+            Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                // Tap Zone 1 - Prev Track
                 Box(
                     modifier = GlanceModifier
                         .defaultWeight()
-                        .height(48.dp)
+                        .fillMaxHeight()
                         .clickable(
                             actionRunCallback<WidgetActionCallback>(
                                 actionParametersOf(keyAction to ACT_PREV)
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        provider = ImageProvider(R.drawable.ic_widget_music_note),
-                        contentDescription = "Previous",
-                        modifier = GlanceModifier.size(28.dp),
-                        colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor))
-                    )
-                }
+                        )
+                ) {}
 
-                // Play/Pause
+                // Tap Zone 5 - Play/Pause
                 Box(
                     modifier = GlanceModifier
                         .defaultWeight()
-                        .height(48.dp)
-                        .cornerRadius(12.dp)
-                        .background(ColorProvider(secondaryContainer))
+                        .fillMaxHeight()
                         .clickable(
                             actionRunCallback<WidgetActionCallback>(
                                 actionParametersOf(keyAction to ACT_PLAY_PAUSE)
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        provider = ImageProvider(R.drawable.ic_play_star),
-                        contentDescription = if (playerInfo.isPlaying) "Pause" else "Play",
-                        modifier = GlanceModifier.size(28.dp),
-                        colorFilter = ColorFilter.tint(ColorProvider(Color(playerInfo.colorOnSecondaryContainer)))
-                    )
-                }
+                        )
+                ) {}
 
-                // Next
+                // Tap Zone 2 - Next Track
                 Box(
                     modifier = GlanceModifier
                         .defaultWeight()
-                        .height(48.dp)
+                        .fillMaxHeight()
                         .clickable(
                             actionRunCallback<WidgetActionCallback>(
                                 actionParametersOf(keyAction to ACT_NEXT)
                             )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        provider = ImageProvider(R.drawable.ic_widget_music_note),
-                        contentDescription = "Next",
-                        modifier = GlanceModifier.size(28.dp),
-                        colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor))
-                    )
-                }
+                        )
+                ) {}
             }
 
-            Spacer(modifier = GlanceModifier.defaultWeight())
-
-            // Status Row - Shuffle, Like, Output
-            Row(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Shuffle
-                if (playerInfo.isShuffled) {
-                    Image(
-                        provider = ImageProvider(R.drawable.ic_widget_shuffle),
-                        contentDescription = "Shuffle",
-                        modifier = GlanceModifier.size(20.dp),
-                        colorFilter = ColorFilter.tint(ColorProvider(secondaryColor))
-                    )
-                }
-
-                Spacer(modifier = GlanceModifier.defaultWeight())
-
-                // Like button
+            // ROW 3: Bottom (Text Info | Zone 4: More options | Like Button)
+            Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                // Bottom Left: Song Title & Artist
                 Box(
                     modifier = GlanceModifier
-                        .size(44.dp)
+                        .defaultWeight()
+                        .fillMaxHeight()
+                        .padding(start = 16.dp, bottom = 16.dp, end = 4.dp),
+                    contentAlignment = Alignment.BottomStart
+                ) {
+                    Column(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = playerInfo.title.ifEmpty { "No Track Playing" },
+                            style = TextStyle(
+                                color = ColorProvider(onPrimaryColor),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = playerInfo.artist.ifEmpty { "Unknown Artist" },
+                            style = TextStyle(
+                                color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            maxLines = 1,
+                            modifier = GlanceModifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+
+                // Bottom Middle: Tap Zone 4 - More options view (placeholder)
+                Box(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .fillMaxHeight()
                         .clickable(
                             actionRunCallback<WidgetActionCallback>(
-                                actionParametersOf(keyAction to ACT_LIKE)
+                                actionParametersOf(keyAction to ACT_MORE)
                             )
-                        ),
-                    contentAlignment = Alignment.Center
+                        )
+                ) {}
+
+                // Bottom Right: Like Button
+                Box(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .fillMaxHeight()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.BottomEnd
                 ) {
                     Image(
                         provider = if (playerInfo.isLiked)
@@ -294,38 +304,18 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
                         else
                             ImageProvider(R.drawable.ic_widget_heart_outline),
                         contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
-                        modifier = GlanceModifier.size(24.dp),
+                        modifier = GlanceModifier
+                            .size(32.dp)
+                            .clickable(
+                                actionRunCallback<WidgetActionCallback>(
+                                    actionParametersOf(keyAction to ACT_LIKE)
+                                )
+                            ),
                         colorFilter = ColorFilter.tint(
                             ColorProvider(
-                                if (playerInfo.isLiked) errorContainer else secondaryColor
+                                if (playerInfo.isLiked) errorContainer else onSecondaryColor
                             )
                         )
-                    )
-                }
-
-                Spacer(modifier = GlanceModifier.defaultWeight())
-
-                // Output toggle
-                Box(
-                    modifier = GlanceModifier
-                        .size(44.dp)
-                        .cornerRadius(22.dp)
-                        .background(ColorProvider(secondaryContainer))
-                        .clickable(
-                            actionRunCallback<WidgetActionCallback>(
-                                actionParametersOf(keyAction to ACT_TOGGLE_OUT)
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        provider = if (playerInfo.isMobilePlayback)
-                            ImageProvider(R.drawable.ic_widget_phone)
-                        else
-                            ImageProvider(R.drawable.ic_widget_computer),
-                        contentDescription = if (playerInfo.isMobilePlayback) "Mobile" else "PC",
-                        modifier = GlanceModifier.size(22.dp),
-                        colorFilter = ColorFilter.tint(ColorProvider(Color(playerInfo.colorOnSecondaryContainer)))
                     )
                 }
             }
