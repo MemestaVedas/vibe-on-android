@@ -213,10 +213,10 @@ object WidgetUpdater {
     private suspend fun downloadAlbumArt(context: Context, url: String): ByteArray? {
         return try {
             val loader = ImageLoader(context)
-            // Download at 192px to keep size small (~50KB JPEG)
+            // Download at 512px for better quality on large widgets
             val request = ImageRequest.Builder(context)
                 .data(url)
-                .size(192)
+                .size(512)
                 .allowHardware(false)
                 .build()
             

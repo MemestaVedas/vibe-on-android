@@ -90,6 +90,22 @@ private object AlbumArtCache {
     }
 }
 
+private fun createBottomGradientBitmap(colorInt: Int): Bitmap {
+    val bitmap = Bitmap.createBitmap(1, 100, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    val paint = android.graphics.Paint()
+    
+    val transparent = colorInt and 0x00FFFFFF
+    paint.shader = android.graphics.LinearGradient(
+        0f, 0f, 0f, 100f,
+        intArrayOf(transparent, transparent, colorInt),
+        floatArrayOf(0f, 0.67f, 1f),
+        android.graphics.Shader.TileMode.CLAMP
+    )
+    canvas.drawRect(0f, 0f, 1f, 100f, paint)
+    return bitmap
+}
+
 @Composable
 private fun WidgetContent(playerInfo: WidgetPlaybackState) {
     val albumBitmap = playerInfo.albumArtBitmapData?.let { data ->
@@ -125,6 +141,14 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
                 provider = ImageProvider(albumBitmap),
                 contentDescription = "Background",
                 contentScale = ContentScale.Crop,
+                modifier = GlanceModifier.fillMaxSize()
+            )
+            
+            // Dynamic Bottom Gradient overlay (start 67% -> 100%)
+            Image(
+                provider = ImageProvider(createBottomGradientBitmap(playerInfo.colorPrimary)),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
                 modifier = GlanceModifier.fillMaxSize()
             )
         } else {
