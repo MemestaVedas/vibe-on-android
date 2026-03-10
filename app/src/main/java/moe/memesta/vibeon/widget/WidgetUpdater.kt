@@ -20,6 +20,7 @@ import moe.memesta.vibeon.VibeonApp
 import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.data.MediaSessionData
 import java.io.ByteArrayOutputStream
+import androidx.core.graphics.drawable.toBitmap
 
 /**
  * Singleton that updates widget state when playback changes.
@@ -216,14 +217,11 @@ object WidgetUpdater {
             val request = ImageRequest.Builder(context)
                 .data(url)
                 .size(192)
+                .allowHardware(false)
                 .build()
             
             val result = loader.execute(request)
-            val bitmap = (result as? SuccessResult)?.drawable?.let { drawable ->
-                if (drawable is android.graphics.drawable.BitmapDrawable) {
-                    drawable.bitmap
-                } else null
-            } ?: return null
+            val bitmap = (result as? SuccessResult)?.drawable?.toBitmap() ?: return null
 
             // Compress to JPEG ByteArray
             val outputStream = ByteArrayOutputStream()

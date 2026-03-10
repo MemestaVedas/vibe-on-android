@@ -1,5 +1,6 @@
 package moe.memesta.vibeon.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -12,6 +13,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.*
@@ -53,6 +55,7 @@ fun AppNavHost(
     var currentDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
     
     val pagerState = rememberPagerState(pageCount = { 5 })
+    val scope = rememberCoroutineScope()
     
     // Start at main. Pairing is an overlay.
     val startDestination = "main"
@@ -253,6 +256,9 @@ fun AppNavHost(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToScan = {
                             // TODO: Implement QR Scanning
+                        },
+                        onNavigateToOffline = {
+                            navController.navigate("all_songs") { launchSingleTop = true }
                         }
                     )
                 }
@@ -320,11 +326,18 @@ fun AppNavHost(
                             connectionViewModel.connectToDevice(device)
                         },
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToScan = { /* TODO: QR pairing */ }
+                        onNavigateToScan = { /* TODO: QR pairing */ },
+                        onNavigateToOffline = {
+                            navController.navigate("all_songs") { launchSingleTop = true }
+                        }
                     )
                 }
                 
                 composable("main") {
+                    BackHandler(enabled = pagerState.currentPage != 0) {
+                        scope.launch { pagerState.animateScrollToPage(0) }
+                    }
+
                     if (connectedDevice != null) {
                         currentDevice = connectedDevice
                     }
@@ -568,6 +581,16 @@ fun AppNavHost(
                         }
                     }
                 }
+
+                // Home screen walkthrough — one-time overlay after first connection
+                if (showWalkthrough) {
+                    OnboardingOverlay(
+                        onDismiss = {
+                            onboardingManager.isWalkthroughCompleted = true
+                            showWalkthrough = false
+                        }
+                    )
+                }
             }
         } // End of Scaffold
             
@@ -600,6 +623,9 @@ fun AppNavHost(
                     // Dismiss if desired, or let back handle it
                 },
                 onNavigateToScan = { },
+                onNavigateToOffline = {
+                    navController.navigate("all_songs") { launchSingleTop = true }
+                },
                 onDismiss = {
                     userDismissedPairing = true
                     // Trigger walkthrough for new users after first connection
@@ -621,16 +647,6 @@ fun AppNavHost(
                 onComplete = {
                     onboardingManager.isWelcomeCompleted = true
                     showWelcome = false
-                }
-            )
-        }
-        
-        // Home screen walkthrough — one-time overlay after first connection
-        if (showWalkthrough) {
-            OnboardingOverlay(
-                onDismiss = {
-                    onboardingManager.isWalkthroughCompleted = true
-                    showWalkthrough = false
                 }
             )
         }

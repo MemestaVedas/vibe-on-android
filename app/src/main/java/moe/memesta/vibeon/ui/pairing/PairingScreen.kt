@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -103,6 +104,7 @@ fun PairingScreen(
     onDeviceSelected: (DiscoveredDevice) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToScan: () -> Unit,
+    onNavigateToOffline: () -> Unit = {},
     onDismiss: () -> Unit = {},
     onTroubleshoot: () -> Unit = {}
 ) {
@@ -326,10 +328,10 @@ fun PairingScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { if (isConnected) onNavigateBack() else onNavigateToOffline() }) {
                         Icon(
-                            imageVector = Icons.Rounded.ArrowBack,
-                            contentDescription = "Back",
+                            imageVector = if (isConnected) Icons.Rounded.ArrowBack else Icons.Rounded.Folder,
+                            contentDescription = if (isConnected) "Back" else "Local Files",
                             tint = topContentColor
                         )
                     }
