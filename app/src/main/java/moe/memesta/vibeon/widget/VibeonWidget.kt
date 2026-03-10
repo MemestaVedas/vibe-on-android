@@ -181,7 +181,7 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
                         provider = ImageProvider(R.drawable.finalmono),
                         contentDescription = "Vibe-on Logo",
                         colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)),
-                        modifier = GlanceModifier.size(24.dp)
+                        modifier = GlanceModifier.size(36.dp)
                     )
                 }
                 
@@ -206,7 +206,11 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
                         modifier = GlanceModifier
                             .size(36.dp)
                             .cornerRadius(18.dp)
-                            .background(ColorProvider(secondaryContainer))
+                            .background(
+                                ColorProvider(
+                                    if (playerInfo.isMobilePlayback) onSecondaryContainer else secondaryContainer
+                                )
+                            )
                             .clickable(
                                 actionRunCallback<WidgetActionCallback>(
                                     actionParametersOf(keyAction to ACT_TOGGLE_OUT)
@@ -221,7 +225,11 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
                                 ImageProvider(R.drawable.ic_widget_computer),
                             contentDescription = if (playerInfo.isMobilePlayback) "Mobile" else "PC",
                             modifier = GlanceModifier.size(20.dp),
-                            colorFilter = ColorFilter.tint(ColorProvider(onSecondaryContainer))
+                            colorFilter = ColorFilter.tint(
+                                ColorProvider(
+                                    if (playerInfo.isMobilePlayback) secondaryContainer else onSecondaryContainer
+                                )
+                            )
                         )
                     }
                 }
@@ -267,80 +275,86 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
             }
 
             // ROW 3: Bottom (Text Info | Zone 4: More options | Like Button)
-            Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-                // Bottom Left: Song Title & Artist
-                Box(
-                    modifier = GlanceModifier
-                        .defaultWeight()
-                        .fillMaxHeight()
-                        .padding(start = 16.dp, bottom = 16.dp, end = 4.dp),
-                    contentAlignment = Alignment.BottomStart
-                ) {
-                    Column(
-                        modifier = GlanceModifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom
+            Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                // Visual Layer
+                Row(modifier = GlanceModifier.fillMaxSize()) {
+                    // Song Title & Artist
+                    Box(
+                        modifier = GlanceModifier
+                            .defaultWeight()
+                            .fillMaxHeight()
+                            .padding(start = 16.dp, bottom = 16.dp, end = 8.dp),
+                        contentAlignment = Alignment.BottomStart
                     ) {
-                        Text(
-                            text = playerInfo.title.ifEmpty { "No Track Playing" },
-                            style = TextStyle(
-                                color = ColorProvider(onPrimaryColor),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            maxLines = 1
-                        )
-                        Text(
-                            text = playerInfo.artist.ifEmpty { "Unknown Artist" },
-                            style = TextStyle(
-                                color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            maxLines = 1,
-                            modifier = GlanceModifier.padding(top = 2.dp)
+                        Column(
+                            modifier = GlanceModifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Text(
+                                text = playerInfo.title.ifEmpty { "No Track Playing" },
+                                style = TextStyle(
+                                    color = ColorProvider(onPrimaryColor),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                maxLines = 1
+                            )
+                            Text(
+                                text = playerInfo.artist.ifEmpty { "Unknown Artist" },
+                                style = TextStyle(
+                                    color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Normal
+                                ),
+                                maxLines = 1,
+                                modifier = GlanceModifier.padding(top = 2.dp)
+                            )
+                        }
+                    }
+
+                    // Like Button
+                    Box(
+                        modifier = GlanceModifier
+                            .fillMaxHeight()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.BottomEnd
+                    ) {
+                        Image(
+                            provider = if (playerInfo.isLiked)
+                                ImageProvider(R.drawable.ic_widget_heart_filled)
+                            else
+                                ImageProvider(R.drawable.ic_widget_heart_outline),
+                            contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
+                            modifier = GlanceModifier
+                                .size(32.dp)
+                                .clickable(
+                                    actionRunCallback<WidgetActionCallback>(
+                                        actionParametersOf(keyAction to ACT_LIKE)
+                                    )
+                                ),
+                            colorFilter = ColorFilter.tint(
+                                ColorProvider(
+                                    if (playerInfo.isLiked) errorContainer else onSecondaryColor
+                                )
+                            )
                         )
                     }
                 }
 
-                // Bottom Middle: Tap Zone 4 - More options view (placeholder)
-                Box(
-                    modifier = GlanceModifier
-                        .defaultWeight()
-                        .fillMaxHeight()
-                        .clickable(
-                            actionRunCallback<WidgetActionCallback>(
-                                actionParametersOf(keyAction to ACT_MORE)
-                            )
-                        )
-                ) {}
-
-                // Bottom Right: Like Button
-                Box(
-                    modifier = GlanceModifier
-                        .defaultWeight()
-                        .fillMaxHeight()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.BottomEnd
-                ) {
-                    Image(
-                        provider = if (playerInfo.isLiked)
-                            ImageProvider(R.drawable.ic_widget_heart_filled)
-                        else
-                            ImageProvider(R.drawable.ic_widget_heart_outline),
-                        contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
+                // Tap Zones Layer (Middle Zone 4)
+                Row(modifier = GlanceModifier.fillMaxSize()) {
+                    Box(modifier = GlanceModifier.defaultWeight().fillMaxHeight()) {}
+                    Box(
                         modifier = GlanceModifier
-                            .size(32.dp)
+                            .defaultWeight()
+                            .fillMaxHeight()
                             .clickable(
                                 actionRunCallback<WidgetActionCallback>(
-                                    actionParametersOf(keyAction to ACT_LIKE)
+                                    actionParametersOf(keyAction to ACT_MORE)
                                 )
-                            ),
-                        colorFilter = ColorFilter.tint(
-                            ColorProvider(
-                                if (playerInfo.isLiked) errorContainer else onSecondaryColor
                             )
-                        )
-                    )
+                    ) {}
+                    Box(modifier = GlanceModifier.defaultWeight().fillMaxHeight()) {}
                 }
             }
         }
