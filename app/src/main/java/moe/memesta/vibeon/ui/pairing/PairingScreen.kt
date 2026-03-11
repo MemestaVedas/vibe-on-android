@@ -54,8 +54,7 @@ import kotlinx.coroutines.delay
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.ui.ConnectionState
-import moe.memesta.vibeon.ui.WavyBottomShape
-import moe.memesta.vibeon.ui.components.AlbumArtStarShape
+import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.components.AlbumPalette
 import moe.memesta.vibeon.ui.components.extractAlbumPalette
 import moe.memesta.vibeon.ui.utils.ContrastGuard
@@ -114,11 +113,19 @@ fun PairingScreen(
     val displayDevice = connectedDevice ?: devices.firstOrNull()
     
     var isRevealing by remember { mutableStateOf(false) }
+    var pendingOfflineNav by remember { mutableStateOf(false) }
 
     val revealProgress by animateFloatAsState(
         targetValue = if (isRevealing) 1f else 0f,
         animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-        finishedListener = { if (it == 1f) onDismiss() },
+        finishedListener = { 
+            if (it == 1f) {
+                if (pendingOfflineNav) {
+                    onNavigateToOffline()
+                }
+                onDismiss() 
+            }
+        },
         label = "reveal_curtain"
     )
     
@@ -328,7 +335,14 @@ fun PairingScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(onClick = { if (isConnected) onNavigateBack() else onNavigateToOffline() }) {
+                    IconButton(onClick = { 
+                        if (isConnected) {
+                            onNavigateBack() 
+                        } else {
+                            pendingOfflineNav = true
+                            isRevealing = true
+                        }
+                    }) {
                         Icon(
                             imageVector = if (isConnected) Icons.Rounded.ArrowBack else Icons.Rounded.Folder,
                             contentDescription = if (isConnected) "Back" else "Local Files",

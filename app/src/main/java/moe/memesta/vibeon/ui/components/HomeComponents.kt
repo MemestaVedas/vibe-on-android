@@ -21,8 +21,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
-import moe.memesta.vibeon.ui.theme.SongCoverShape
-import moe.memesta.vibeon.ui.theme.ArtistCoverShape
+import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist

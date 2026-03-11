@@ -15,7 +15,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import moe.memesta.vibeon.ui.theme.SongCoverShape
+import moe.memesta.vibeon.ui.shapes.*
 import androidx.compose.ui.Alignment
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier

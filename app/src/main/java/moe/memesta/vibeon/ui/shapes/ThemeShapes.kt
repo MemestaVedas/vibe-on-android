@@ -1,11 +1,10 @@
-package moe.memesta.vibeon.ui.theme
+package moe.memesta.vibeon.ui.shapes
 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import moe.memesta.vibeon.ui.components.SvgShape
 
 /**
  * Material 3 Shapes with full roundness for Vibe-On!
@@ -24,11 +23,17 @@ val Shapes = Shapes(
     large = RoundedCornerShape(32.dp)
 )
 
-// Custom Shapes for Content
+// --- Semantic Shapes for Content ---
+
 val SongCoverShape: Shape = CircleShape // Circle for songs
 
 val PlaylistCoverShape: Shape = RoundedCornerShape(24.dp) // Stadium/Pill shape for playlists
 
 val ArtistCoverShape: Shape = CircleShape // Circle shape for artists
 
-val DomeShape: Shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 0.dp, bottomEnd = 0.dp) // Dome shape for areas
+val DomeShape: Shape = RoundedCornerShape(
+    topStart = 32.dp, 
+    topEnd = 32.dp, 
+    bottomStart = 0.dp, 
+    bottomEnd = 0.dp
+) // Dome shape for areas

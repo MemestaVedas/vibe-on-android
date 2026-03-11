@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import moe.memesta.vibeon.ui.theme.ArtistCoverShape
+import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.Dimens
 
 @Composable

@@ -87,6 +87,12 @@ object WidgetUpdater {
                 isLiked = MediaNotificationManager.isCurrentFavorite,
                 isShuffled = MediaNotificationManager.isShuffled,
                 isMobilePlayback = MediaNotificationManager.isMobilePlayback,
+                repeatMode = MediaNotificationManager.wsClient?.repeatMode?.value ?: "off",
+                volumeLevel = when {
+                    (MediaNotificationManager.wsClient?.volume?.value ?: 1.0) <= 0.0 -> 0
+                    (MediaNotificationManager.wsClient?.volume?.value ?: 1.0) < 0.66 -> 1
+                    else -> 2
+                },
                 albumArtBitmapData = albumArtData,
                 colorPrimary = colors?.primary ?: 0xFF1C1B1F.toInt(),
                 colorOnPrimary = colors?.onPrimary ?: 0xFFFFFFFF.toInt(),

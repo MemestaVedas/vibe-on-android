@@ -66,8 +66,8 @@ import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.*
+import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.Dimens
-import moe.memesta.vibeon.ui.theme.DomeShape
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
@@ -933,60 +933,7 @@ fun SeeAllButton(
     }
 }
 
-class WavyBottomShape(private val waveHeight: androidx.compose.ui.unit.Dp, private val waveFrequency: Float) : androidx.compose.ui.graphics.Shape {
-    override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): androidx.compose.ui.graphics.Outline {
-        val width = size.width
-        val height = size.height
-        val amplitude = with(density) { waveHeight.toPx() }
-        val freq = waveFrequency * 2f * Math.PI.toFloat() / width
 
-        val path = androidx.compose.ui.graphics.Path().apply {
-            moveTo(0f, 0f)
-            lineTo(width, 0f)
-            
-            val waveBottomBase = height - amplitude
-            for (x in width.toInt() downTo 0 step 5) {
-                val angle: Double = ((x.toFloat() * freq)).toDouble()
-                val sinValue: Float = kotlin.math.sin(angle).toFloat()
-                val waveFactor: Float = (sinValue + 1f) * 0.5f 
-                val y: Float = waveBottomBase + (waveFactor * amplitude)
-                
-                if (x == width.toInt()) {
-                    lineTo(width, y)
-                } else {
-                    lineTo(x.toFloat(), y)
-                }
-            }
-            lineTo(0f, waveBottomBase + ((kotlin.math.sin(0.0).toFloat() + 1f) * 0.5f * amplitude))
-            close()
-        }
-        return androidx.compose.ui.graphics.Outline.Generic(path)
-    }
-}
-
-class PetalShape(private val petals: Int = 8, private val depth: Float = 0.15f) : androidx.compose.ui.graphics.Shape {
-    override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): androidx.compose.ui.graphics.Outline {
-        val path = androidx.compose.ui.graphics.Path()
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val baseRadius = size.width / 2f * (1f - depth)
-        val variation = size.width / 2f * depth
-
-        for (i in 0..360 step 5) {
-            val angle = Math.toRadians(i.toDouble())
-            val r = baseRadius + variation * kotlin.math.sin(angle * petals)
-            val x = cx + r * kotlin.math.cos(angle).toFloat()
-            val y = cy + r * kotlin.math.sin(angle).toFloat()
-            if (i == 0) {
-                path.moveTo(x.toFloat(), y.toFloat())
-            } else {
-                path.lineTo(x.toFloat(), y.toFloat())
-            }
-        }
-        path.close()
-        return androidx.compose.ui.graphics.Outline.Generic(path)
-    }
-}
 
 /**
  * Custom pull-to-refresh indicator with morphing shapes animation

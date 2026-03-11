@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import moe.memesta.vibeon.ui.shapes.*
 
 /**
  * NOTE: This theme file is kept for backward compatibility.

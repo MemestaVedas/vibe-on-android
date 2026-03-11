@@ -108,7 +108,7 @@ import moe.memesta.vibeon.ui.utils.ThemeColors
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
-import moe.memesta.vibeon.ui.components.AlbumSquircleShape
+import moe.memesta.vibeon.ui.shapes.*
 
 @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable

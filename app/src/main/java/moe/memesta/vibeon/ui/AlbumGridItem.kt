@@ -34,7 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
-import moe.memesta.vibeon.ui.components.AlbumSquircleShape
+import moe.memesta.vibeon.ui.shapes.*
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable

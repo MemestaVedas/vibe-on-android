@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -47,10 +48,6 @@ import moe.memesta.vibeon.ui.theme.VibeBackground
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
-
-enum class PlaylistShape {
-    Circle, Rounded, Square
-}
 
 data class PlaylistCustomization(
     val type: PlaylistCustomizationType = PlaylistCustomizationType.Default,

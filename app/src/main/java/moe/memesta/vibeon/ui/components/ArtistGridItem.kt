@@ -30,7 +30,7 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import moe.memesta.vibeon.ui.theme.ArtistCoverShape
+import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi

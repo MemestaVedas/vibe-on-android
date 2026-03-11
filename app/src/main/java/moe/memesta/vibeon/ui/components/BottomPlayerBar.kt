@@ -69,6 +69,7 @@ import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
 import android.os.Build
+import moe.memesta.vibeon.ui.shapes.*
 
 // Design tokens for non-accent colors
 private val NavBarBg = Color(0xFF0F0F14)
@@ -422,8 +423,8 @@ private fun AlbumArtWithPulse(
                         sharedContentState = rememberSharedContentState(key = "album-$sharedKey"),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
-                    .clip(moe.memesta.vibeon.ui.components.AlbumArtStarShape)
-                    .border(1.dp, MaterialTheme.colorScheme.primary, moe.memesta.vibeon.ui.components.AlbumArtStarShape)
+                    .clip(AlbumArtStarShape)
+                    .border(1.dp, MaterialTheme.colorScheme.primary, AlbumArtStarShape)
                     .background(Color.DarkGray)
             ) {
                 if (coverUrl != null) {

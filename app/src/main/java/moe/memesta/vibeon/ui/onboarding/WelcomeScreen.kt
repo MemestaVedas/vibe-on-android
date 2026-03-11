@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
-import moe.memesta.vibeon.ui.WavyBottomShape
+import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DesktopWindows

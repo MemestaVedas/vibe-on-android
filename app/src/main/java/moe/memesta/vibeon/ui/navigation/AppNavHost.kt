@@ -40,6 +40,7 @@ import moe.memesta.vibeon.ui.onboarding.WelcomeScreen
 import moe.memesta.vibeon.ui.onboarding.OnboardingOverlay
 import moe.memesta.vibeon.data.local.OnboardingManager
 import moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl
+import moe.memesta.vibeon.ui.utils.rememberIsLandscape
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -112,6 +113,8 @@ fun AppNavHost(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
         val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
+
+    val isLandscape = rememberIsLandscape()
 
 
     SharedTransitionLayout {
@@ -648,6 +651,20 @@ fun AppNavHost(
                     onboardingManager.isWelcomeCompleted = true
                     showWelcome = false
                 }
+            )
+        }
+
+        // --- Immersive Mode (Landscape Dock) Overlay ---
+        // Automatically triggers when the device is physically held in landscape
+        // Only trigger if we are connected to a device and not currently on the welcome screen
+        AnimatedVisibility(
+            visible = isLandscape && connectedDevice != null && !showWelcome,
+            enter = fadeIn(animationSpec = tween(500)),
+            exit = fadeOut(animationSpec = tween(500))
+        ) {
+            ImmersiveView(
+                connectionViewModel = connectionViewModel,
+                playbackViewModel = playbackViewModel
             )
         }
             
