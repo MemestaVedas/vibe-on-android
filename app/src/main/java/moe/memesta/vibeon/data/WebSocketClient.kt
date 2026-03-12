@@ -288,6 +288,40 @@ class WebSocketClient {
         put("positionSecs", positionSecs)
     })
 
+    fun sendReportPlaybackEvent(
+        songId: String,
+        timestampMs: Long,
+        durationMs: Long,
+        startMs: Long?,
+        endMs: Long?,
+        output: String = "mobile"
+    ) = send(JSONObject().apply {
+        put("type", "reportPlaybackEvent")
+        put("songId", songId)
+        put("timestamp", timestampMs)
+        put("durationMs", durationMs)
+        startMs?.let { put("startTimestamp", it) }
+        endMs?.let { put("endTimestamp", it) }
+        put("output", output)
+    })
+
+    /**
+     * Bulk-send locally stored playback events to the PC for sync.
+     * Used on reconnect to push events that were recorded while offline.
+     */
+    fun sendSyncPlaybackEvents(events: List<moe.memesta.vibeon.data.stats.PlaybackEvent>) {
+        events.forEach { ev ->
+            sendReportPlaybackEvent(
+                songId = ev.songId,
+                timestampMs = ev.timestamp,
+                durationMs = ev.durationMs,
+                startMs = ev.startTimestamp,
+                endMs = ev.endTimestamp,
+                output = ev.output
+            )
+        }
+    }
+
     fun sendToggleFavorite(trackPath: String) = send(JSONObject().apply {
         put("type", "toggleFavorite")
         put("path", trackPath)

@@ -131,21 +131,19 @@ class StatsViewModel(
 
         Log.d("StatsViewModel", "📅 Loading events for ${range.displayName}: $startMs to $endMs")
 
-        // Fetch remote events from the PC server
+        // Fetch remote events from the PC server (now contains both desktop + synced mobile events)
         val remoteEvents: List<PlaybackEvent> = runCatching {
             repository.getPlaybackEvents(startMs, endMs)
         }.onSuccess { events ->
-            Log.d("StatsViewModel", "🖥️ Remote (PC) events: ${events?.size ?: 0}")
+            Log.d("StatsViewModel", "🖥️ Remote events (desktop + mobile): ${events?.size ?: 0}")
         }.onFailure { e ->
             Log.w("StatsViewModel", "⚠️ Failed to fetch remote events: ${e.message}")
         }.getOrNull() ?: emptyList()
 
-        // Load local (mobile-recorded) events and filter by time range
+        // Load local (mobile-recorded) events as fallback for any not yet synced to PC
         val lowerBound = startMs ?: Long.MIN_VALUE
         val allLocal = runCatching {
             localStatsRepository.readEvents()
-        }.onSuccess { events ->
-            Log.d("StatsViewModel", "📱 Local events (all): ${events.size}")
         }.onFailure { e ->
             Log.e("StatsViewModel", "❌ Failed to read local events", e)
         }.getOrElse { emptyList() }
@@ -155,9 +153,16 @@ class StatsViewModel(
             val start = event.startTimestamp ?: (end - event.durationMs)
             end >= lowerBound && start <= endMs
         }
-        Log.d("StatsViewModel", "📱 Local events (filtered): ${localEvents.size}")
 
-        val combined = remoteEvents + localEvents
+        // Deduplicate: remote DB already has synced mobile events,
+        // so only add local events not present in the remote set
+        val remoteKeys = remoteEvents.map { Triple(it.songId, it.timestamp, it.durationMs) }.toSet()
+        val uniqueLocal = localEvents.filter { ev ->
+            Triple(ev.songId, ev.timestamp, ev.durationMs) !in remoteKeys
+        }
+        Log.d("StatsViewModel", "📱 Local-only (unsynced) events: ${uniqueLocal.size}")
+
+        val combined = remoteEvents + uniqueLocal
         Log.d("StatsViewModel", "📊 Total events: ${combined.size}")
         return combined
     }

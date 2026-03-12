@@ -31,7 +31,8 @@ class ConnectionViewModel(
             statsRepository = localStatsRepository,
             currentTrack = wsClient.currentTrack,
             isPlayingFlow = wsClient.isPlaying,
-            scope = viewModelScope
+            scope = viewModelScope,
+            wsClient = wsClient
         )
     }
     
@@ -85,6 +86,8 @@ class ConnectionViewModel(
             wsIsConnected.collect { connected ->
                 if (connected) {
                     _connectionState.value = ConnectionState.CONNECTED
+                    // Sync any locally stored events to the PC on reconnect
+                    syncLocalEventsToPc()
                 } else {
                     when (_connectionState.value) {
                         ConnectionState.CONNECTING -> _connectionState.value = ConnectionState.FAILED
@@ -195,6 +198,20 @@ class ConnectionViewModel(
     
     fun createPlaylist(name: String, songPaths: List<String>, customization: PlaylistCustomization) {
         wsClient.sendCreatePlaylist(name, songPaths, customization)
+    }
+
+    /**
+     * Push locally recorded playback events to the PC so they end up in the shared SQLite DB.
+     * The PC server de-duplicates by (song_id, timestamp_ms) so re-sending is safe.
+     */
+    private fun syncLocalEventsToPc() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val events = localStatsRepository.readEvents()
+            if (events.isNotEmpty()) {
+                Log.i("ConnectionViewModel", "📤 Syncing ${events.size} local events to PC")
+                wsClient.sendSyncPlaybackEvents(events)
+            }
+        }
     }
     
     override fun onCleared() {

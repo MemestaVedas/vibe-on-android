@@ -9,6 +9,8 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.MediaSessionData
 import java.util.concurrent.TimeUnit
 
+import moe.memesta.vibeon.data.WebSocketClient
+
 /**
  * Tracks listening sessions observed via the WebSocket player state.
  * Adapted from PixelPlayer's ListeningStatsTracker.
@@ -17,6 +19,9 @@ import java.util.concurrent.TimeUnit
  * wall-clock time while [isPlayingFlow] is true, and records a [PlaybackEvent] via
  * [statsRepository] whenever a song session ends (song change or disconnection).
  *
+ * Events are also forwarded to the PC via [wsClient] so the shared SQLite database
+ * contains listening data from both desktop and mobile.
+ *
  * Designed to be owned by [ConnectionViewModel]. Call [start] once after construction and
  * [stop] when the connection is torn down (or in [ConnectionViewModel.onCleared]).
  */
@@ -24,7 +29,8 @@ class LocalStatsTracker(
     private val statsRepository: LocalPlaybackStatsRepository,
     private val currentTrack: StateFlow<MediaSessionData>,
     private val isPlayingFlow: StateFlow<Boolean>,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val wsClient: WebSocketClient? = null
 ) {
 
     @Volatile
@@ -111,7 +117,19 @@ class LocalStatsTracker(
         }
 
         val timestamp = (session.startEpochMs + listened).coerceAtMost(System.currentTimeMillis())
-        Log.d(TAG, "💾 Recording to repo...")
+        val startMs = session.startEpochMs
+        val endMs = timestamp
+        Log.d(TAG, "💾 Recording to repo + sending to PC...")
+
+        // Send to PC via WebSocket so the shared DB gets this event
+        wsClient?.sendReportPlaybackEvent(
+            songId = session.songId,
+            timestampMs = timestamp,
+            durationMs = listened,
+            startMs = startMs,
+            endMs = endMs,
+            output = "mobile"
+        )
 
         scope.launch(Dispatchers.IO) {
             statsRepository.recordPlayback(session.songId, listened, timestamp)
