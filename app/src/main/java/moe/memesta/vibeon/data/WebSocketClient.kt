@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.*
 import org.json.JSONObject
+import java.net.URI
 
 @Immutable
 data class MediaSessionData(
@@ -125,6 +126,38 @@ class WebSocketClient {
     val isLoadingLyrics: StateFlow<Boolean> = _isLoadingLyrics.asStateFlow()
     
     private var lastTrackId: String? = null
+
+    /**
+     * Use the active websocket endpoint for audio streaming as well.
+     * This avoids failures when the desktop picks a different local interface for stream URLs.
+     */
+    private fun normalizeStreamUrl(streamUrl: String): String {
+        return try {
+            val original = URI(streamUrl)
+            val expectedHost = host.trim()
+            val expectedPort = port
+            val originalPort = if (original.port > 0) original.port else expectedPort
+
+            if (original.host.equals(expectedHost, ignoreCase = true) && originalPort == expectedPort) {
+                streamUrl
+            } else {
+                val rebuilt = URI(
+                    if (original.scheme.isNullOrBlank()) "http" else original.scheme,
+                    null,
+                    expectedHost,
+                    expectedPort,
+                    original.path,
+                    original.query,
+                    original.fragment
+                ).toString()
+                Log.w("WebSocket", "⚠️ Stream URL host mismatch fixed: $streamUrl -> $rebuilt")
+                rebuilt
+            }
+        } catch (e: Exception) {
+            Log.w("WebSocket", "⚠️ Failed to parse stream URL '$streamUrl', using as-is", e)
+            streamUrl
+        }
+    }
     
     // Shuffle, Repeat, Volume, Favorites
     private val _isShuffled = MutableStateFlow(false)
@@ -207,7 +240,9 @@ class WebSocketClient {
     fun sendHello(clientName: String = "Android") {
         val message = JSONObject().apply {
             put("type", "hello")
-            put("client_name", clientName)  // Use snake_case to match server expectations
+            // Server uses serde rename_all=camelCase, but keep snake_case for backward compatibility.
+            put("clientName", clientName)
+            put("client_name", clientName)
         }
         sendMessage(message)
     }
@@ -245,6 +280,8 @@ class WebSocketClient {
     fun sendSeek(positionSecs: Double) {
         val message = JSONObject().apply {
             put("type", "seek")
+            // Send both key styles to support mixed server versions.
+            put("positionSecs", positionSecs)
             put("position_secs", positionSecs)
         }
         Log.i("WebSocket", "📍 Seeking to ${String.format("%.2f", positionSecs)}s")
@@ -344,7 +381,10 @@ class WebSocketClient {
     fun sendMobilePositionUpdate(positionSecs: Double) {
         val message = JSONObject().apply {
             put("type", "mobilePositionUpdate")
-            put("position_secs", positionSecs) // Server expects snake_case for enum fields
+            // Current desktop server expects camelCase via serde rename_all=camelCase.
+            // Keep snake_case too for compatibility with older handlers.
+            put("positionSecs", positionSecs)
+            put("position_secs", positionSecs)
         }
         sendMessage(message)
     }
@@ -596,18 +636,9 @@ class WebSocketClient {
                         // Server is ready to stream to mobile
                         var url = json.optString("url")
                         val sample = json.optLong("sample", 0)
-                        
-                        // Robustness: If server returned localhost/loopback but we are connected via a real IP,
-                        // swap it out so the phone can actually reach the stream.
-                        client.baseUrl?.let { baseUrl ->
-                            if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost") || url.startsWith("http://0.0.0.0")) {
-                                val streamIndex = url.indexOf("/stream")
-                                if (streamIndex != -1) {
-                                    url = baseUrl + url.substring(streamIndex)
-                                    Log.w("WebSocket", "⚠️ Replaced loopback address with connected baseUrl: $url")
-                                }
-                            }
-                        }
+
+                        // Always align stream URL host with the active websocket host to avoid wrong NIC/IP selection.
+                        url = client.normalizeStreamUrl(url)
                         
                         val positionSecs = (sample / 44100.0).coerceAtLeast(0.0)
                         client._streamUrl.value = url

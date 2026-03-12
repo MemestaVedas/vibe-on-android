@@ -37,7 +37,6 @@ import com.google.android.material.color.utilities.Hct
 import com.google.android.material.color.utilities.QuantizerCelebi
 import com.google.android.material.color.utilities.Score
 import com.google.android.material.color.utilities.SchemeTonalSpot
-import moe.memesta.vibeon.ui.shapes.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.R
