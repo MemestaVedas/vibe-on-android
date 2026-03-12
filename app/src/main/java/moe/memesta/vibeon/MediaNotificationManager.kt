@@ -172,6 +172,7 @@ object MediaNotificationManager {
         // Repeat mode
         client.repeatMode.onEach { mode ->
             repeatMode = mode
+            serviceRef?.refreshCustomLayout()
             WidgetUpdater.onRepeatChanged(mode)
         }.launchIn(scope)
 

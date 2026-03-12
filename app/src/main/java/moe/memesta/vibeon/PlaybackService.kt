@@ -38,7 +38,7 @@ class PlaybackService : MediaSessionService() {
         var isOfflineMode = false
 
         const val ACTION_SHUFFLE = "moe.memesta.vibeon.ACTION_SHUFFLE"
-        const val ACTION_FAVORITE = "moe.memesta.vibeon.ACTION_FAVORITE"
+        const val ACTION_REPEAT = "moe.memesta.vibeon.ACTION_REPEAT"
         const val ACTION_TOGGLE_OUTPUT = "moe.memesta.vibeon.ACTION_TOGGLE_OUTPUT"
         const val ACTION_PLAY_PAUSE = "moe.memesta.vibeon.ACTION_PLAY_PAUSE"
         const val ACTION_NEXT = "moe.memesta.vibeon.ACTION_NEXT"
@@ -99,14 +99,17 @@ class PlaybackService : MediaSessionService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_PLAY_PAUSE -> {
-                if (isSilentMode) {
-                    // In silent mode, forward to PC
+                if (MediaNotificationManager.isMobilePlayback || isOfflineMode) {
+                    // In mobile/offline mode, control local player directly.
+                    if (player.isPlaying) player.pause() else player.play()
+                } else {
+                    // In PC-controlled mode, forward to desktop.
                     val ws = MediaNotificationManager.wsClient
                     if (ws?.isConnected?.value == true) {
                         if (player.isPlaying) ws.sendPause() else ws.sendPlay()
+                    } else {
+                        if (player.isPlaying) player.pause() else player.play()
                     }
-                } else {
-                    if (player.isPlaying) player.pause() else player.play()
                 }
                 Log.i("PlaybackService", "Widget: play/pause")
             }
@@ -122,10 +125,9 @@ class PlaybackService : MediaSessionService() {
                 MediaNotificationManager.wsClient?.sendToggleShuffle()
                 Log.i("PlaybackService", "Widget: shuffle")
             }
-            ACTION_FAVORITE -> {
-                val path = MediaNotificationManager.currentTrackPath
-                if (!path.isNullOrEmpty()) MediaNotificationManager.wsClient?.sendToggleFavorite(path)
-                Log.i("PlaybackService", "Widget: favorite")
+            ACTION_REPEAT -> {
+                MediaNotificationManager.wsClient?.sendToggleRepeat()
+                Log.i("PlaybackService", "Widget: repeat")
             }
             ACTION_TOGGLE_OUTPUT -> {
                 if (MediaNotificationManager.isMobilePlayback) {
@@ -276,30 +278,37 @@ class PlaybackService : MediaSessionService() {
     fun refreshCustomLayout() {
         val session = mediaSession ?: return
         val isShuffled = MediaNotificationManager.isShuffled
-        val isFavorite = MediaNotificationManager.isCurrentFavorite
+        val repeatMode = MediaNotificationManager.repeatMode
 
         val shuffleButton = CommandButton.Builder()
             .setDisplayName(if (isShuffled) "Shuffle On" else "Shuffle Off")
             .setSessionCommand(SessionCommand(ACTION_SHUFFLE, Bundle.EMPTY))
             .setIconResId(
-                if (isShuffled) android.R.drawable.btn_star_big_on 
-                else android.R.drawable.btn_star_big_off
+                R.drawable.ic_widget_shuffle
             )
             .setEnabled(true)
             .build()
 
-        val favoriteButton = CommandButton.Builder()
-            .setDisplayName(if (isFavorite) "Unlike" else "Like")
-            .setSessionCommand(SessionCommand(ACTION_FAVORITE, Bundle.EMPTY))
+        val repeatButton = CommandButton.Builder()
+            .setDisplayName(
+                when (repeatMode) {
+                    "one" -> "Repeat One"
+                    "all" -> "Repeat All"
+                    else -> "Repeat Off"
+                }
+            )
+            .setSessionCommand(SessionCommand(ACTION_REPEAT, Bundle.EMPTY))
             .setIconResId(
-                if (isFavorite) android.R.drawable.star_on 
-                else android.R.drawable.star_off
+                when (repeatMode) {
+                    "one" -> R.drawable.ic_widget_repeat_one
+                    else -> R.drawable.ic_widget_repeat
+                }
             )
             .setEnabled(true)
             .build()
 
-        session.setCustomLayout(ImmutableList.of(shuffleButton, favoriteButton))
-        Log.i("PlaybackService", "✨ Custom layout refreshed: Shuffle=$isShuffled, Fav=$isFavorite")
+        session.setCustomLayout(ImmutableList.of(shuffleButton, repeatButton))
+        Log.i("PlaybackService", "✨ Custom layout refreshed: Shuffle=$isShuffled, Repeat=$repeatMode")
     }
 
     internal fun getSession(): MediaSession? = mediaSession
@@ -444,7 +453,7 @@ class PlaybackService : MediaSessionService() {
             val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
                 .buildUpon()
                 .add(SessionCommand(ACTION_SHUFFLE, Bundle.EMPTY))
-                .add(SessionCommand(ACTION_FAVORITE, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_REPEAT, Bundle.EMPTY))
                 .add(SessionCommand(ACTION_TOGGLE_OUTPUT, Bundle.EMPTY))
                 .build()
 
@@ -463,10 +472,7 @@ class PlaybackService : MediaSessionService() {
             Log.i("PlaybackService", "🔔 Custom command: ${customCommand.customAction}")
             when (customCommand.customAction) {
                 ACTION_SHUFFLE -> wsClient?.sendToggleShuffle()
-                ACTION_FAVORITE -> {
-                    val path = MediaNotificationManager.currentTrackPath
-                    if (!path.isNullOrEmpty()) wsClient?.sendToggleFavorite(path)
-                }
+                ACTION_REPEAT -> wsClient?.sendToggleRepeat()
                 ACTION_TOGGLE_OUTPUT -> {
                     if (MediaNotificationManager.isMobilePlayback) {
                         wsClient?.sendStopMobilePlayback()
