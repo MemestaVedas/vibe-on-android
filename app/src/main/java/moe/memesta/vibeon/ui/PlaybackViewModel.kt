@@ -13,90 +13,105 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.WebSocketClient
 import moe.memesta.vibeon.MediaNotificationManager
-import uniffi.vibe_on_core.StreamHeader
 import moe.memesta.vibeon.PlaybackService
 
 class PlaybackViewModel(
     private val webSocketClient: WebSocketClient,
     private var player: Player? = null
 ) : ViewModel() {
-    
+
+    companion object {
+        private const val TAG = "PlaybackVM"
+        private const val AUTO_NEXT_COOLDOWN_MS = 1500L
+    }
+
+    // ── State ────────────────────────────────────────────────────────────
+    private val _playbackState = MutableStateFlow(PlaybackState())
+    val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+
+    private val _isMobilePlayback = MutableStateFlow(false)
+    val isMobilePlayback: StateFlow<Boolean> = _isMobilePlayback.asStateFlow()
+
     private val _offlineSong = MutableStateFlow<OfflineSong?>(null)
     val offlineSong: StateFlow<OfflineSong?> = _offlineSong.asStateFlow()
 
+    // ── Internal ─────────────────────────────────────────────────────────
     private var pendingStreamUrl: String? = null
-    
+    private var currentStreamUrl: String? = null
+    private var streamingListener: Player.Listener? = null
+    private var progressJob: kotlinx.coroutines.Job? = null
+    private var autoNextArmed = true
+    private var lastAutoNextAtMs = 0L
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Player attachment
+    // ═════════════════════════════════════════════════════════════════════
+
     fun setPlayer(player: Player) {
         this.player = player
-        Log.i("PlaybackViewModel", "🎧 Player attached")
+        Log.i(TAG, "Player attached")
 
+        // Apply any stream URL that arrived before the player was ready
         pendingStreamUrl?.let { url ->
-            Log.i("PlaybackViewModel", "🔁 Applying pending handoff URL after player attach")
+            Log.i(TAG, "Applying deferred handoff URL")
             if (startMobileStreaming(url)) {
                 webSocketClient.consumeStreamUrl()
                 pendingStreamUrl = null
             }
         }
     }
-    private val _playbackState = MutableStateFlow(PlaybackState())
-    val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
-    
-    private val _isMobilePlayback = MutableStateFlow(false)
-    val isMobilePlayback: StateFlow<Boolean> = _isMobilePlayback.asStateFlow()
+
+    // ═════════════════════════════════════════════════════════════════════
+    // WebSocket observers
+    // ═════════════════════════════════════════════════════════════════════
 
     init {
-        // Listen for WebSocket stream URL updates — consume-and-clear to prevent stale re-triggers
+        // Stream URL → start mobile streaming
         viewModelScope.launch {
             webSocketClient.streamUrl.collect { url ->
                 if (url != null) {
-                    val started = startMobileStreaming(url)
-                    if (started) {
-                        // Consume only after successful stream start setup.
+                    if (startMobileStreaming(url)) {
                         webSocketClient.consumeStreamUrl()
                         pendingStreamUrl = null
                     } else {
                         pendingStreamUrl = url
-                        Log.w("PlaybackViewModel", "⏳ Deferring stream start until player is attached")
+                        Log.w(TAG, "Deferring stream start — player not ready")
                     }
                 }
             }
         }
-        
-        // Listen for mobile playback state
+
+        // Mobile-playback flag → stop streaming when false
         viewModelScope.launch {
             webSocketClient.isMobilePlayback.collect { isMobile ->
                 _isMobilePlayback.value = isMobile
-                if (!isMobile) {
-                    stopMobileStreaming()
-                }
+                if (!isMobile) stopMobileStreaming()
             }
         }
-        
-        // Listen for track updates from WebSocket
+
+        // Track metadata
         viewModelScope.launch {
             webSocketClient.currentTrack.collect { track ->
                 _playbackState.value = _playbackState.value.copy(
                     title = track.title,
                     artist = track.artist,
-                    duration = track.duration.toLong() * 1000 // Convert seconds to ms
+                    duration = track.duration.toLong() * 1000
                 )
             }
         }
-        
-        // Listen for playback state from WebSocket
-         viewModelScope.launch {
-            webSocketClient.isPlaying.collect { isPlaying ->
-                _playbackState.value = _playbackState.value.copy(
-                    isPlaying = isPlaying
-                )
 
-                // During mobile playback, local ExoPlayer is the source of truth.
-                // Desktop reports isPlaying=false right after handoff (PC is paused),
-                // so mirroring that state here can incorrectly pause mobile audio.
+        // Remote isPlaying (only applies when NOT in mobile-playback mode,
+        // because during mobile playback ExoPlayer is the source of truth
+        // and the desktop reports isPlaying=false after handoff)
+        viewModelScope.launch {
+            webSocketClient.isPlaying.collect { isPlaying ->
+                if (!_isMobilePlayback.value) {
+                    _playbackState.value = _playbackState.value.copy(isPlaying = isPlaying)
+                }
             }
         }
-        
-        // Listen for progress from WebSocket (when not playing locally)
+
+        // Remote position (only relevant when NOT playing locally)
         viewModelScope.launch {
             webSocketClient.progress.collect { position ->
                 if (!_isMobilePlayback.value) {
@@ -107,162 +122,136 @@ class PlaybackViewModel(
             }
         }
     }
-    
-    private var streamingListener: Player.Listener? = null
-    private var currentStreamUrl: String? = null
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Mobile streaming
+    // ═════════════════════════════════════════════════════════════════════
 
     private fun startMobileStreaming(url: String): Boolean {
-        val p = player
-        if (p == null) {
-            Log.w("PlaybackViewModel", "⚠️ Cannot start mobile streaming yet: player is null")
+        val p = player ?: run {
+            Log.w(TAG, "Cannot start streaming: player is null")
             return false
         }
 
-        // Guard: skip if already playing this exact URL
+        // Skip if already playing this exact URL
         if (url == currentStreamUrl && p.playbackState == Player.STATE_READY) {
-            Log.i("PlaybackViewModel", "⏭️ Already streaming $url — skipping re-trigger")
+            Log.d(TAG, "Already streaming $url — skipping")
             return true
         }
         currentStreamUrl = url
 
-        // Exit silent notification mode before loading real audio
         MediaNotificationManager.exitSilentMode()
-        Log.i("PlaybackViewModel", "🔓 Exited silent mode for mobile streaming")
-            
-        run {
-            Log.i("PlaybackViewModel", "🎵 Starting mobile streaming from URL: $url")
-            Log.d("PlaybackViewModel", "📊 Player state before loading: isPlaying=${p.isPlaying}, playbackState=${p.playbackState}")
-            val state = _playbackState.value
-            val metadata = MediaMetadata.Builder()
-                .setTitle(state.title)
-                .setArtist(state.artist)
-                .build()
 
-            val mediaItem = MediaItem.Builder()
-                .setUri(url)
-                .setMediaMetadata(metadata)
-                .build()
+        val state = _playbackState.value
+        val metadata = MediaMetadata.Builder()
+            .setTitle(state.title)
+            .setArtist(state.artist)
+            .build()
 
-            p.setMediaItem(mediaItem)
-            p.prepare()
+        val mediaItem = MediaItem.Builder()
+            .setUri(url)
+            .setMediaMetadata(metadata)
+            .build()
 
-            // Remove any previous streaming listener before adding a new one
-            streamingListener?.let { p.removeListener(it) }
-            streamingListener = null
+        p.setMediaItem(mediaItem)
+        p.prepare()
 
-            // Capture handoff position now — seek will be applied once STATE_READY fires
-            val handoffSecs = webSocketClient.handoffPosition.value
-            val isFlacStream = url.substringBefore('?').lowercase().endsWith(".flac")
-            var handoffApplied = false
+        // Remove the previous listener before installing a new one
+        streamingListener?.let { p.removeListener(it) }
+        streamingListener = null
 
-            // Add listener to sync position and apply the deferred seek
-            streamingListener = object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY && !handoffApplied) {
+        val handoffSecs = webSocketClient.handoffPosition.value
+        val isFlac = url.substringBefore('?').lowercase().endsWith(".flac")
+        var handoffApplied = false
+
+        streamingListener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                when (playbackState) {
+                    Player.STATE_READY -> if (!handoffApplied) {
                         handoffApplied = true
-                        if (handoffSecs > 0 && !isFlacStream) {
-                            Log.i("PlaybackViewModel", "⏭️ STATE_READY — seeking to handoff ${handoffSecs}s")
+                        autoNextArmed = true
+                        // Seek to handoff position (skip for FLAC to avoid decode issues)
+                        if (handoffSecs > 0 && !isFlac) {
                             p.seekTo((handoffSecs * 1000).toLong())
-                        } else if (handoffSecs > 0 && isFlacStream) {
-                            Log.w("PlaybackViewModel", "⚠️ Skipping immediate handoff seek for FLAC stream to avoid decode errors")
                         }
                         p.play()
                         startProgressPolling()
                     }
-                    if (playbackState == Player.STATE_ENDED && _isMobilePlayback.value) {
-                        Log.i("PlaybackViewModel", "🎵 Track ended, auto-skipping to next")
-                        webSocketClient.sendNext()
+                    Player.STATE_ENDED -> if (_isMobilePlayback.value) {
+                        val now = System.currentTimeMillis()
+                        if (autoNextArmed && now - lastAutoNextAtMs > AUTO_NEXT_COOLDOWN_MS) {
+                            autoNextArmed = false
+                            lastAutoNextAtMs = now
+                            Log.i(TAG, "Track ended — auto-next")
+                            webSocketClient.sendNext()
+                        }
                     }
+                    else -> {}
                 }
+            }
 
-                override fun onPositionDiscontinuity(
-                    oldPosition: Player.PositionInfo,
-                    newPosition: Player.PositionInfo,
-                    reason: Int
-                ) {
-                    val positionSecs = p.currentPosition / 1000.0
-                    webSocketClient.sendMobilePositionUpdate(positionSecs)
-                    updateProgress(p.currentPosition)
-                }
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int
+            ) {
+                val secs = p.currentPosition / 1000.0
+                webSocketClient.sendMobilePositionUpdate(secs)
+                updateProgress(p.currentPosition)
+            }
 
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isPlaying) startProgressPolling()
-                }
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) startProgressPolling()
+            }
 
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    Log.e("PlaybackViewModel", "❌ ExoPlayer Error: ${error.errorCodeName}", error)
-                    Log.e("PlaybackViewModel", "❌ Error details: ${error.cause?.message}", error.cause)
-                    val errorMsg = when (error.errorCodeName) {
-                        "ERROR_CODE_NETWORK_TIMEOUT" -> "Network timeout - check connection to PC"
-                        "ERROR_CODE_NETWORK_PERMISSION" -> "Network permission error"
-                        "ERROR_CODE_IO_FILE_NOT_FOUND" -> "Stream file not found on PC"
-                        "ERROR_CODE_IO_NETWORK_CONNECTION_FAILED" -> "Cannot connect to PC - check network/IP address"
-                        "ERROR_CODE_CLEARTEXT_NOT_PERMITTED" -> "HTTP not allowed (security config issue)"
-                        "ERROR_CODE_UNSPECIFIED" -> "Unspecified error: ${error.message}"
-                        else -> "ExoPlayer error: ${error.errorCodeName} - ${error.message}"
-                    }
-                    Log.e("PlaybackViewModel", "📱 Mobile Streaming Error: $errorMsg")
-                    if (_isMobilePlayback.value) {
-                        Log.i("PlaybackViewModel", "🔄 Mobile playback active, waiting for recovery...")
-                    }
-                }
-            }.also { p.addListener(it) }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                Log.e(TAG, "ExoPlayer error: ${error.errorCodeName} — ${error.message}", error)
+            }
+        }.also { p.addListener(it) }
 
-            // playWhenReady so ExoPlayer starts as soon as STATE_READY fires
-            p.playWhenReady = true
-        }
-
+        p.playWhenReady = true
         return true
     }
-    
-    override fun onCleared() {
-        super.onCleared()
-        progressJob?.cancel()
-        player?.let { p ->
-            streamingListener?.let { p.removeListener(it) }
-        }
-    }
-    
-    private var progressJob: kotlinx.coroutines.Job? = null
-    
-    private fun startProgressPolling() {
-        progressJob?.cancel()
-        progressJob = viewModelScope.launch {
-            while (_isMobilePlayback.value && player?.isPlaying == true) {
-                player?.let {
-                    val currentPos = it.currentPosition
-                    updateProgress(currentPos)
-                }
-                kotlinx.coroutines.delay(1000)
-            }
-        }
-    }
-    
+
     private fun stopMobileStreaming() {
         progressJob?.cancel()
         currentStreamUrl = null
         player?.let { p ->
-            Log.i("PlaybackViewModel", "⏹️ Stopping mobile streaming")
+            Log.i(TAG, "Stopping mobile streaming")
             streamingListener?.let { p.removeListener(it) }
             streamingListener = null
             p.stop()
             p.clearMediaItems()
         }
-        // DO NOT clear media items from the service player — MediaNotificationManager
-        // will handle re-entering silent mode via the isMobilePlayback flow observer.
     }
-    
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Progress polling
+    // ═════════════════════════════════════════════════════════════════════
+
+    private fun startProgressPolling() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (_isMobilePlayback.value && player?.isPlaying == true) {
+                player?.let { updateProgress(it.currentPosition) }
+                kotlinx.coroutines.delay(1000)
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Public API
+    // ═════════════════════════════════════════════════════════════════════
+
     fun requestMobilePlayback() {
-        Log.i("PlaybackViewModel", "📱 User requested mobile playback")
         webSocketClient.sendStartMobilePlayback()
     }
-    
+
     fun stopMobilePlayback() {
-        Log.i("PlaybackViewModel", "🖥️ User requested to stop mobile playback")
         webSocketClient.sendStopMobilePlayback()
     }
 
-    fun updateHeader(header: StreamHeader) {
+    fun updateHeader(header: uniffi.vibe_on_core.StreamHeader) {
         _playbackState.value = _playbackState.value.copy(
             title = header.title,
             artist = header.artist,
@@ -272,8 +261,6 @@ class PlaybackViewModel(
 
     fun updateProgress(position: Long) {
         _playbackState.value = _playbackState.value.copy(currentPosition = position)
-        
-        // Sync position to PC if playing locally
         if (_isMobilePlayback.value) {
             webSocketClient.sendMobilePositionUpdate(position / 1000.0)
         }
@@ -286,7 +273,7 @@ class PlaybackViewModel(
     fun setPlayerPlayWhenReady(playWhenReady: Boolean) {
         player?.playWhenReady = playWhenReady
     }
-    
+
     fun seekTo(positionMs: Long) {
         player?.seekTo(positionMs)
     }
@@ -299,14 +286,13 @@ class PlaybackViewModel(
             artist = song.artist,
             duration = song.duration
         )
-        
+
         MediaNotificationManager.exitSilentMode()
 
         player?.let { p ->
             val metadata = MediaMetadata.Builder()
                 .setTitle(song.title)
                 .setArtist(song.artist)
-                // Use a generic placeholder, media session handles real art if needed via MNM
                 .build()
 
             val mediaItem = MediaItem.Builder()
@@ -318,8 +304,7 @@ class PlaybackViewModel(
             p.setMediaItem(mediaItem)
             p.prepare()
             p.play()
-            
-            // Re-use progress polling
+
             _isMobilePlayback.value = true
             startProgressPolling()
         }
@@ -331,7 +316,7 @@ class PlaybackViewModel(
             _offlineSong.value = null
             _isMobilePlayback.value = false
             stopMobileStreaming()
-            // Reset to current track from PC
+            // Reset to current PC track
             webSocketClient.currentTrack.value.let { track ->
                 _playbackState.value = _playbackState.value.copy(
                     title = track.title,
@@ -341,7 +326,15 @@ class PlaybackViewModel(
             }
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        progressJob?.cancel()
+        player?.let { p -> streamingListener?.let { p.removeListener(it) } }
+    }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
 
 @Stable
 data class PlaybackState(

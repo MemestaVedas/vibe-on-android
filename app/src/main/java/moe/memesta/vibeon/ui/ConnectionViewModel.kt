@@ -85,8 +85,16 @@ class ConnectionViewModel(
             wsIsConnected.collect { connected ->
                 if (connected) {
                     _connectionState.value = ConnectionState.CONNECTED
-                } else if (_connectionState.value == ConnectionState.CONNECTING) {
-                    _connectionState.value = ConnectionState.FAILED
+                } else {
+                    when (_connectionState.value) {
+                        ConnectionState.CONNECTING -> _connectionState.value = ConnectionState.FAILED
+                        ConnectionState.CONNECTED -> {
+                            // Server dropped while we were connected — allow reconnect
+                            _connectionState.value = ConnectionState.IDLE
+                            hasAutoConnected = false
+                        }
+                        else -> { /* already IDLE or FAILED */ }
+                    }
                 }
             }
         }
@@ -108,6 +116,7 @@ class ConnectionViewModel(
     }
     
     fun disconnect() {
+        wsClient.sendStopMobilePlayback()
         wsClient.disconnect()
         _connectionState.value = ConnectionState.IDLE
         _connectedDevice.value = null

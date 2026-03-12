@@ -376,7 +376,8 @@ class PlaybackService : MediaSessionService() {
 
         override fun play() {
             super.play()
-            if (isForwardingEnabled && !isOfflineMode) {
+            if (isForwardingEnabled && !isOfflineMode && isSilentMode) {
+                // Only forward to PC when in silent mode (PC is playing, not mobile)
                 MediaNotificationManager.wsClient?.sendPlay()
                 Log.i("PlaybackService", "▶️ Play forwarded to PC")
             }
@@ -384,7 +385,8 @@ class PlaybackService : MediaSessionService() {
 
         override fun pause() {
             super.pause()
-            if (isForwardingEnabled && !isOfflineMode) {
+            if (isForwardingEnabled && !isOfflineMode && isSilentMode) {
+                // Only forward to PC when in silent mode (PC is playing, not mobile)
                 MediaNotificationManager.wsClient?.sendPause()
                 Log.i("PlaybackService", "⏸️ Pause forwarded to PC")
             }

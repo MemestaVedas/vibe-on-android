@@ -33,6 +33,7 @@ import moe.memesta.vibeon.ui.theme.VibeonTheme
 import moe.memesta.vibeon.ui.navigation.AppNavHost
 import android.content.ComponentName
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.common.Player
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
     private var streamRepository: StreamRepository? = null
+    private var playerListener: Player.Listener? = null
 
     // Runtime notification permission launcher (Android 13+)
     private val notifPermLauncher = registerForActivityResult(
@@ -78,11 +80,21 @@ val appContainer = VibeonApp.instance.container
         playerSettingsRepository = appContainer.playerSettingsRepository
         localStatsRepository = appContainer.localStatsRepository
         onboardingManager = appContainer.onboardingManager
-        connectionViewModel = ConnectionViewModel(discoveryRepository, localStatsRepository, appContainer.webSocketClient)
-        // Initialize playbackViewModel immediately so it's ready for UI
-        playbackViewModel = PlaybackViewModel(
-            webSocketClient = appContainer.webSocketClient
-        )
+
+        // Use ViewModelProvider so ViewModels survive configuration changes
+        connectionViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return ConnectionViewModel(discoveryRepository, localStatsRepository, appContainer.webSocketClient) as T
+            }
+        })[ConnectionViewModel::class.java]
+
+        playbackViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return PlaybackViewModel(webSocketClient = appContainer.webSocketClient) as T
+            }
+        })[PlaybackViewModel::class.java]
         
         // Auto-start discovery for favorite device detection
         connectionViewModel.startScanning()
@@ -141,7 +153,10 @@ val appContainer = VibeonApp.instance.container
         controllerFuture?.addListener({
             try {
                 mediaController = controllerFuture?.get()
-                mediaController?.addListener(object : Player.Listener {
+                // Remove previous listener if any (defensive)
+                playerListener?.let { mediaController?.removeListener(it) }
+
+                val listener = object : Player.Listener {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         playbackViewModel.updateIsPlaying(isPlaying)
                     }
@@ -152,7 +167,10 @@ val appContainer = VibeonApp.instance.container
                     ) {
                         playbackViewModel.updateProgress(newPosition.positionMs)
                     }
-                })
+                }
+                playerListener = listener
+                mediaController?.addListener(listener)
+
                 // Attach player to ViewModel
                 playbackViewModel.setPlayer(mediaController!!)
             } catch (e: Exception) {
@@ -162,8 +180,18 @@ val appContainer = VibeonApp.instance.container
     }
 
     override fun onStop() {
+        // Remove listener to prevent accumulation
+        playerListener?.let { mediaController?.removeListener(it) }
+        playerListener = null
+        // Do NOT release MediaController here — ExoPlayer must keep running
+        // when the app is backgrounded (e.g. screen off, app switch).
+        // The service's onDestroy handles cleanup.
+        super.onStop()
+    }
+
+    override fun onDestroy() {
         controllerFuture?.let { MediaController.releaseFuture(it) }
         mediaController = null
-        super.onStop()
+        super.onDestroy()
     }
 }
