@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.DiscoveredDevice
@@ -62,6 +64,7 @@ class ConnectionViewModel(
     val connectedDevice: StateFlow<DiscoveredDevice?> = _connectedDevice.asStateFlow()
     
     private var hasAutoConnected = false
+    private var localSyncJob: Job? = null
 
     init {
         // Wire WebSocketClient into the notification manager so it tracks PC state
@@ -86,9 +89,14 @@ class ConnectionViewModel(
             wsIsConnected.collect { connected ->
                 if (connected) {
                     _connectionState.value = ConnectionState.CONNECTED
-                    // Sync any locally stored events to the PC on reconnect
-                    syncLocalEventsToPc()
+                    // Defer event sync briefly so initial UI transitions are not contending on connect.
+                    localSyncJob?.cancel()
+                    localSyncJob = viewModelScope.launch {
+                        delay(2500)
+                        syncLocalEventsToPc()
+                    }
                 } else {
+                    localSyncJob?.cancel()
                     when (_connectionState.value) {
                         ConnectionState.CONNECTING -> _connectionState.value = ConnectionState.FAILED
                         ConnectionState.CONNECTED -> {
@@ -208,8 +216,9 @@ class ConnectionViewModel(
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val events = localStatsRepository.readEvents()
             if (events.isNotEmpty()) {
-                Log.i("ConnectionViewModel", "📤 Syncing ${events.size} local events to PC")
-                wsClient.sendSyncPlaybackEvents(events)
+                val payload = if (events.size > 1000) events.takeLast(1000) else events
+                Log.i("ConnectionViewModel", "📤 Syncing ${payload.size}/${events.size} local events to PC")
+                wsClient.sendSyncPlaybackEvents(payload)
             }
         }
     }
