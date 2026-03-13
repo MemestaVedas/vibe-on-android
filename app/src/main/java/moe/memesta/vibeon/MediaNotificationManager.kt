@@ -5,7 +5,6 @@ import android.util.Log
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaMetadata
-import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.CoroutineScope
@@ -17,6 +16,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.MediaSessionData
 import moe.memesta.vibeon.data.WebSocketClient
+import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.widget.WidgetUpdater
 
 /**
@@ -103,7 +103,7 @@ object MediaNotificationManager {
                 scope.launch(Dispatchers.IO) {
                     val artBitmap: Bitmap? = track.coverUrl?.let { url ->
                         try {
-                            val loader = ImageLoader(VibeonApp.instance)
+                            val loader = AppImageLoader.get(VibeonApp.instance)
                             val req = ImageRequest.Builder(VibeonApp.instance).data(url).build()
                             val result = loader.execute(req)
                             (result as? SuccessResult)?.drawable?.let { d ->

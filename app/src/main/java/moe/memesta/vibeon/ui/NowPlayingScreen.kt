@@ -81,7 +81,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
@@ -89,6 +88,7 @@ import coil.request.SuccessResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -102,6 +102,7 @@ import moe.memesta.vibeon.ui.theme.VibeSurfaceContainer
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.theme.ensureLuminance
 import moe.memesta.vibeon.ui.theme.*
+import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
@@ -169,12 +170,12 @@ fun NowPlayingScreen(
 
     LaunchedEffect(coverUrl) {
         if (coverUrl != null) {
-            val loader = ImageLoader(context)
+            val loader = AppImageLoader.get(context)
             val request = ImageRequest.Builder(context)
                 .data(coverUrl)
                 .allowHardware(false)
                 .build()
-            val result = loader.execute(request)
+            val result = withContext(kotlinx.coroutines.Dispatchers.IO) { loader.execute(request) }
             if (result is SuccessResult) {
                 themeColors = PaletteUtils.extractColors(result.drawable)
             }

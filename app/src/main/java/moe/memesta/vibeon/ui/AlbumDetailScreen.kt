@@ -36,11 +36,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.compose.ui.platform.LocalContext
-import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.ui.theme.bouncyClickable
@@ -144,12 +146,12 @@ fun AlbumDetailScreen(
                     // Extract colors on the fly
                     LaunchedEffect(coverUrl) {
                         if (coverUrl != null) {
-                            val loader = ImageLoader(context)
+                            val loader = AppImageLoader.get(context)
                             val request = ImageRequest.Builder(context)
                                 .data(coverUrl)
                                 .allowHardware(false)
                                 .build()
-                            val result = loader.execute(request)
+                            val result = withContext(Dispatchers.IO) { loader.execute(request) }
                             if (result is SuccessResult) {
                                 themeColors = PaletteUtils.extractColors(result.drawable)
                             }
