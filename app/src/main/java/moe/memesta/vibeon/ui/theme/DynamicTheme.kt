@@ -14,6 +14,7 @@ import com.google.android.material.color.utilities.SchemeTonalSpot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.shapes.*
+import moe.memesta.vibeon.ui.image.AppImageLoader
 
 /**
  * Dynamic theme using Material Color Utilities (MCU) SchemeTonalSpot —
@@ -180,12 +181,12 @@ fun rememberBitmapFromUrl(url: String?): Bitmap? {
     var bitmap by remember(url) { mutableStateOf<Bitmap?>(null) }
     val context = LocalContext.current
     LaunchedEffect(url) {
-        val loader = coil.ImageLoader(context)
+        val loader = AppImageLoader.get(context)
         val request = coil.request.ImageRequest.Builder(context)
             .data(url)
             .allowHardware(false) // Palette/MCU needs software bitmap
             .build()
-        val result = loader.execute(request)
+        val result = withContext(Dispatchers.IO) { loader.execute(request) }
         if (result is coil.request.SuccessResult) {
             bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
         }

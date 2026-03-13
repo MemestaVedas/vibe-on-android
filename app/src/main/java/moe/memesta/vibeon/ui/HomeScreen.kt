@@ -56,8 +56,10 @@ import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -70,6 +72,7 @@ import moe.memesta.vibeon.ui.components.*
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
+import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
@@ -716,7 +719,6 @@ fun HeroHeader(
                     ImageRequest.Builder(context)
                         .data(album.coverUrl)
                         .crossfade(true)
-                        .allowHardware(false) // Required for MCU palette extraction
                         .build()
                 }
 
@@ -724,26 +726,37 @@ fun HeroHeader(
                 var dynamicBaseColor by remember { mutableStateOf<Color?>(null) }
                 
                 LaunchedEffect(album.coverUrl) {
-                    val loader = coil.ImageLoader(context)
-                    val result = loader.execute(request)
+                    val loader = AppImageLoader.get(context)
+                    val paletteRequest = ImageRequest.Builder(context)
+                        .data(album.coverUrl)
+                        .allowHardware(false)
+                        .build()
+
+                    val result = withContext(Dispatchers.IO) {
+                        loader.execute(paletteRequest)
+                    }
                     if (result is coil.request.SuccessResult) {
-                        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap?.copy(
+                            android.graphics.Bitmap.Config.ARGB_8888,
+                            false
+                        )
                         if (bitmap != null) {
-                            // Scale down for speed
-                            val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 64, 64, false)
-                            val pixels = IntArray(scaled.width * scaled.height)
-                            scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
-                            if (scaled != bitmap) scaled.recycle()
+                            val color = withContext(Dispatchers.Default) {
+                                val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 64, 64, false)
+                                val pixels = IntArray(scaled.width * scaled.height)
+                                scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
+                                if (scaled != bitmap) scaled.recycle()
 
-                            val quantized = com.google.android.material.color.utilities.QuantizerCelebi.quantize(pixels, 128)
-                            val scored = com.google.android.material.color.utilities.Score.score(quantized)
-                            val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF121113.toInt()
+                                val quantized = com.google.android.material.color.utilities.QuantizerCelebi.quantize(pixels, 128)
+                                val scored = com.google.android.material.color.utilities.Score.score(quantized)
+                                val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF121113.toInt()
 
-                            val hct = com.google.android.material.color.utilities.Hct.fromInt(sourceColor)
-                            val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
-                            
-                            // Use the primary palette at a darker tone (50) for vibrant dominant color
-                            dynamicBaseColor = Color(scheme.primaryPalette.tone(50))
+                                val hct = com.google.android.material.color.utilities.Hct.fromInt(sourceColor)
+                                val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
+                                Color(scheme.primaryPalette.tone(50))
+                            }
+                            bitmap.recycle()
+                            dynamicBaseColor = color
                         }
                     }
                 }

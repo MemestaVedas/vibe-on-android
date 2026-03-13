@@ -158,10 +158,12 @@ fun PairingScreen(
     val animOnPrimary by animateColorAsState(palette.onPrimary, tween(1200), label = "pal_op")
     
     // Radial gradient with animated palette
-    val topBackgroundBrush = Brush.radialGradient(
-        colors = listOf(animPrimary, animSecondary, animTertiary, animOnPrimary),
-        radius = 1800f
-    )
+    val topBackgroundBrush = remember(animPrimary, animSecondary, animTertiary, animOnPrimary) {
+        Brush.radialGradient(
+            colors = listOf(animPrimary, animSecondary, animTertiary, animOnPrimary),
+            radius = 1800f
+        )
+    }
     
     // Contrast-guarded content color
     val topContentColor = remember(animPrimary) {
