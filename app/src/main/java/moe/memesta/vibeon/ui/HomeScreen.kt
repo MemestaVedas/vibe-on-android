@@ -135,10 +135,12 @@ fun HomeScreen(
     var preservedFeatured by remember { mutableStateOf(featuredAlbums) }
 
     // Update preserved snapshots when non-empty data arrives
-    LaunchedEffect(tracks) { if (tracks.isNotEmpty()) preservedTracks = tracks }
-    LaunchedEffect(albums) { if (albums.isNotEmpty()) preservedAlbums = albums }
-    LaunchedEffect(artists) { if (artists.isNotEmpty()) preservedArtists = artists }
-    LaunchedEffect(featuredAlbums) { if (featuredAlbums.isNotEmpty()) preservedFeatured = featuredAlbums }
+    LaunchedEffect(tracks, albums, artists, featuredAlbums) {
+        if (tracks.isNotEmpty()) preservedTracks = tracks
+        if (albums.isNotEmpty()) preservedAlbums = albums
+        if (artists.isNotEmpty()) preservedArtists = artists
+        if (featuredAlbums.isNotEmpty()) preservedFeatured = featuredAlbums
+    }
 
     // Use preserved data during refresh to avoid blank UI
     val effectiveTracks = if (isRefreshing) preservedTracks else tracks
