@@ -426,6 +426,7 @@ class WebSocketClient {
 
         override fun onMessage(ws: WebSocket, text: String) {
             reconnectScope.launch(Dispatchers.Default) {
+                val startedAt = System.currentTimeMillis()
                 _messages.value = text
                 try {
                     val json = JSONObject(text)
@@ -449,6 +450,11 @@ class WebSocketClient {
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to parse message: ${e.message}")
+                } finally {
+                    val elapsedMs = System.currentTimeMillis() - startedAt
+                    if (elapsedMs > 50) {
+                        Log.w(TAG, "Slow message processing: ${elapsedMs}ms")
+                    }
                 }
             }
         }

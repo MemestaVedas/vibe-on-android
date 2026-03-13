@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.min
+import kotlin.system.measureTimeMillis
 import moe.memesta.vibeon.data.local.TrackDao
 import moe.memesta.vibeon.data.local.TrackEntity
 
@@ -82,14 +83,16 @@ class LibraryRepository(
     suspend fun refreshLibrary() {
         try {
             Log.i("LibraryRepository", "🔄 Refreshing library from $host:$port...")
+            val elapsedMs = measureTimeMillis {
+                // Prefer WebSocket sync when connected to avoid duplicate full HTTP fetch.
+                if (wsClient.isConnected.value) {
+                    wsClient.sendGetLibrary()
+                    return
+                }
 
-            // Prefer WebSocket sync when connected to avoid duplicate full HTTP fetch.
-            if (wsClient.isConnected.value) {
-                wsClient.sendGetLibrary()
-                return
+                refreshLibraryViaHttpPaging()
             }
-
-            refreshLibraryViaHttpPaging()
+            Log.i("LibraryRepository", "✅ Refresh flow completed in ${elapsedMs}ms")
         } catch (e: Exception) {
             Log.e("LibraryRepository", "❌ Error refreshing library: ${e.message}")
         }
