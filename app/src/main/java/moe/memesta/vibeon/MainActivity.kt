@@ -53,6 +53,28 @@ class MainActivity : ComponentActivity() {
     private var streamRepository: StreamRepository? = null
     private var playerListener: Player.Listener? = null
 
+    private fun attachControllerListener(controller: MediaController) {
+        playerListener?.let { controller.removeListener(it) }
+
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                playbackViewModel.updateIsPlaying(isPlaying)
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int
+            ) {
+                playbackViewModel.updateProgress(newPosition.positionMs)
+            }
+        }
+
+        playerListener = listener
+        controller.addListener(listener)
+        playbackViewModel.setPlayer(controller)
+    }
+
     // Runtime notification permission launcher (Android 13+)
     private val notifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -148,31 +170,18 @@ val appContainer = VibeonApp.instance.container
 }
     override fun onStart() {
         super.onStart()
+        mediaController?.let {
+            attachControllerListener(it)
+            return
+        }
+
         val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
         controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
         controllerFuture?.addListener({
             try {
-                mediaController = controllerFuture?.get()
-                // Remove previous listener if any (defensive)
-                playerListener?.let { mediaController?.removeListener(it) }
-
-                val listener = object : Player.Listener {
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        playbackViewModel.updateIsPlaying(isPlaying)
-                    }
-                    override fun onPositionDiscontinuity(
-                        oldPosition: Player.PositionInfo,
-                        newPosition: Player.PositionInfo,
-                        reason: Int
-                    ) {
-                        playbackViewModel.updateProgress(newPosition.positionMs)
-                    }
-                }
-                playerListener = listener
-                mediaController?.addListener(listener)
-
-                // Attach player to ViewModel
-                playbackViewModel.setPlayer(mediaController!!)
+                val controller = controllerFuture?.get() ?: return@addListener
+                mediaController = controller
+                attachControllerListener(controller)
             } catch (e: Exception) {
                 Log.e("MainActivity", "❌ Failed to connect to MediaController: ${e.message}")
             }
@@ -190,8 +199,15 @@ val appContainer = VibeonApp.instance.container
     }
 
     override fun onDestroy() {
-        controllerFuture?.let { MediaController.releaseFuture(it) }
+        playerListener?.let { mediaController?.removeListener(it) }
+        playerListener = null
+        try {
+            controllerFuture?.let { MediaController.releaseFuture(it) }
+        } catch (e: IllegalArgumentException) {
+            Log.w("MainActivity", "Ignoring controller release error: ${e.message}")
+        }
         mediaController = null
+        controllerFuture = null
         super.onDestroy()
     }
 }

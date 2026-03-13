@@ -165,6 +165,7 @@ class WebSocketClient {
     val statsUpdated: StateFlow<Long> = _statsUpdated.asStateFlow()
 
     private var lastTrackId: String? = null
+    private var lastHandoffAtMs: Long = 0L
 
     // ═════════════════════════════════════════════════════════════════════
     // Connection lifecycle
@@ -527,7 +528,16 @@ class WebSocketClient {
             _repeatMode.value = json.optString("repeatMode", "off").ifEmpty { "off" }
 
             if (json.has("output")) {
-                _isMobilePlayback.value = json.getString("output") == "mobile"
+                val output = json.getString("output")
+                val isRecentHandoff = (System.currentTimeMillis() - lastHandoffAtMs) in 0..1500
+
+                // Ignore transient desktop status right after handoffPrepare.
+                // The server can emit one stale status frame during output transition.
+                if (output == "desktop" && _isMobilePlayback.value && _streamUrl.value != null && isRecentHandoff) {
+                    Log.w(TAG, "Ignoring stale desktop status during handoff window")
+                } else {
+                    _isMobilePlayback.value = output == "mobile"
+                }
             }
         }
 
@@ -547,6 +557,7 @@ class WebSocketClient {
             val url    = normalizeStreamUrl(rawUrl)
             val sample = json.optLong("sample", 0)
 
+            lastHandoffAtMs = System.currentTimeMillis()
             _streamUrl.value       = url
             _handoffPosition.value = (sample / 44100.0).coerceAtLeast(0.0)
             _isMobilePlayback.value = true

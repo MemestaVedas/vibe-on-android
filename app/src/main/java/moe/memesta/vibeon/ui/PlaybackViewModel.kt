@@ -135,7 +135,13 @@ class PlaybackViewModel(
 
         // Skip if already playing this exact URL
         if (url == currentStreamUrl && p.playbackState == Player.STATE_READY) {
-            Log.d(TAG, "Already streaming $url — skipping")
+            if (!p.isPlaying) {
+                Log.i(TAG, "Resuming already-prepared stream URL")
+                p.playWhenReady = true
+                p.play()
+            }
+            _playbackState.value = _playbackState.value.copy(isPlaying = p.isPlaying)
+            Log.d(TAG, "Already streaming $url — keeping current player")
             return true
         }
         currentStreamUrl = url
@@ -175,6 +181,7 @@ class PlaybackViewModel(
                             p.seekTo((handoffSecs * 1000).toLong())
                         }
                         p.play()
+                        _playbackState.value = _playbackState.value.copy(isPlaying = true)
                         startProgressPolling()
                     }
                     Player.STATE_ENDED -> if (_isMobilePlayback.value) {
@@ -201,6 +208,7 @@ class PlaybackViewModel(
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _playbackState.value = _playbackState.value.copy(isPlaying = isPlaying)
                 if (isPlaying) startProgressPolling()
             }
 
@@ -216,6 +224,7 @@ class PlaybackViewModel(
     private fun stopMobileStreaming() {
         progressJob?.cancel()
         currentStreamUrl = null
+        _playbackState.value = _playbackState.value.copy(isPlaying = false)
         player?.let { p ->
             Log.i(TAG, "Stopping mobile streaming")
             streamingListener?.let { p.removeListener(it) }

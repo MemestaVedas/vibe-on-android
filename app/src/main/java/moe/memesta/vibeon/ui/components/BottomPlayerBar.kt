@@ -99,6 +99,7 @@ fun BottomPlayerBar(
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val isPlaying by connectionViewModel.isPlaying.collectAsState()
     val isMobilePlayback by playbackViewModel.isMobilePlayback.collectAsState()
+    val effectiveIsPlaying = if (isMobilePlayback) playbackState.isPlaying else isPlaying
     val displayLanguage = LocalDisplayLanguage.current
     val title = currentTrack.getDisplayName(displayLanguage)
     val artist = currentTrack.getDisplayArtist(displayLanguage)
@@ -235,7 +236,7 @@ fun BottomPlayerBar(
                             with(sharedTransitionScope) {
                                 AlbumArtWithPulse(
                                     coverUrl = currentTrack.coverUrl,
-                                    isPlaying = isPlaying,
+                                    isPlaying = effectiveIsPlaying,
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope,
                                     sharedKey = sharedKeyBase
@@ -294,17 +295,17 @@ fun BottomPlayerBar(
                             IconButton(
                                 onClick = {
                                     if (isMobilePlayback) {
-                                        val nextPlayState = !isPlaying
+                                        val nextPlayState = !effectiveIsPlaying
                                         playbackViewModel.setPlayerPlayWhenReady(nextPlayState)
                                         playbackViewModel.updateIsPlaying(nextPlayState)
                                     } else {
-                                        if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                                        if (effectiveIsPlaying) connectionViewModel.pause() else connectionViewModel.play()
                                     }
                                 },
                                 modifier = Modifier.size(44.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                    imageVector = if (effectiveIsPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                     contentDescription = "Play/Pause",
                                     tint = Color.White,
                                     modifier = Modifier.size(22.dp)
