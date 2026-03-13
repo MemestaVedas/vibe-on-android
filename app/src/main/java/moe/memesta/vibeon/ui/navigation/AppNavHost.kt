@@ -78,9 +78,18 @@ fun AppNavHost(
     val albumArtUrl = currentTrack.coverUrl
     val albumArtBitmap = rememberBitmapFromUrl(albumArtUrl)
 
-    val libraryRepository = remember(connectedDevice) {
-        connectedDevice?.let { device ->
-            moe.memesta.vibeon.data.LibraryRepository(trackDao, connectionViewModel.wsClient, device.host, device.port)
+    val connectedHost = connectedDevice?.host
+    val connectedPort = connectedDevice?.port
+    val libraryRepository = remember(connectedHost, connectedPort) {
+        if (connectedHost != null && connectedPort != null) {
+            moe.memesta.vibeon.data.LibraryRepository(
+                trackDao,
+                connectionViewModel.wsClient,
+                connectedHost,
+                connectedPort
+            )
+        } else {
+            null
         }
     }
 

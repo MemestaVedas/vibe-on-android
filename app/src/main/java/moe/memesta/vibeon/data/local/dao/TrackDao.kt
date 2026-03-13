@@ -37,4 +37,7 @@ interface TrackDao {
 
     @Query("SELECT COUNT(*) FROM tracks")
     suspend fun getTrackCount(): Int
+
+    @Query("SELECT * FROM tracks ORDER BY artist, album, trackNumber LIMIT :limit OFFSET :offset")
+    suspend fun getTracksPage(limit: Int, offset: Int): List<TrackEntity>
 }
