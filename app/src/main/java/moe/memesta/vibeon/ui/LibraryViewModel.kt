@@ -90,6 +90,8 @@ class LibraryViewModel(
     
     private var totalTracks = 0
     private val pageSize = 50
+    private val _isManualRefreshRunning = MutableStateFlow(false)
+    val isManualRefreshRunning: StateFlow<Boolean> = _isManualRefreshRunning
     
     init {
         Log.i("LibraryViewModel", "🔌 Initializing LibraryViewModel")
@@ -101,42 +103,29 @@ class LibraryViewModel(
                 updateLocalState(tracks)
             }
         }
-        
-        // 2. Observe WebSocket for library data arriving from server
-        viewModelScope.launch {
-            wsClient.library.collect { tracks ->
-                if (tracks.isNotEmpty()) {
-                    Log.i("LibraryViewModel", "📡 Received ${tracks.size} tracks from WebSocket -> Saving to DB")
-                    repository.saveTracksToDb(tracks)
-                }
-            }
-        }
-        
-        // 3. Trigger initial refresh
-        viewModelScope.launch {
-            // Wait briefly for Room DB to emit initial cached tracks
-            kotlinx.coroutines.delay(150)
-            val hasTracks = _tracks.value.isNotEmpty()
-            
-            if (!hasTracks) {
-                _isLoading.value = true
-            }
-            
-            repository.refreshLibrary()
-            fetchStats()
-            
-            if (!hasTracks) {
-                _isLoading.value = false
-            }
-        }
-        
-        // 4. Listen for connection to retry
+
+        // Keep stats in sync when connection becomes active, without forcing a full library sync.
         viewModelScope.launch {
             wsClient.isConnected.collect { connected ->
                 if (connected) {
-                    repository.refreshLibrary()
                     fetchStats()
                 }
+            }
+        }
+    }
+
+    fun refreshLibraryManually() {
+        if (_isManualRefreshRunning.value) return
+
+        viewModelScope.launch {
+            _isManualRefreshRunning.value = true
+            _isLoading.value = _tracks.value.isEmpty()
+            try {
+                repository.refreshLibrary()
+                fetchStats()
+            } finally {
+                _isLoading.value = false
+                _isManualRefreshRunning.value = false
             }
         }
     }

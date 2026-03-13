@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -104,6 +105,7 @@ fun HomeScreen(
         val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
     val statsSummary by statsViewModel?.weeklyOverview?.collectAsState()
         ?: remember { mutableStateOf(null) }
+    val isManualRefreshing by viewModel.isManualRefreshRunning.collectAsState()
     val displayLanguage = LocalDisplayLanguage.current
 
     // isLoading moved below so it can consider preserved data during refresh
@@ -190,20 +192,19 @@ fun HomeScreen(
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (pullOffset > pullThreshold && !isRefreshing) {
                     isRefreshing = true
-                    scope.launch {
-                        // Request fresh data from the server without disconnecting,
-                        // which avoids the black screen caused by resetting connection state.
-                        connectionViewModel.wsClient.sendGetStatus()
-                        connectionViewModel.wsClient.sendGetLibrary()
-                        delay(1500)
-                        isRefreshing = false
-                        pullOffset = 0f
-                    }
+                    viewModel.refreshLibraryManually()
                 } else {
                     pullOffset = 0f
                 }
                 return Velocity.Zero
             }
+        }
+    }
+
+    LaunchedEffect(isManualRefreshing) {
+        if (isRefreshing && !isManualRefreshing) {
+            isRefreshing = false
+            pullOffset = 0f
         }
     }
 
@@ -413,8 +414,7 @@ fun HomeScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxWidth()
-                .nestedScroll(nestedScrollConnection)
-                .offset { androidx.compose.ui.unit.IntOffset(0, pullOffset.toInt()) },
+                .nestedScroll(nestedScrollConnection),
             contentPadding = PaddingValues(
                 top = 0.dp,
                 bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing + 80.dp 
@@ -678,7 +678,7 @@ fun HeroHeader(
     // Auto-scroll
     LaunchedEffect(pagerState, isDragged) {
         if (!isDragged && albums.isNotEmpty()) {
-            while (true) {
+            while (kotlinx.coroutines.currentCoroutineContext().isActive) {
                 delay(7000)
                 try {
                     if (albums.isNotEmpty()) {
@@ -688,6 +688,8 @@ fun HeroHeader(
                             animationSpec = tween(durationMillis = VibeAnimations.HeroDuration, easing = FastOutSlowInEasing)
                         )
                     }
+                } catch (_: CancellationException) {
+                    break
                 } catch (_: Exception) { }
             }
         }
