@@ -22,7 +22,7 @@ class LocalPlaybackStatsRepository(context: Context) {
 
     init {
         Log.d(TAG, "📊 Stats repo initialized. File: ${historyFile.absolutePath}")
-        Log.d(TAG, "📊 Existing events: ${readEvents().size}")
+        Log.d(TAG, "📊 Existing history file bytes: ${historyFile.length()}")
     }
 
     // ---------------------------------------------------------------------------
@@ -67,6 +67,13 @@ class LocalPlaybackStatsRepository(context: Context) {
                 val pruned = beforeSize - events.size
                 if (pruned > 0) Log.d(TAG, "🗑️ Pruned $pruned old events")
             }
+
+            if (events.size > MAX_HISTORY_EVENTS) {
+                val dropCount = events.size - MAX_HISTORY_EVENTS
+                repeat(dropCount) { events.removeAt(0) }
+                Log.d(TAG, "🗑️ Trimmed $dropCount oldest events to cap history size")
+            }
+
             events += event
             writeEventsLocked(events)
             Log.d(TAG, "📊 ✅ Recorded: $songId — ${durationMs}ms (total events: ${events.size})")
@@ -138,5 +145,6 @@ class LocalPlaybackStatsRepository(context: Context) {
     companion object {
         private const val TAG = "LocalStatsRepo"
         private val MAX_HISTORY_AGE_MS = TimeUnit.DAYS.toMillis(730) // ~2 years
+        private const val MAX_HISTORY_EVENTS = 8000
     }
 }
