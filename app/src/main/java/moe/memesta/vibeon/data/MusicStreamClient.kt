@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
+import okhttp3.ConnectionPool
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
@@ -59,9 +60,11 @@ class MusicStreamClient(
     private val port: Int = 5000
 ) {
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .writeTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .connectionPool(ConnectionPool(10, 30, TimeUnit.SECONDS))
+        .retryOnConnectionFailure(true)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
+        .writeTimeout(12, TimeUnit.SECONDS)
         .build()
     private val baseUrl = "http://$host:$port"
     

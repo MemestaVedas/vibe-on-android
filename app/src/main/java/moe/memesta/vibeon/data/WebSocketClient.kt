@@ -418,35 +418,38 @@ class WebSocketClient {
 
         override fun onOpen(ws: WebSocket, response: Response) {
             Log.i(TAG, "Connected")
+            reconnectJob?.cancel()
             _isConnected.value = true
             reconnectAttempts = 0
             sendHello(clientName)
         }
 
         override fun onMessage(ws: WebSocket, text: String) {
-            _messages.value = text
-            try {
-                val json = JSONObject(text)
-                when (json.optString("type")) {
-                    "connected", "welcome" -> onConnected(json)
-                    "mediaSession"         -> onMediaSession(json)
-                    "status"               -> onStatus(json)
-                    "PlaybackState"        -> onPlaybackState(json)
-                    "queueUpdate"          -> onQueueUpdate(json)
-                    "handoffPrepare"       -> onHandoffPrepare(json)
-                    "streamStopped"        -> onStreamStopped()
-                    "lyrics"               -> onLyrics(json)
-                    "library"              -> onLibrary(json)
-                    "playlists"            -> onPlaylists(json)
-                    "playlistTracks"       -> onPlaylistTracks(json)
-                    "statsUpdated"         -> onStatsUpdated(json)
-                    "ack"                  -> onAck(json)
-                    "error"                -> onError(json)
-                    "pong"                 -> { /* keepalive, ignore */ }
-                    else                   -> Log.d(TAG, "Unknown message type: ${json.optString("type")}")
+            reconnectScope.launch(Dispatchers.Default) {
+                _messages.value = text
+                try {
+                    val json = JSONObject(text)
+                    when (json.optString("type")) {
+                        "connected", "welcome" -> onConnected(json)
+                        "mediaSession"         -> onMediaSession(json)
+                        "status"               -> onStatus(json)
+                        "PlaybackState"        -> onPlaybackState(json)
+                        "queueUpdate"          -> onQueueUpdate(json)
+                        "handoffPrepare"       -> onHandoffPrepare(json)
+                        "streamStopped"        -> onStreamStopped()
+                        "lyrics"               -> onLyrics(json)
+                        "library"              -> onLibrary(json)
+                        "playlists"            -> onPlaylists(json)
+                        "playlistTracks"       -> onPlaylistTracks(json)
+                        "statsUpdated"         -> onStatsUpdated(json)
+                        "ack"                  -> onAck(json)
+                        "error"                -> onError(json)
+                        "pong"                 -> { /* keepalive, ignore */ }
+                        else                   -> Log.d(TAG, "Unknown message type: ${json.optString("type")}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse message: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse message: ${e.message}")
             }
         }
 
