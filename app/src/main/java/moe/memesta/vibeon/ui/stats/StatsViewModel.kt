@@ -32,6 +32,8 @@ class StatsViewModel(
     private val localStatsRepository: LocalPlaybackStatsRepository
 ) : ViewModel() {
 
+    val mediaBaseUrl: String = repository.baseUrl
+
     data class StatsUiState(
         val selectedRange: StatsTimeRange = StatsTimeRange.WEEK,
         val isLoading: Boolean = true,
