@@ -292,7 +292,15 @@ fun BottomPlayerBar(
                             contentAlignment = Alignment.Center
                         ) {
                             IconButton(
-                                onClick = { if (isPlaying) connectionViewModel.pause() else connectionViewModel.play() },
+                                onClick = {
+                                    if (isMobilePlayback) {
+                                        val nextPlayState = !isPlaying
+                                        playbackViewModel.setPlayerPlayWhenReady(nextPlayState)
+                                        playbackViewModel.updateIsPlaying(nextPlayState)
+                                    } else {
+                                        if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                                    }
+                                },
                                 modifier = Modifier.size(44.dp)
                             ) {
                                 Icon(

@@ -358,8 +358,15 @@ fun ImmersiveView(
 
                     FilledIconButton(
                         onClick = {
-                            if (playbackState.isPlaying) connectionViewModel.pause()
-                            else connectionViewModel.play()
+                            val isMobile = playbackViewModel.isMobilePlayback.value
+                            if (isMobile) {
+                                val nextPlayState = !playbackState.isPlaying
+                                playbackViewModel.setPlayerPlayWhenReady(nextPlayState)
+                                playbackViewModel.updateIsPlaying(nextPlayState)
+                            } else {
+                                if (playbackState.isPlaying) connectionViewModel.pause()
+                                else connectionViewModel.play()
+                            }
                         },
                         modifier = Modifier
                             .scale(playScale)

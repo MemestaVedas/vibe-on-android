@@ -219,7 +219,12 @@ fun NowPlayingScreen(
                         repeatMode = repeatMode,
                         volume = volume,
                         onPlayPauseToggle = {
-                            if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                            if (isMobilePlayback) {
+                                playbackViewModel.setPlayerPlayWhenReady(!isPlaying)
+                                playbackViewModel.updateIsPlaying(!isPlaying)
+                            } else {
+                                if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                            }
                         },
                         onSkipNext = {
                             android.util.Log.i("NowPlayingScreen", "⏭️ Skip Next button pressed")
@@ -287,7 +292,12 @@ fun NowPlayingScreen(
                 currentTrack = currentTrack,
                 isPlaying = isPlaying,
                 onPlayPauseToggle = {
-                    if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                    if (isMobilePlayback) {
+                        playbackViewModel.setPlayerPlayWhenReady(!isPlaying)
+                        playbackViewModel.updateIsPlaying(!isPlaying)
+                    } else {
+                        if (isPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                    }
                 },
                 onHeaderClick = {
                     scope.launch { listState.animateScrollToItem(0) }
