@@ -94,7 +94,7 @@ fun ArtistGridItem(
                     }
                 } else Modifier
             )
-            .clip(ArtistCoverShape)
+                .clip(ArtistsShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .bouncyClickable(onClick = onClick)
     ) {

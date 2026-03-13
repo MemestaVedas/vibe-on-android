@@ -112,7 +112,7 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-        val showBottomBar = currentRoute in listOf("main", "all_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
+        val showBottomBar = currentRoute in listOf("main", "all_songs", "offline_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
 
     val isLandscape = rememberIsLandscape()
 
@@ -261,7 +261,7 @@ fun AppNavHost(
                             // TODO: Implement QR Scanning
                         },
                         onNavigateToOffline = {
-                            navController.navigate("all_songs") { launchSingleTop = true }
+                            navController.navigate("offline_songs") { launchSingleTop = true }
                         }
                     )
                 }
@@ -331,7 +331,7 @@ fun AppNavHost(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToScan = { /* TODO: QR pairing */ },
                         onNavigateToOffline = {
-                            navController.navigate("all_songs") { launchSingleTop = true }
+                            navController.navigate("offline_songs") { launchSingleTop = true }
                         }
                     )
                 }
@@ -393,6 +393,13 @@ fun AppNavHost(
                     } else {
                         LaunchedEffect(Unit) { navController.navigate("discovery") }
                     }
+                }
+
+                composable("offline_songs") {
+                    OfflineSongsScreen(
+                        contentPadding = innerPadding,
+                        playbackViewModel = playbackViewModel
+                    )
                 }
 
                 // Albums Tab - Redirecting to main pager
@@ -627,7 +634,7 @@ fun AppNavHost(
                 },
                 onNavigateToScan = { },
                 onNavigateToOffline = {
-                    navController.navigate("all_songs") { launchSingleTop = true }
+                    navController.navigate("offline_songs") { launchSingleTop = true }
                 },
                 onDismiss = {
                     userDismissedPairing = true

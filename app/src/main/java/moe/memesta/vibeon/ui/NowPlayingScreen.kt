@@ -360,22 +360,26 @@ fun NowPlayingContent(
 
     val queue by connectionViewModel.queue.collectAsState()
     val currentIndex by connectionViewModel.currentIndex.collectAsState()
-    val sharedKeyBase = currentTrack.path.ifEmpty { "no-track" }
-
     val pagerItems = remember(queue, currentTrack, displayLanguage, title, artist) {
         if (queue.isNotEmpty()) {
-            queue.map { item ->
+            queue.mapIndexed { index, item ->
+                val stableKey = item.path.takeIf { it.isNotBlank() }
+                    ?: listOf(item.title, item.artist, item.album, item.coverUrl.orEmpty(), index.toString()).joinToString("|")
                 TrackPagerItem(
-                    path = item.path.ifEmpty { "no-track" },
+                    path = item.path,
+                    stableKey = stableKey,
                     coverUrl = item.coverUrl,
                     title = item.getDisplayName(displayLanguage),
                     artist = item.getDisplayArtist(displayLanguage)
                 )
             }
         } else {
+            val fallbackKey = currentTrack.path.takeIf { it.isNotBlank() }
+                ?: listOf(title, artist, coverUrl.orEmpty()).joinToString("|")
             listOf(
                 TrackPagerItem(
-                    path = currentTrack.path.ifEmpty { "no-track" },
+                    path = currentTrack.path,
+                    stableKey = fallbackKey,
                     coverUrl = currentTrack.coverUrl,
                     title = title,
                     artist = artist
@@ -407,7 +411,10 @@ fun NowPlayingContent(
             val page = pagerState.currentPage
             if (page != currentIndex && page != lastDispatchedPage) {
                 lastDispatchedPage = page
-                connectionViewModel.playTrack(pagerItems[page].path)
+                val selectedPath = pagerItems[page].path
+                if (selectedPath.isNotBlank()) {
+                    connectionViewModel.playTrack(selectedPath)
+                }
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             } else if (page == currentIndex) {
                 lastDispatchedPage = page
@@ -476,20 +483,25 @@ fun NowPlayingContent(
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     val item = pagerItems.getOrNull(page) ?: return@HorizontalPager
+                    val displayCover = if (page == currentIndex && !coverUrl.isNullOrBlank()) {
+                        coverUrl
+                    } else {
+                        item.coverUrl
+                    }
                     
                     with(sharedTransitionScope) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .sharedElement(
-                                    sharedContentState = rememberSharedContentState(key = "album-${item.path.ifEmpty { "no-track" }}"),
+                                    sharedContentState = rememberSharedContentState(key = "album-${item.stableKey}"),
                                     animatedVisibilityScope = animatedVisibilityScope
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (!item.coverUrl.isNullOrEmpty()) {
+                            if (!displayCover.isNullOrEmpty()) {
                                 AsyncImage(
-                                    model = item.coverUrl,
+                                    model = displayCover,
                                     contentDescription = "Album Art",
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop // Immersive crop
@@ -975,6 +987,7 @@ fun NowPlayingContent(
 
 private data class TrackPagerItem(
     val path: String,
+    val stableKey: String,
     val coverUrl: String?,
     val title: String,
     val artist: String
