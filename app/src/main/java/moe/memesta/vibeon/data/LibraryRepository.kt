@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.min
 import moe.memesta.vibeon.data.local.TrackDao
 import moe.memesta.vibeon.data.local.TrackEntity
 
@@ -28,6 +29,10 @@ class LibraryRepository(
     private val host: String,
     private val port: Int
 ) {
+    companion object {
+        private const val HTTP_PAGE_SIZE = 500
+    }
+
     private val streamClient = MusicStreamClient(host, port)
     private val scope = CoroutineScope(Dispatchers.IO)
 
@@ -78,19 +83,58 @@ class LibraryRepository(
         try {
             Log.i("LibraryRepository", "🔄 Refreshing library from $host:$port...")
 
-            // Always request via WS if connected (async — response handled by init collector)
+            // Prefer WebSocket sync when connected to avoid duplicate full HTTP fetch.
             if (wsClient.isConnected.value) {
                 wsClient.sendGetLibrary()
+                return
             }
 
-            // Always also fetch via HTTP as the reliable synchronous path
-            val response = streamClient.browseLibrary(0, 10000)
-            response?.let {
-                saveTracksToDb(it.tracks)
-            }
+            refreshLibraryViaHttpPaging()
         } catch (e: Exception) {
             Log.e("LibraryRepository", "❌ Error refreshing library: ${e.message}")
         }
+    }
+
+    private suspend fun refreshLibraryViaHttpPaging() {
+        var offset = 0
+        var total = 0
+        var synced = 0
+
+        _syncStatus.value = SyncStatus(
+            isSyncing = true,
+            progress = 0f,
+            totalTracks = 0,
+            syncedTracks = 0,
+            statusText = "Syncing library..."
+        )
+
+        while (true) {
+            val response = streamClient.browseLibrary(offset = offset, limit = HTTP_PAGE_SIZE) ?: break
+            val page = response.tracks
+            if (page.isEmpty()) break
+
+            if (total <= 0) {
+                total = response.total.coerceAtLeast(page.size)
+            }
+
+            persistTrackChunk(page)
+            synced += page.size
+            offset += page.size
+
+            val boundedSynced = min(synced, total)
+            _syncStatus.value = _syncStatus.value.copy(
+                totalTracks = total,
+                syncedTracks = boundedSynced,
+                progress = if (total > 0) boundedSynced.toFloat() / total else 0f,
+                statusText = "Synced $boundedSynced of $total tracks"
+            )
+
+            if (page.size < HTTP_PAGE_SIZE || boundedSynced >= total) {
+                break
+            }
+        }
+
+        _syncStatus.value = SyncStatus()
     }
     
     suspend fun saveTracksToDb(tracks: List<TrackInfo>) = withContext(Dispatchers.IO) {
@@ -109,43 +153,7 @@ class LibraryRepository(
         // We don't call clearAll() here because insertTracks uses REPLACE strategy, 
         // and clearing would cause the UI to blink empty while inserting.
         tracks.chunked(100).forEachIndexed { index, chunk ->
-            val entities = chunk.map { track ->
-                // Ensure we store relative paths in DB to handle base URL changes
-                val relativeCoverUrl = track.coverUrl?.let { url ->
-                    if (url.startsWith("http")) {
-                        // Strip origin, keep path (e.g. "/cover/...")
-                        try {
-                            val uri = java.net.URI(url)
-                            uri.path
-                        } catch (e: Exception) {
-                            url
-                        }
-                    } else {
-                        url
-                    }
-                }
-
-                TrackEntity(
-                    id = track.path,
-                    title = track.title,
-                    artist = track.artist,
-                    album = track.album,
-                    duration = track.duration,
-                    albumArtUrl = relativeCoverUrl,
-                    year = null,
-                    genre = null,
-                    trackNumber = track.trackNumber,
-                    discNumber = track.discNumber,
-                    titleRomaji = track.titleRomaji,
-                    titleEn = track.titleEn,
-                    artistRomaji = track.artistRomaji,
-                    artistEn = track.artistEn,
-                    albumRomaji = track.albumRomaji,
-                    albumEn = track.albumEn,
-                    lastUpdated = System.currentTimeMillis()
-                )
-            }
-            trackDao.insertTracks(entities)
+            persistTrackChunk(chunk)
             
             val syncedCount = (index + 1) * 100
             val currentSynced = if (syncedCount > total) total else syncedCount
@@ -159,10 +167,46 @@ class LibraryRepository(
         }
 
         Log.i("LibraryRepository", "✅ Saved $total tracks to DB")
-        // Briefly show 100% then clear
-        _syncStatus.value = _syncStatus.value.copy(progress = 1f, statusText = "Sync complete!")
-        kotlinx.coroutines.delay(1500)
         _syncStatus.value = SyncStatus()
+    }
+
+    private suspend fun persistTrackChunk(tracks: List<TrackInfo>) {
+        val entities = tracks.map { track ->
+            // Store relative cover paths to survive host/ip changes.
+            val relativeCoverUrl = track.coverUrl?.let { url ->
+                if (url.startsWith("http")) {
+                    try {
+                        val uri = java.net.URI(url)
+                        uri.path
+                    } catch (e: Exception) {
+                        url
+                    }
+                } else {
+                    url
+                }
+            }
+
+            TrackEntity(
+                id = track.path,
+                title = track.title,
+                artist = track.artist,
+                album = track.album,
+                duration = track.duration,
+                albumArtUrl = relativeCoverUrl,
+                year = null,
+                genre = null,
+                trackNumber = track.trackNumber,
+                discNumber = track.discNumber,
+                titleRomaji = track.titleRomaji,
+                titleEn = track.titleEn,
+                artistRomaji = track.artistRomaji,
+                artistEn = track.artistEn,
+                albumRomaji = track.albumRomaji,
+                albumEn = track.albumEn,
+                lastUpdated = System.currentTimeMillis()
+            )
+        }
+        trackDao.insertTracks(entities)
     }
 
     suspend fun searchTracks(): List<TrackInfo> {
