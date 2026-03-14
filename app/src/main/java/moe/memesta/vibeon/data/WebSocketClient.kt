@@ -531,10 +531,11 @@ class WebSocketClient {
                 val output = json.getString("output")
                 val isRecentHandoff = (System.currentTimeMillis() - lastHandoffAtMs) in 0..1500
 
-                // Ignore transient desktop status right after handoffPrepare.
-                // The server can emit one stale status frame during output transition.
-                if (output == "desktop" && _isMobilePlayback.value && _streamUrl.value != null && isRecentHandoff) {
-                    Log.w(TAG, "Ignoring stale desktop status during handoff window")
+                // Ignore transient "desktop" status that raced with handoffPrepare.
+                // The stream URL is consumed right after ExoPlayer starts preparing, so we
+                // cannot rely on _streamUrl being non-null here — only check the time window.
+                if (output == "desktop" && _isMobilePlayback.value && isRecentHandoff) {
+                    Log.w(TAG, "Ignoring stale desktop status during handoff window (${System.currentTimeMillis() - lastHandoffAtMs}ms after handoff)")
                 } else {
                     _isMobilePlayback.value = output == "mobile"
                 }
