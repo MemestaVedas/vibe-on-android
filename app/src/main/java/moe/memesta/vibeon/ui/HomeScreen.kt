@@ -39,10 +39,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -53,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.CancellationException
@@ -66,6 +72,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
+import kotlin.math.abs
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.TrackInfo
@@ -126,8 +133,16 @@ fun HomeScreen(
 
     // Pull-to-refresh state (declared early so it can be referenced by preserved-data logic below)
     var isRefreshing by remember { mutableStateOf(false) }
-    var pullOffset by remember { mutableStateOf(0f) }
+    var rawPullOffset by remember { mutableStateOf(0f) }
     val pullThreshold = 150f
+    val pullOffset by animateFloatAsState(
+        targetValue = rawPullOffset,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "home_pull_offset"
+    )
 
     // Preserve last non-empty snapshots so UI doesn't go blank during refresh
     var preservedTracks by remember { mutableStateOf(tracks) }
@@ -148,6 +163,12 @@ fun HomeScreen(
     val effectiveAlbums = if (isRefreshing) preservedAlbums else albums
     val effectiveArtists = if (isRefreshing) preservedArtists else artists
     val effectiveFeatured = if (isRefreshing) preservedFeatured else featuredAlbums
+    val heroPullProgress = if (isRefreshing) 0f else (pullOffset / pullThreshold).coerceIn(0f, 1f)
+    val contentPullOffset = if (isRefreshing) {
+        maxOf(pullOffset, pullThreshold * 0.72f)
+    } else {
+        pullOffset
+    }
 
     // Pre-calculate chunks for Recently Added grid
     val recentChunks = remember(effectiveTracks) {
@@ -166,9 +187,9 @@ fun HomeScreen(
                 if (isRefreshing) return Offset.Zero
                 
                 // Allow pull down at top
-                if (available.y < 0 && pullOffset > 0f) {
-                    val consumed = pullOffset.coerceAtMost(-available.y)
-                    pullOffset -= consumed
+                if (available.y < 0 && rawPullOffset > 0f) {
+                    val consumed = rawPullOffset.coerceAtMost(-available.y)
+                    rawPullOffset -= consumed
                     return Offset(0f, -consumed)
                 }
                 return Offset.Zero
@@ -185,10 +206,10 @@ fun HomeScreen(
                 // This allows horizontal pager swipes to work properly
                 if (available.y > 0f && listState.firstVisibleItemIndex == 0) {
                     // Check if the gesture is more vertical than horizontal
-                    val isVerticalGesture = kotlin.math.abs(available.y) > kotlin.math.abs(available.x) * 1.5f
+                    val isVerticalGesture = abs(available.y) > abs(available.x) * 1.5f
                     
                     if (isVerticalGesture) {
-                        pullOffset = (pullOffset + available.y * 0.5f).coerceAtMost(pullThreshold * 1.5f)
+                        rawPullOffset = (rawPullOffset + available.y * 0.55f).coerceAtMost(pullThreshold * 1.55f)
                         return Offset(0f, available.y)
                     }
                 }
@@ -196,11 +217,19 @@ fun HomeScreen(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (pullOffset > pullThreshold && !isRefreshing) {
+                if (rawPullOffset > pullThreshold && !isRefreshing) {
                     isRefreshing = true
+                    rawPullOffset = pullThreshold * 0.72f
                     viewModel.refreshLibraryManually()
                 } else {
-                    pullOffset = 0f
+                    rawPullOffset = 0f
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (!isRefreshing && rawPullOffset > 0f) {
+                    rawPullOffset = 0f
                 }
                 return Velocity.Zero
             }
@@ -210,7 +239,13 @@ fun HomeScreen(
     LaunchedEffect(isManualRefreshing) {
         if (isRefreshing && !isManualRefreshing) {
             isRefreshing = false
-            pullOffset = 0f
+            rawPullOffset = 0f
+        }
+    }
+
+    LaunchedEffect(listState.isScrollInProgress, isRefreshing) {
+        if (!isRefreshing && !listState.isScrollInProgress && rawPullOffset > 0f) {
+            rawPullOffset = 0f
         }
     }
 
@@ -411,6 +446,7 @@ fun HomeScreen(
         // Refresh indicator
         HomeLoadingRefreshIndicator(
             pullOffset = pullOffset,
+            contentPullOffset = contentPullOffset,
             pullThreshold = pullThreshold,
             isRefreshing = isRefreshing,
             modifier = Modifier.align(Alignment.TopCenter)
@@ -420,6 +456,7 @@ fun HomeScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxWidth()
+                .offset { androidx.compose.ui.unit.IntOffset(0, contentPullOffset.toInt()) }
                 .nestedScroll(nestedScrollConnection),
             contentPadding = PaddingValues(
                 top = 0.dp,
@@ -427,8 +464,9 @@ fun HomeScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // Spacer for logo/search if hero is missing or loading
-            if (effectiveFeatured.isEmpty() || isLoading) {
+            // Spacer only when hero is genuinely unavailable.
+            // Do not add it during refresh/loading, otherwise the carousel appears permanently below the status area.
+            if (effectiveFeatured.isEmpty()) {
                 item(key = "top_spacer") {
                     Spacer(modifier = Modifier.statusBarsPadding().height(72.dp))
                 }
@@ -441,7 +479,8 @@ fun HomeScreen(
                         HeroHeader(
                             albums = effectiveFeatured,
                             onPlayClick = { album -> onAlbumSelected(album.name) },
-                            displayLanguage = displayLanguage
+                            displayLanguage = displayLanguage,
+                            pullProgress = heroPullProgress
                         )
                     }
                 }
@@ -673,13 +712,15 @@ fun FadeEdgeLazyRow(
 fun HeroHeader(
     albums: List<AlbumInfo>,
     onPlayClick: (AlbumInfo) -> Unit,
-    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage = moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage = moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL,
+    pullProgress: Float = 0f
 ) {
     if (albums.isEmpty()) return
 
     val pagerState = rememberPagerState(pageCount = { albums.size })
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
     val sectionSurface = Color.White.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surface)
+    val topCorner = (36f * pullProgress.coerceIn(0f, 1f)).dp
 
     // Auto-scroll
     LaunchedEffect(pagerState, isDragged) {
@@ -708,6 +749,13 @@ fun HeroHeader(
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(
+                    if (pullProgress > 0.01f) {
+                        RoundedCornerShape(topStart = topCorner, topEnd = topCorner)
+                    } else {
+                        RectangleShape
+                    }
+                )
                 .aspectRatio(14f/9f),
             userScrollEnabled = true,
             flingBehavior = PagerDefaults.flingBehavior(state = pagerState)
@@ -808,13 +856,6 @@ fun HeroHeader(
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Favorite,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "New for you",
                                     style = MaterialTheme.typography.labelMedium,
@@ -902,14 +943,37 @@ fun HeroHeader(
                 val isSelected = pagerState.currentPage == index
                 Box(
                     modifier = Modifier
-                        .size(width = 12.dp, height = 14.dp)
-                        .clip(DomeShape)
+                        .size(if (isSelected) 14.dp else 10.dp)
+                        .clip(if (isSelected) ArrowBlobShape else CircleShape)
                         .background(
-                            if (isSelected) Color.White else Color.White.copy(alpha = 0.4f)
+                            if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.secondary.copy(alpha = 0.65f)
                         )
                 )
             }
         }
+    }
+}
+
+private class PullInwardTopShape(
+    private val progress: Float
+) : Shape {
+    override fun createOutline(
+        size: androidx.compose.ui.geometry.Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density
+    ): Outline {
+        val p = progress.coerceIn(0f, 1f)
+        val dip = size.height * (0.12f * p)
+        val path = Path().apply {
+            moveTo(0f, 0f)
+            quadraticTo(size.width * 0.25f, 0f, size.width * 0.5f, dip)
+            quadraticTo(size.width * 0.75f, 0f, size.width, 0f)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        return Outline.Generic(path)
     }
 }
 /**
@@ -960,55 +1024,92 @@ fun SeeAllButton(
 @Composable
 fun HomeLoadingRefreshIndicator(
     pullOffset: Float,
+    contentPullOffset: Float,
     pullThreshold: Float,
     isRefreshing: Boolean,
     modifier: Modifier = Modifier
 ) {
     // Calculate pull progress (0f to 1f)
     val pullProgress = (pullOffset / pullThreshold).coerceIn(0f, 1f)
+    val density = LocalDensity.current
+    val statusBarInsetPx = WindowInsets.statusBars.getTop(density).toFloat()
+    val indicatorHeightPx = with(density) { 54.dp.toPx() }
+    val topPaddingPx = with(density) { 12.dp.toPx() }
+    val minClearancePx = with(density) { 6.dp.toPx() }
+    val indicatorLiftPx = indicatorHeightPx * 0.5f
+    val centeredGapOffset = ((contentPullOffset - indicatorHeightPx) * 0.5f).coerceAtLeast(0f)
+    val indicatorY = (statusBarInsetPx + topPaddingPx + centeredGapOffset - indicatorLiftPx)
+        .coerceAtLeast(statusBarInsetPx + minClearancePx)
+    val displayProgress = if (isRefreshing) 1f else pullProgress
+    val indicatorScale = 0.86f + (1f - 0.86f) * displayProgress
+    val showIndicator = isRefreshing || pullProgress > 0.08f
+    val showContainedLoader = isRefreshing || pullProgress >= 0.82f
     
     AnimatedVisibility(
-        visible = isRefreshing || pullProgress > 0f,
+        visible = showIndicator,
         enter = fadeIn() + scaleIn(initialScale = 0.8f),
         exit = fadeOut() + scaleOut(targetScale = 0.8f),
         modifier = modifier
-            .statusBarsPadding()
-            .padding(vertical = 16.dp)
-            .offset { androidx.compose.ui.unit.IntOffset(0, pullOffset.toInt()) }
+            .offset {
+                androidx.compose.ui.unit.IntOffset(
+                    0,
+                    indicatorY.toInt()
+                )
+            }
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f),
-                        CircleShape
-                    )
-                    .padding(12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isRefreshing) {
-                    moe.memesta.vibeon.ui.components.VibeLoadingIndicator(
-                        modifier = Modifier.size(32.dp),
-                        showLabel = false
-                    )
-                } else {
-                    // Show a scaling indicator during pull - morphing circle
-                    val animatedSize by animateDpAsState(
-                        targetValue = (32.dp * pullProgress).coerceAtMost(32.dp),
-                        label = "pullSize"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(animatedSize)
-                            .background(
-                                MaterialTheme.colorScheme.onPrimaryContainer,
-                                CircleShape
-                            )
-                    )
+            if (showContainedLoader) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.93f),
+                    tonalElevation = 6.dp,
+                    modifier = Modifier
+                        .height(52.dp)
+                        .widthIn(min = 176.dp)
+                        .graphicsLayer {
+                            alpha = displayProgress
+                            scaleX = indicatorScale
+                            scaleY = indicatorScale
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        moe.memesta.vibeon.ui.components.VibeLoadingIndicator(
+                            modifier = Modifier.size(28.dp),
+                            showLabel = false
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            alpha = displayProgress
+                            scaleX = indicatorScale
+                            scaleY = indicatorScale
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Pull down to sync",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.92f),
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(width = 26.dp, height = 22.dp)
+                                .clip(ArrowBlobShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
+                        )
+                    }
                 }
             }
         }
