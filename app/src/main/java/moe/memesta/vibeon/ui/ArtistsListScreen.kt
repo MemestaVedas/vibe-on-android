@@ -3,20 +3,27 @@ package moe.memesta.vibeon.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.ui.components.ArtistGridItem
@@ -68,6 +75,9 @@ fun ArtistsListScreen(
                 }
             }
     }
+    val spotlightArtist = remember(artists) {
+        artists.maxByOrNull { it.followerCount.substringBefore(' ').toIntOrNull() ?: 0 }
+    }
     
     Column(
         modifier = Modifier
@@ -114,7 +124,7 @@ fun ArtistsListScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "A calmer Material 3 gallery for discovery, with modern hierarchy and quick sorting.",
+                    text = "A people-first gallery inspired flow with expressive Material 3 surfaces.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -136,6 +146,37 @@ fun ArtistsListScreen(
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
+
+                if (artists.isNotEmpty()) {
+                    Text(
+                        text = "People Highlights",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        artists.take(3).forEach { artist ->
+                            ElevatedSuggestionChip(
+                                onClick = { onArtistClick(artist.name) },
+                                label = {
+                                    Text(
+                                        text = artist.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -208,7 +249,25 @@ fun ArtistsListScreen(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            items(artists) { artist ->
+            if (artistViewStyle == LibraryViewStyle.MODERN && spotlightArtist != null) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    ArtistSpotlightCard(
+                        artistName = spotlightArtist.name,
+                        trackCount = spotlightArtist.followerCount,
+                        photoUrl = spotlightArtist.photoUrl,
+                        onClick = { onArtistClick(spotlightArtist.name) },
+                        onPlay = { onPlayArtist(spotlightArtist.name) }
+                    )
+                }
+            }
+
+            items(
+                if (artistViewStyle == LibraryViewStyle.MODERN) {
+                    artists.filter { it.name != spotlightArtist?.name }
+                } else {
+                    artists
+                }
+            ) { artist ->
                 ArtistGridItem(
                     artistName = artist.name,
                     photoUrl = artist.photoUrl,
@@ -231,5 +290,88 @@ fun ArtistsListScreen(
                 showSortSheet = false
             }
         )
+    }
+}
+
+@Composable
+private fun ArtistSpotlightCard(
+    artistName: String,
+    trackCount: String,
+    photoUrl: String?,
+    onClick: () -> Unit,
+    onPlay: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(170.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        onClick = onClick
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (photoUrl != null) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = artistName,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.66f)
+                            )
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Spotlight Artist",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = artistName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = trackCount,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+                )
+            }
+
+            FilledIconButton(
+                onClick = onPlay,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(14.dp)
+            ) {
+                Icon(Icons.Rounded.PlayArrow, contentDescription = "Play artist")
+            }
+        }
     }
 }
