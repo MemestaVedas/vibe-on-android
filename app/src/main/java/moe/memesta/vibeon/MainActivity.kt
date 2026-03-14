@@ -139,10 +139,14 @@ val appContainer = VibeonApp.instance.container
             // Observe current track cover for dynamic theming
             val currentTrack by connectionViewModel.currentTrack.collectAsState()
             val displayLanguage by playerSettingsRepository.displayLanguage.collectAsState()
+            val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsState()
+            val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsState()
             val coverBitmap = moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl(currentTrack.coverUrl)
             
             CompositionLocalProvider(
-                moe.memesta.vibeon.ui.utils.LocalDisplayLanguage provides displayLanguage
+                moe.memesta.vibeon.ui.utils.LocalDisplayLanguage provides displayLanguage,
+                moe.memesta.vibeon.ui.utils.LocalAlbumViewStyle provides albumViewStyle,
+                moe.memesta.vibeon.ui.utils.LocalArtistViewStyle provides artistViewStyle
             ) {
                 moe.memesta.vibeon.ui.theme.DynamicTheme(seedBitmap = coverBitmap) {
                 // Initialize ViewModels or generic state if needed for global context

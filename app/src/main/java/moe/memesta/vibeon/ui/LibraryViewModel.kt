@@ -81,6 +81,10 @@ class LibraryViewModel(
     // Track sorting
     private val _currentTrackSortOption = MutableStateFlow<SortOption>(SortOption.TrackDefault)
     val currentTrackSortOption: StateFlow<SortOption> = _currentTrackSortOption
+
+    // Artist sorting
+    private val _currentArtistSortOption = MutableStateFlow<SortOption>(SortOption.ArtistDefault)
+    val currentArtistSortOption: StateFlow<SortOption> = _currentArtistSortOption
     
     private val _stats = MutableStateFlow<moe.memesta.vibeon.data.LibraryStats?>(null)
     val stats: StateFlow<moe.memesta.vibeon.data.LibraryStats?> = _stats
@@ -359,5 +363,9 @@ class LibraryViewModel(
     
     fun setTrackSortOption(option: SortOption) {
         _currentTrackSortOption.value = option
+    }
+
+    fun setArtistSortOption(option: SortOption) {
+        _currentArtistSortOption.value = option
     }
 }

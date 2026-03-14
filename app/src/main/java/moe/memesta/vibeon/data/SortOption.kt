@@ -11,6 +11,13 @@ sealed class SortOption(val storageKey: String, val displayName: String) {
     object AlbumArtist : SortOption("album_artist", "Artist")
     object AlbumSongCountAsc : SortOption("album_song_count_asc", "Fewest Songs")
     object AlbumSongCountDesc : SortOption("album_song_count_desc", "Most Songs")
+
+    // Artist Sort Options
+    object ArtistDefault : SortOption("artist_default", "Default")
+    object ArtistNameAZ : SortOption("artist_name_az", "Name (A-Z)")
+    object ArtistNameZA : SortOption("artist_name_za", "Name (Z-A)")
+    object ArtistTrackCountDesc : SortOption("artist_track_count_desc", "Most Tracks")
+    object ArtistTrackCountAsc : SortOption("artist_track_count_asc", "Fewest Tracks")
     
     // Track Sort Options
     object TrackDefault : SortOption("track_default", "Default")
@@ -35,6 +42,16 @@ sealed class SortOption(val storageKey: String, val displayName: String) {
                 AlbumArtist,
                 AlbumSongCountDesc,
                 AlbumSongCountAsc
+            )
+        }
+
+        val ARTISTS: List<SortOption> by lazy {
+            listOf(
+                ArtistDefault,
+                ArtistNameAZ,
+                ArtistNameZA,
+                ArtistTrackCountDesc,
+                ArtistTrackCountAsc
             )
         }
         
@@ -66,6 +83,11 @@ sealed class SortOption(val storageKey: String, val displayName: String) {
                 "album_artist" -> AlbumArtist
                 "album_song_count_asc" -> AlbumSongCountAsc
                 "album_song_count_desc" -> AlbumSongCountDesc
+                "artist_default" -> ArtistDefault
+                "artist_name_az" -> ArtistNameAZ
+                "artist_name_za" -> ArtistNameZA
+                "artist_track_count_desc" -> ArtistTrackCountDesc
+                "artist_track_count_asc" -> ArtistTrackCountAsc
                 "track_default" -> TrackDefault
                 "track_title_az" -> TrackTitleAZ
                 "track_title_za" -> TrackTitleZA

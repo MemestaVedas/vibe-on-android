@@ -24,6 +24,7 @@ import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.local.FavoriteDevice
 import moe.memesta.vibeon.data.local.FavoritesManager
+import moe.memesta.vibeon.data.local.LibraryViewStyle
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 
@@ -35,7 +36,6 @@ fun SettingsScreen(
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
-    val discoveredDevices by connectionViewModel.discoveredDevices.collectAsState()
     var favorites by remember { mutableStateOf(favoritesManager.getFavorites()) }
     var showRenameDialog by remember { mutableStateOf<FavoriteDevice?>(null) }
     var expandedDevice by remember { mutableStateOf<String?>(null) }
@@ -45,6 +45,8 @@ fun SettingsScreen(
     val syncStatusState = libraryViewModel?.syncStatus?.collectAsState(initial = SyncStatus())
     val syncStatus = syncStatusState?.value ?: SyncStatus()
     val displayLanguage by playerSettingsRepository.displayLanguage.collectAsState()
+    val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsState()
+    val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsState()
     
     LazyColumn(
         modifier = Modifier
@@ -184,6 +186,67 @@ fun SettingsScreen(
         }
         
         // Spacer
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+
+        item {
+            Text(
+                text = "Library Appearance",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Albums View",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Legacy keeps the simpler layout. Modern stays within Material 3 Expressive with richer hierarchy and utility chips.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    ViewStyleSelector(
+                        selectedStyle = albumViewStyle,
+                        onStyleSelected = playerSettingsRepository::setAlbumViewStyle
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Artists View",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Use a separate style so users can keep artists simple even if albums use the modern layout.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    ViewStyleSelector(
+                        selectedStyle = artistViewStyle,
+                        onStyleSelected = playerSettingsRepository::setArtistViewStyle
+                    )
+                }
+            }
+        }
+
         item { Spacer(modifier = Modifier.height(16.dp)) }
 
         // Section: Player Settings
@@ -441,6 +504,37 @@ fun FavoriteDeviceCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ViewStyleSelector(
+    selectedStyle: LibraryViewStyle,
+    onStyleSelected: (LibraryViewStyle) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf(LibraryViewStyle.LEGACY, LibraryViewStyle.MODERN).forEach { style ->
+            val isSelected = selectedStyle == style
+            val title = if (style == LibraryViewStyle.LEGACY) "Legacy" else "Modern"
+
+            FilterChip(
+                selected = isSelected,
+                onClick = { onStyleSelected(style) },
+                label = { Text(title) },
+                leadingIcon = if (isSelected) {
+                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                } else null,
+                modifier = Modifier.weight(1f),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
         }
     }
 }
