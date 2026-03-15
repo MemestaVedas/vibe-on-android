@@ -249,7 +249,8 @@ fun NowPlayingScreen(
                         onLyricsClick = {
                             scope.launch { listState.animateScrollToItem(1) }
                         },
-                        onQueueClick = { showQueueSheet = true },
+                        onQueueClick = { showQueueSheet = !showQueueSheet },
+                        isQueueSheetVisible = showQueueSheet,
                         onNavigateToAlbum = { onNavigateToAlbum(currentTrack.album.ifEmpty { currentTrack.artist }) },
                         lyricsSurfaceColor = lyricsSurfaceColor,
                         lyricsTextColor = lyricsTextColor,
@@ -351,6 +352,7 @@ fun NowPlayingContent(
     onTogglePlaybackLocation: () -> Unit,
     onLyricsClick: () -> Unit,
     onQueueClick: () -> Unit,
+    isQueueSheetVisible: Boolean,
     onNavigateToAlbum: () -> Unit,
     lyricsSurfaceColor: Color,
     lyricsTextColor: Color,
@@ -655,7 +657,7 @@ fun NowPlayingContent(
 
                     // Queue Button aligned with new kinetic button system
                     FluxPill(
-                        selected = queue.isNotEmpty(),
+                        selected = isQueueSheetVisible,
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onQueueClick()
