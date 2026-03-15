@@ -461,6 +461,19 @@ fun NowPlayingContent(
             animationSpec = MotionTokens.Effects.slow(),
             label = "artScale"
         )
+        val artStageElevation by animateDpAsState(
+            targetValue = if (isPlaying) 28.dp else 16.dp,
+            animationSpec = tween(
+                durationMillis = MotionTokens.Duration.Standard,
+                easing = MotionTokens.EasingTokens.Standard
+            ),
+            label = "artStageElevation"
+        )
+        val artGlowAlpha by animateFloatAsState(
+            targetValue = if (isPlaying) 0.3f else 0.18f,
+            animationSpec = MotionTokens.Effects.slow(),
+            label = "artGlowAlpha"
+        )
 
         // Double-tap like state
         var showLikeHeart by remember { mutableStateOf(false) }
@@ -498,6 +511,11 @@ fun NowPlayingContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f) // Restore full 1:1 square layout
+                    .shadow(
+                        elevation = artStageElevation,
+                        shape = RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp),
+                        clip = false
+                    )
                     .clip(RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp))
                         .graphicsLayer { scaleX = effectiveArtScale; scaleY = effectiveArtScale }
                     .pointerInput(Unit) {
@@ -519,6 +537,21 @@ fun NowPlayingContent(
                             )
                     }
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    vibrantColor.copy(alpha = artGlowAlpha),
+                                    tertiaryColor.copy(alpha = artGlowAlpha * 0.55f),
+                                    Color.Transparent
+                                ),
+                                radius = 1200f
+                            )
+                        )
+                )
+
                 HorizontalPager(
                     state = pagerState,
                     userScrollEnabled = pagerItems.size > 1,
