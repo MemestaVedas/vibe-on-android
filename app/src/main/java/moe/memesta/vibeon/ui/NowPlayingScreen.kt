@@ -672,37 +672,29 @@ fun NowPlayingContent(
                 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Main Controls
+                // Main Controls — futuristic transport cluster
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    // Previous
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(22.dp))
-                            .bouncyClickable(onClick = onSkipPrevious),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.SkipPrevious,
-                            contentDescription = "Previous track",
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    // Previous — PrismIconButton
+                    PrismIconButton(
+                        onClick = onSkipPrevious,
+                        icon = Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous track",
+                        size = 64.dp,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // Play/Pause
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(28.dp))
-                            .bouncyClickable(onClick = onPlayPauseToggle),
-                        contentAlignment = Alignment.Center
+                    // Play/Pause — OrbitButton (orbit arc active while playing)
+                    OrbitButton(
+                        onClick = onPlayPauseToggle,
+                        isActive = isPlaying,
+                        modifier = Modifier.size(80.dp)
                     ) {
                         Icon(
                             if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
@@ -714,21 +706,16 @@ fun NowPlayingContent(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // Next
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(22.dp))
-                            .bouncyClickable(onClick = onSkipNext),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.SkipNext,
-                            contentDescription = "Next track",
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+                    // Next — PrismIconButton (mirrored prism via rotationY)
+                    PrismIconButton(
+                        onClick = onSkipNext,
+                        icon = Icons.Rounded.SkipNext,
+                        contentDescription = "Next track",
+                        size = 64.dp,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.graphicsLayer { rotationY = 180f }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
