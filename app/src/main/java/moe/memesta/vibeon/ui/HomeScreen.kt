@@ -45,10 +45,13 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
@@ -88,6 +91,10 @@ import moe.memesta.vibeon.ui.utils.getDisplayName
 
 // Accent color — now uses MaterialTheme.colorScheme.primary for dynamic theming
 
+private val MPlusRoundedBold = FontFamily(
+    Font(R.font.m_plus_rounded_1c_bold, FontWeight.Bold)
+)
+
 @androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun HomeScreen(
@@ -123,9 +130,20 @@ fun HomeScreen(
 
     // isLoading moved below so it can consider preserved data during refresh
 
-    // Define distinct section colors for sidebar layering
-    val sectionSurface = Color.White.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surface)
-    val appBackground = MaterialTheme.colorScheme.background
+    // Define distinct section colors for sidebar layering — tinted by current song
+    val themeArgb = MaterialTheme.colorScheme.primary.toArgb()
+    val bgColors = remember(themeArgb) {
+        val hct = com.google.android.material.color.utilities.Hct.fromInt(themeArgb)
+        val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
+        // neutralPalette is near-achromatic — same hue undertone but chroma ~4,
+        // so tone 5 and tone 20 are very dark with only a whisper of the song color.
+        Pair(
+            Color(scheme.neutralPalette.tone(5)),
+            Color(scheme.neutralPalette.tone(20))
+        )
+    }
+    val appBackground = bgColors.first
+    val sectionSurface = Color.White.copy(alpha = 0.08f).compositeOver(bgColors.second)
     // Sidebar section colors - distinct for each section to blend wavy separators
     val sidebarTopSection = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
     val sidebarMiddleSection = MaterialTheme.colorScheme.surface
@@ -732,7 +750,12 @@ fun HeroHeader(
 
     val pagerState = rememberPagerState(pageCount = { albums.size })
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
-    val sectionSurface = Color.White.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surface)
+    val heroThemeArgb = MaterialTheme.colorScheme.primary.toArgb()
+    val sectionSurface = remember(heroThemeArgb) {
+        val hct = com.google.android.material.color.utilities.Hct.fromInt(heroThemeArgb)
+        val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
+        Color.White.copy(alpha = 0.08f).compositeOver(Color(scheme.primaryPalette.tone(20)))
+    }
     val topCorner = (36f * pullProgress.coerceIn(0f, 1f)).dp
 
     // Auto-scroll
@@ -865,32 +888,16 @@ fun HeroHeader(
                         .padding(horizontal = Dimens.ScreenPadding, vertical = 20.dp)
                 ) {
                     Column(
-                        modifier = Modifier.align(Alignment.BottomStart)
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .padding(end = 88.dp)
                     ) {
-                        // "New for you" badge - Redesigned
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                                .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(50))
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "New for you",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
                         Text(
                             text = album.getDisplayName(displayLanguage),
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontWeight = FontWeight.Black,
+                                fontFamily = MPlusRoundedBold,
                                 lineHeight = 32.sp,
                                 shadow = Shadow(
                                     color = Color.Black.copy(alpha = 0.5f),
@@ -922,7 +929,7 @@ fun HeroHeader(
                             .align(Alignment.BottomEnd)
                             .padding(bottom = 36.dp, end = 16.dp)
                             .size(60.dp)
-                            .clip(PetalShape(petals = 8, depth = 0.15f))
+                            .clip(RoundedCornerShape(18.dp))
                             .background(MaterialTheme.colorScheme.primary)
                             .clickable { onPlayClick(album) },
                         contentAlignment = Alignment.Center
