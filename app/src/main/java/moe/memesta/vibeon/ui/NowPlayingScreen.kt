@@ -653,21 +653,20 @@ fun NowPlayingContent(
                         }
                     }
 
-                    // Queue Button
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                            .size(48.dp)
-                            .bouncyClickable(onClick = onQueueClick),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.QueueMusic,
-                            contentDescription = "Show Queue",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    // Queue Button aligned with new kinetic button system
+                    FluxPill(
+                        selected = queue.isNotEmpty(),
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onQueueClick()
+                        },
+                        icon = Icons.Rounded.QueueMusic,
+                        label = if (queue.isNotEmpty()) {
+                            "${(currentIndex + 1).coerceIn(1, queue.size)}/${queue.size}"
+                        } else {
+                            "Queue"
+                        }
+                    )
                 }
             }
                     
@@ -788,92 +787,39 @@ fun NowPlayingContent(
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(32.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .padding(4.dp),
+                            .padding(horizontal = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Device Toggle Button (Left)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(percent = 50))
-                                .background(
-                                    if (isMobilePlayback) 
-                                        MaterialTheme.colorScheme.tertiaryContainer
-                                    else 
-                                        Color.Transparent
-                                )
-                                .bouncyClickable(onClick = onTogglePlaybackLocation),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                if (isMobilePlayback) Icons.Rounded.Smartphone else Icons.Rounded.Computer,
-                                contentDescription = if (isMobilePlayback) "Mobile Playback" else "PC Playback",
-                                tint = if (isMobilePlayback)
-                                    MaterialTheme.colorScheme.onTertiaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        FluxPill(
+                            selected = isMobilePlayback,
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onTogglePlaybackLocation()
+                            },
+                            modifier = Modifier.weight(1f),
+                            icon = if (isMobilePlayback) Icons.Rounded.Smartphone else Icons.Rounded.Computer
+                        )
 
-                        // Shuffle Button (Middle)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(
-                                    if (isShuffled) 
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else 
-                                        MaterialTheme.colorScheme.surfaceContainerHigh
-                                )
-                                .bouncyClickable(onClick = { connectionViewModel.toggleShuffle() }),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Rounded.Shuffle,
-                                contentDescription = "Shuffle",
-                                tint = if (isShuffled) 
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                else 
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        FluxPill(
+                            selected = isShuffled,
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                connectionViewModel.toggleShuffle()
+                            },
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Rounded.Shuffle
+                        )
 
-                        // Repeat Button (Right)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(percent = 50))
-                                .background(
-                                    when (repeatMode) {
-                                        "one" -> MaterialTheme.colorScheme.errorContainer
-                                        "all" -> MaterialTheme.colorScheme.secondaryContainer
-                                        else -> Color.Transparent
-                                    }
-                                )
-                                .bouncyClickable(onClick = { connectionViewModel.toggleRepeat() }),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                when (repeatMode) {
-                                    "one" -> Icons.Rounded.RepeatOne
-                                    else -> Icons.Rounded.Repeat
-                                },
-                                contentDescription = "Repeat",
-                                tint = when (repeatMode) {
-                                    "one" -> MaterialTheme.colorScheme.onErrorContainer
-                                    "all" -> MaterialTheme.colorScheme.onSecondaryContainer
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        FluxPill(
+                            selected = repeatMode == "all" || repeatMode == "one",
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                connectionViewModel.toggleRepeat()
+                            },
+                            modifier = Modifier.weight(1f),
+                            icon = if (repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat
+                        )
                     }
 
                     // Island 2: Volume Control
