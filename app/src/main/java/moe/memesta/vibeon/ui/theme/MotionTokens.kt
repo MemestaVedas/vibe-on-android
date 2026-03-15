@@ -76,3 +76,35 @@ object MotionTokens {
         easing = EasingTokens.Standard
     )
 }
+
+// ─── Stagger orchestration helpers ───────────────────────────────────────────
+
+/**
+ * Delay for the nth item in a staggered reveal, capped to avoid long waits.
+ *
+ * @param index   0-based position in the list.
+ * @param step    Milliseconds between each item's reveal. Default 40ms.
+ * @param maxDelay Cap to keep the last item from waiting too long. Default 400ms.
+ */
+fun staggerDelay(index: Int, step: Int = 40, maxDelay: Int = 400): Int =
+    (index * step).coerceAtMost(maxDelay)
+
+/**
+ * Returns an [AnimationSpec] for a staggered alpha or translation reveal.
+ * Uses [MotionTokens.EasingTokens.EnterEmphasis] for a kinetic deceleration feel.
+ *
+ * @param index        0-based position.
+ * @param baseDuration Duration of each item's animation in ms.
+ * @param step         Delay step per item in ms.
+ * @param maxDelay     Maximum total delay in ms.
+ */
+fun staggerEnterSpec(
+    index: Int,
+    baseDuration: Int = MotionTokens.Duration.Standard,
+    step: Int = 40,
+    maxDelay: Int = 400
+): AnimationSpec<Float> = tween(
+    durationMillis = baseDuration,
+    delayMillis = staggerDelay(index, step, maxDelay),
+    easing = MotionTokens.EasingTokens.EnterEmphasis
+)
