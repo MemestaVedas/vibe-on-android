@@ -754,7 +754,8 @@ fun HeroHeader(
     val sectionSurface = remember(heroThemeArgb) {
         val hct = com.google.android.material.color.utilities.Hct.fromInt(heroThemeArgb)
         val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
-        Color.White.copy(alpha = 0.08f).compositeOver(Color(scheme.primaryPalette.tone(20)))
+        // Use neutral palette tone 20 so this surface matches the neutral background tone
+        Color.White.copy(alpha = 0.08f).compositeOver(Color(scheme.neutralPalette.tone(20)))
     }
     val topCorner = (36f * pullProgress.coerceIn(0f, 1f)).dp
 
@@ -813,6 +814,9 @@ fun HeroHeader(
 
                 // Extract Dynamic Color for Overlay
                 var dynamicBaseColor by remember { mutableStateOf<Color?>(null) }
+                // Animated title and artist colors derived from album art palette
+                var titleColor by remember { mutableStateOf(Color.White) }
+                var artistColor by remember { mutableStateOf(Color.White.copy(alpha = 0.85f)) }
                 
                 LaunchedEffect(album.coverUrl) {
                     val loader = AppImageLoader.get(context)
@@ -842,6 +846,18 @@ fun HeroHeader(
 
                                 val hct = com.google.android.material.color.utilities.Hct.fromInt(sourceColor)
                                 val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
+                                // Choose a readable title/artist color from the extracted scheme
+                                // Title: compute an onPrimary-like color from the dynamic scheme for good contrast
+                                val primaryMid = scheme.primaryPalette.tone(50)
+                                titleColor = if (primaryMid < 50.0) {
+                                    // primary is relatively dark -> use light onPrimary
+                                    Color(scheme.primaryPalette.tone(95))
+                                } else {
+                                    // primary is relatively light -> use dark onPrimary
+                                    Color(scheme.primaryPalette.tone(10))
+                                }
+                                // Artist: use the scheme's secondary/on-secondary tone for contrast
+                                artistColor = Color(scheme.secondaryPalette.tone(90))
                                 Color(scheme.primaryPalette.tone(50))
                             }
                             bitmap.recycle()
@@ -893,20 +909,19 @@ fun HeroHeader(
                             .fillMaxWidth()
                             .padding(end = 88.dp)
                     ) {
+                        val animTitleColor by animateColorAsState(targetValue = titleColor, animationSpec = tween(600))
+                        val animArtistColor by animateColorAsState(targetValue = artistColor, animationSpec = tween(600))
+
                         Text(
                             text = album.getDisplayName(displayLanguage),
                             style = MaterialTheme.typography.headlineSmall.copy(
                                 fontWeight = FontWeight.Black,
                                 fontFamily = MPlusRoundedBold,
-                                lineHeight = 32.sp,
-                                shadow = Shadow(
-                                    color = Color.Black.copy(alpha = 0.5f),
-                                    blurRadius = 8f
-                                )
+                                lineHeight = 32.sp
                             ),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            color = Color.White
+                            color = animTitleColor
                         )
 
                         Text(
@@ -915,7 +930,7 @@ fun HeroHeader(
                                 letterSpacing = 2.sp,
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = Color.White.copy(alpha = 0.8f),
+                            color = animArtistColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
