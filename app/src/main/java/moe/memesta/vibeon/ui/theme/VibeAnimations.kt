@@ -134,12 +134,18 @@ fun Modifier.bouncyClickable(
         }
     }
 
+    val prefersReducedMotion = rememberPrefersReducedMotion()
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = if (prefersReducedMotion) {
+            snap()
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        },
         label = "bouncyScale"
     )
 
