@@ -2,6 +2,8 @@ package moe.memesta.vibeon.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
@@ -165,34 +167,45 @@ fun AppNavHost(
                 modifier = Modifier.fillMaxSize(),
                 // Standard enter (forward push)
                 enterTransition = {
-                    if (initialState.destination.route == "now_playing" || targetState.destination.route == "now_playing") {
-                         fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration))
-                    } else {
-                        enterTransition()
+                    when {
+                        targetState.destination.route == "now_playing" ->
+                            // Now Playing slides up from the bottom like a sheet
+                            sheetEnterTransition()
+                        initialState.destination.route == "now_playing" ->
+                            // Underlying screen re-appears without sliding (it was always there)
+                            EnterTransition.None
+                        else -> enterTransition()
                     }
                 },
                 // Standard exit (forward push)
                 exitTransition = {
-                    if (targetState.destination.route == "now_playing" || initialState.destination.route == "now_playing") {
-                        fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration))
-                    } else {
-                        exitTransition()
+                    when {
+                        targetState.destination.route == "now_playing" ->
+                            // Keep the underlying screen visible while Now Playing slides up over it
+                            ExitTransition.None
+                        initialState.destination.route == "now_playing" ->
+                            ExitTransition.None
+                        else -> exitTransition()
                     }
                 },
                 // Pop enter (going back) - previous page slides in from left with parallax & zoom
                 popEnterTransition = {
-                    if (initialState.destination.route == "now_playing") {
-                        fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration))
-                    } else {
-                        popEnterTransition()
+                    when {
+                        initialState.destination.route == "now_playing" ->
+                            // The underlying screen was always visible — no enter animation needed
+                            EnterTransition.None
+                        else -> popEnterTransition()
                     }
                 },
                 // Pop exit (going back) - current page slides out to right with scale down
                 popExitTransition = {
-                    if (initialState.destination.route == "now_playing" || targetState.destination.route == "now_playing") {
-                         fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration))
-                    } else {
-                        popExitTransition()
+                    when {
+                        initialState.destination.route == "now_playing" ->
+                            // Now Playing slides back down to bottom when dismissed
+                            sheetExitTransition()
+                        targetState.destination.route == "now_playing" ->
+                            ExitTransition.None
+                        else -> popExitTransition()
                     }
                 }
             ) {
@@ -202,11 +215,12 @@ fun AppNavHost(
                 composable(
                     route = "now_playing",
                     enterTransition = {
-                        // Use ONLY fade to avoidjitter with Shared Element Transition
-                        fadeIn(animationSpec = tween(VibeAnimations.ScreenEnterDuration))
+                        // Slide up from bottom — sheet-like entrance
+                        sheetEnterTransition()
                     },
                     popExitTransition = {
-                        fadeOut(animationSpec = tween(VibeAnimations.ScreenExitDuration))
+                        // Slide back down to bottom when dismissed
+                        sheetExitTransition()
                     }
                 ) {
                     NowPlayingScreen(

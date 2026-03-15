@@ -79,3 +79,20 @@ fun verticalExitTransition() = androidx.compose.animation.slideOutVertically(
 ) + fadeOut(
     animationSpec = tween(MotionTokens.Duration.Fast, easing = EXIT_EASING)
 )
+
+// ─── Bottom-sheet transitions ─────────────────────────────────────────────────
+// Full-height slide from the bottom edge — used for Now Playing.
+
+fun sheetEnterTransition() = androidx.compose.animation.slideInVertically(
+    animationSpec = tween(420, easing = ENTER_EASING),
+    initialOffsetY = { it }           // start fully off-screen below
+) + fadeIn(
+    animationSpec = tween(320, easing = ENTER_EASING)
+)
+
+fun sheetExitTransition() = androidx.compose.animation.slideOutVertically(
+    animationSpec = tween(340, easing = EXIT_EASING),
+    targetOffsetY = { it }            // slide back down off-screen
+) + fadeOut(
+    animationSpec = tween(240, easing = EXIT_EASING)
+)
