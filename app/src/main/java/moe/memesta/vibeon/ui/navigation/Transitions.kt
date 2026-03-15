@@ -1,6 +1,5 @@
 package moe.memesta.vibeon.ui.navigation
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,9 +8,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.graphics.TransformOrigin
+import moe.memesta.vibeon.ui.theme.MotionTokens
 
-const val TRANSITION_DURATION = 500
-private val TRANSITION_EASING = FastOutSlowInEasing
+private val TRANSITION_DURATION = MotionTokens.Duration.Slow
+private val TRANSITION_EASING = MotionTokens.EasingTokens.Standard
 
 // Push: Enter from Right
 fun enterTransition() = slideInHorizontally(
@@ -35,10 +35,10 @@ fun exitTransition() = slideOutHorizontally(
 // Pop: Enter from Left with Parallax (slide in from left, slight zoom in for depth)
 fun popEnterTransition() = slideInHorizontally(
     animationSpec = tween(TRANSITION_DURATION, easing = TRANSITION_EASING),
-    initialOffsetX = { -it / 3 } // Start from Left (parallax effect)
+    initialOffsetX = { -it / 3 }
 ) + scaleIn(
     animationSpec = tween(TRANSITION_DURATION, easing = TRANSITION_EASING),
-    initialScale = 0.9f // Slight zoom in for depth effect
+    initialScale = 0.9f
 ) + fadeIn(
     animationSpec = tween(TRANSITION_DURATION, easing = TRANSITION_EASING)
 )
@@ -46,7 +46,7 @@ fun popEnterTransition() = slideInHorizontally(
 // Pop: Exit to Right with Scale Down (current page slides out while scaling)
 fun popExitTransition() = slideOutHorizontally(
     animationSpec = tween(TRANSITION_DURATION, easing = TRANSITION_EASING),
-    targetOffsetX = { it } // Slide to Right
+    targetOffsetX = { it }
 ) + scaleOut(
     animationSpec = tween(TRANSITION_DURATION, easing = TRANSITION_EASING),
     targetScale = 0.75f,
