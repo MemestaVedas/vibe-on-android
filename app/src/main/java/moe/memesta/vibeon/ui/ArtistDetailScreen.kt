@@ -40,6 +40,7 @@ import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
 import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.MotionTokens
 import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
 import androidx.navigation.NavController
@@ -342,12 +343,12 @@ fun ArtistDetailScreen(
                  itemsIndexed(artistTracks) { index, track ->
                     val alpha by animateFloatAsState(
                         targetValue = 1f,
-                        animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                        animationSpec = MotionTokens.staggeredEffects(index),
                         label = "itemAlpha"
                     )
                     val slide by animateFloatAsState(
                         targetValue = 0f,
-                        animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                        animationSpec = MotionTokens.staggeredEffects(index),
                         label = "itemSlide"
                     )
                     

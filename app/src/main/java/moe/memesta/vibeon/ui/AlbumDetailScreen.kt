@@ -44,6 +44,7 @@ import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.theme.MotionTokens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.PaletteUtils
@@ -364,12 +365,12 @@ fun AlbumDetailScreen(
 
                 val alpha by animateFloatAsState(
                     targetValue = 1f,
-                    animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                    animationSpec = MotionTokens.staggeredEffects(index),
                     label = "itemAlpha"
                 )
                 val slide by animateFloatAsState(
                     targetValue = 0f,
-                    animationSpec = tween(durationMillis = 400, delayMillis = (index * 50).coerceAtMost(500)),
+                    animationSpec = MotionTokens.staggeredEffects(index),
                     label = "itemSlide"
                 )
 
