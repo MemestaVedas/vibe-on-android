@@ -37,3 +37,26 @@ val DomeShape: Shape = RoundedCornerShape(
     bottomStart = 0.dp, 
     bottomEnd = 0.dp
 ) // Dome shape for areas
+
+// ─── Futuristic Kinetic semantic aliases ─────────────────────────────────────
+
+/** Full pill for the OrbitButton and FluxPill toggle chips. */
+val PillButtonShape: Shape = RoundedCornerShape(percent = 50)
+
+/**
+ * Asymmetric prism shape for PrismIconButton and secondary controls.
+ * Opposite corners are sized differently to convey kinetic energy.
+ */
+val PrismButtonShape: Shape = RoundedCornerShape(
+    topStart = 10.dp, topEnd = 18.dp,
+    bottomStart = 18.dp, bottomEnd = 10.dp
+)
+
+/** Slightly squircle card — main surface for album/track cards. */
+val ElevatedCardShape: Shape = RoundedCornerShape(20.dp)
+
+/** Full-bleed bottom sheet top rounding. */
+val SheetShape: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+
+/** Compact chip/badge rounding. */
+val ChipShape: Shape = RoundedCornerShape(12.dp)
