@@ -265,11 +265,26 @@ fun buildLyricsForView(
         return when (viewMode) {
             LyricsViewMode.JP -> jpLyrics
             LyricsViewMode.ROMAJI -> {
-                if (romajiLyrics.isNotEmpty()) romajiLyrics else jpLyrics
+                if (romajiLyrics.isNotEmpty()) {
+                    romajiLyrics
+                } else {
+                    // Fallback: extract the most romaji-like line from each JP group.
+                    jpLyrics.map { group ->
+                        LyricGroup(group.timestamp, listOf(preferRomajiLine(group.lines)))
+                    }
+                }
             }
             LyricsViewMode.BOTH -> {
                 if (romajiLyrics.isEmpty()) {
-                    jpLyrics
+                    jpLyrics.map { group ->
+                        val jpLine = group.lines.firstOrNull().orEmpty()
+                        val romaLine = preferRomajiLine(group.lines)
+                        if (romaLine.isNotBlank() && romaLine != jpLine) {
+                            LyricGroup(group.timestamp, listOf(jpLine, romaLine))
+                        } else {
+                            LyricGroup(group.timestamp, listOf(jpLine))
+                        }
+                    }
                 } else {
                     jpLyrics.mapIndexed { index, jpGroup ->
                         val romajiGroup = romajiLyrics.getOrNull(index)
@@ -289,6 +304,37 @@ fun buildLyricsForView(
         ?.lines()
         ?.map { LyricGroup(0, listOf(it)) }
         .orEmpty()
+}
+
+private fun preferRomajiLine(lines: List<String>): String {
+    if (lines.isEmpty()) return ""
+    val cleaned = lines.map { it.trim() }.filter { it.isNotEmpty() }
+    if (cleaned.isEmpty()) return ""
+
+    // Best candidate: contains Latin letters and avoids CJK glyphs.
+    cleaned.firstOrNull { hasLatin(it) && !hasCjk(it) }?.let { return it }
+    // Next: any line with Latin letters.
+    cleaned.firstOrNull { hasLatin(it) }?.let { return it }
+    // Fallback to existing order.
+    return cleaned.first()
+}
+
+private fun hasLatin(text: String): Boolean = text.any { ch ->
+    ch.code in 'A'.code..'Z'.code || ch.code in 'a'.code..'z'.code
+}
+
+private fun hasCjk(text: String): Boolean = text.any { ch ->
+    when (Character.UnicodeBlock.of(ch)) {
+        Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS,
+        Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A,
+        Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B,
+        Character.UnicodeBlock.HIRAGANA,
+        Character.UnicodeBlock.KATAKANA,
+        Character.UnicodeBlock.HANGUL_SYLLABLES,
+        Character.UnicodeBlock.HANGUL_JAMO,
+        Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS -> true
+        else -> false
+    }
 }
 
 private data class TempLyricEntry(val timestamp: Long, val text: String)
@@ -325,8 +371,8 @@ fun LyricGroupItem(
     // Logic for what lines to show
     val primaryText = when (viewMode) {
         LyricsViewMode.JP -> lyricGroup.lines.firstOrNull() ?: ""
-        // Use 2nd line (Romaji) if available, fall back to 1st
-        LyricsViewMode.ROMAJI -> if (lyricGroup.lines.size > 1) lyricGroup.lines[1] else lyricGroup.lines.firstOrNull() ?: ""
+        // Use script-aware selection to prioritize romaji lines.
+        LyricsViewMode.ROMAJI -> preferRomajiLine(lyricGroup.lines)
         // Both: Primary is Original (JP)
         LyricsViewMode.BOTH -> lyricGroup.lines.firstOrNull() ?: ""
     }
