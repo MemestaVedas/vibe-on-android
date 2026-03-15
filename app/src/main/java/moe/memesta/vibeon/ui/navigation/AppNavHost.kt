@@ -467,7 +467,12 @@ fun AppNavHost(
                 composable(
                     route = "album/{albumName}",
                     arguments = listOf(androidx.navigation.navArgument("albumName") { type = androidx.navigation.NavType.StringType })
-                ) { backStackEntry ->
+                    ,
+                        enterTransition = { verticalEnterTransition() },
+                        exitTransition  = { verticalExitTransition() },
+                        popEnterTransition = { verticalEnterTransition() },
+                        popExitTransition  = { verticalExitTransition() }
+                    ) { backStackEntry ->
                     val albumName = backStackEntry.arguments?.getString("albumName") ?: return@composable
                     // Use shared LibraryViewModel
 
@@ -486,7 +491,12 @@ fun AppNavHost(
                 composable(
                     route = "artist/{artistName}",
                     arguments = listOf(androidx.navigation.navArgument("artistName") { type = androidx.navigation.NavType.StringType })
-                ) { backStackEntry ->
+                    ,
+                        enterTransition = { verticalEnterTransition() },
+                        exitTransition  = { verticalExitTransition() },
+                        popEnterTransition = { verticalEnterTransition() },
+                        popExitTransition  = { verticalExitTransition() }
+                    ) { backStackEntry ->
                     val artistName = backStackEntry.arguments?.getString("artistName") ?: return@composable
                         // Use shared LibraryViewModel
 
