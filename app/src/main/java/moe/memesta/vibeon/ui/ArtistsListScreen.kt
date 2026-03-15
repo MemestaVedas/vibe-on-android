@@ -94,15 +94,8 @@ fun ArtistsListScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
-                    ) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
-                    }
-
                     AssistChip(
                         onClick = { showSortSheet = true },
                         label = { Text(currentSortOption.displayName) },

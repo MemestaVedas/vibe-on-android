@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings

@@ -1,7 +1,6 @@
 ﻿package moe.memesta.vibeon.ui.stats
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -27,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -126,62 +126,64 @@ fun StatsScreen(
 ) {
     val uiState by statsViewModel.uiState.collectAsStateWithLifecycleCompat()
     val summary = uiState.summary
+    val cs = MaterialTheme.colorScheme
     val lazyListState = rememberLazyListState()
-    val density = LocalDensity.current
-    val coroutineScope = rememberCoroutineScope()
-
-    // Notch / status-bar safe padding
-    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val minTopBarHeight = 60.dp + statusBarHeight
-    val maxTopBarHeight = 152.dp + statusBarHeight
-    val minTopBarHeightPx = with(density) { minTopBarHeight.toPx() }
-    val maxTopBarHeightPx = with(density) { maxTopBarHeight.toPx() }
-    val topBarHeight = remember { Animatable(maxTopBarHeightPx) }
-    var collapseFraction by remember { mutableStateOf(0f) }
-
-    LaunchedEffect(topBarHeight.value) {
-        collapseFraction = 1f - ((topBarHeight.value - minTopBarHeightPx) /
-                (maxTopBarHeightPx - minTopBarHeightPx)).coerceIn(0f, 1f)
-    }
-
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                val scrollingDown = delta < 0
-                if (!scrollingDown && (lazyListState.firstVisibleItemIndex > 0 ||
-                            lazyListState.firstVisibleItemScrollOffset > 0)) return Offset.Zero
-                val prev = topBarHeight.value
-                val new = (prev + delta).coerceIn(minTopBarHeightPx, maxTopBarHeightPx)
-                val consumed = new - prev
-                if (consumed.roundToInt() != 0) coroutineScope.launch { topBarHeight.snapTo(new) }
-                return if (!(scrollingDown && new == minTopBarHeightPx)) Offset(0f, consumed) else Offset.Zero
-            }
-        }
-    }
-
-    LaunchedEffect(lazyListState.isScrollInProgress) {
-        if (!lazyListState.isScrollInProgress) {
-            val mid = (minTopBarHeightPx + maxTopBarHeightPx) / 2
-            val canExpand = lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset == 0
-            val target = if (topBarHeight.value > mid && canExpand) maxTopBarHeightPx else minTopBarHeightPx
-            if (topBarHeight.value != target)
-                coroutineScope.launch { topBarHeight.animateTo(target, spring(stiffness = Spring.StiffnessMedium)) }
-        }
-    }
-
-    val currentTopBarDp = with(density) { topBarHeight.value.toDp() }
-    val chipRowHeight = 60.dp
     val mediaBaseUrl = statsViewModel.mediaBaseUrl
     var selectedMetric by rememberSaveable { mutableStateOf(TimelineMetric.ListeningTime) }
     var selectedDimension by rememberSaveable { mutableStateOf(CategoryDimension.Song) }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .nestedScroll(nestedScrollConnection)
     ) {
+        // Standard header matching Albums/Artists style
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable { statsViewModel.forceRefresh() },
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = "Refresh stats"
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
+                text = "Statistics",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "See how you've been vibing",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        RangeChips(
+            summary = summary,
+            cs = cs,
+            selectedRange = uiState.selectedRange,
+            onRangeSelected = { statsViewModel.onRangeSelected(it) }
+        )
         if (uiState.isLoading && summary == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 VibeContainedLoadingIndicator(label = "Loading your stats...")
@@ -192,7 +194,7 @@ fun StatsScreen(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    top = currentTopBarDp + chipRowHeight + 20.dp,
+                    top = 20.dp,
                     start = 20.dp,
                     end = 20.dp,
                     bottom = 120.dp
@@ -233,108 +235,13 @@ fun StatsScreen(
             }
         }
 
-        // â”€â”€ Sticky floating header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .zIndex(5f)
-        ) {
-            val solidAlpha = (collapseFraction * 2f).coerceIn(0f, 1f)
-            Column(
-                modifier = Modifier
-                    .background(
-                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = solidAlpha)
-                    )
-                    .padding(bottom = 4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(currentTopBarDp)
-                        .padding(horizontal = 16.dp)
-                        .padding(top = statusBarHeight)
-                ) {
-                    val actionButtonScale by animateFloatAsState(
-                        targetValue = 1f - (collapseFraction * 0.05f),
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMedium
-                        ),
-                        label = "stats-header-action-scale"
-                    )
-                    // Back button
-                    Surface(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .graphicsLayer {
-                                scaleX = actionButtonScale
-                                scaleY = actionButtonScale
-                            }
-                            .clip(CircleShape)
-                            .clickable { onBackPressed() }
-                            .align(Alignment.TopStart),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
-                        }
-                    }
-                    // Title â€” subtitle fades out as header collapses
-                    val titleAlpha = (1f - collapseFraction * 2f).coerceIn(0f, 1f)
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 58.dp, bottom = 12.dp)
-                    ) {
-                        Text(
-                            text = "Statistics",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (titleAlpha > 0.01f) {
-                            Text(
-                                text = "See how you've been vibing",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = titleAlpha * 0.7f)
-                            )
-                        }
-                    }
-                    // Refresh button â€” top-end
-                    Surface(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .graphicsLayer {
-                                scaleX = actionButtonScale
-                                scaleY = actionButtonScale
-                            }
-                            .clip(CircleShape)
-                            .clickable { statsViewModel.forceRefresh() }
-                            .align(Alignment.TopEnd),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Outlined.Refresh,
-                                contentDescription = "Refresh stats"
-                            )
-                        }
-                    }
-                }
-                RangeChips(
-                    selectedRange = uiState.selectedRange,
-                    onRangeSelected = { statsViewModel.onRangeSelected(it) }
-                )
-            }
-        }
     }
 }
 
 @Composable
 private fun RangeChips(
+    summary: PlaybackStatsCalculator.PlaybackStatsSummary?,
+    cs: androidx.compose.material3.ColorScheme,
     selectedRange: StatsTimeRange,
     onRangeSelected: (StatsTimeRange) -> Unit
 ) {
@@ -352,110 +259,22 @@ private fun RangeChips(
                 label = { Text(range.displayName, style = MaterialTheme.typography.labelMedium) },
                 shape = CircleShape,
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    selectedContainerColor = cs.primaryContainer,
+                    selectedLabelColor = cs.onPrimaryContainer
                 )
             )
         }
-    }
-}
 
-@Composable
-private fun AnimatedSelectableChip(
-    selected: Boolean,
-    onClick: () -> Unit,
-    label: @Composable () -> Unit,
-    shape: androidx.compose.ui.graphics.Shape,
-    colors: androidx.compose.material3.SelectableChipColors
-) {
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1f else 0.96f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "stats-chip-scale"
-    )
-    val alpha by animateFloatAsState(
-        targetValue = if (selected) 1f else 0.86f,
-        animationSpec = tween(durationMillis = 220),
-        label = "stats-chip-alpha"
-    )
+        Spacer(modifier = Modifier.width(8.dp))
 
-    FilterChip(
-        modifier = Modifier.graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-            this.alpha = alpha
-        },
-        selected = selected,
-        onClick = onClick,
-        label = label,
-        shape = shape,
-        colors = colors
-    )
-}
-
-@Composable
-private fun AnimatedSection(index: Int, content: @Composable () -> Unit) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay((index * 70L).coerceAtMost(420L))
-        visible = true
-    }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(300)) + slideInVertically(
-            initialOffsetY = { it / 6 },
-            animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f)
+        HeroStatCard(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Outlined.CalendarMonth,
+            label = "Active days",
+            value = summary?.activeDays?.toString() ?: "--",
+            containerColor = cs.primaryContainer.copy(alpha = 0.7f),
+            contentColor = cs.onPrimaryContainer
         )
-    ) {
-        content()
-    }
-}
-
-// â”€â”€ Hero section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-@Composable
-private fun StatsHeroSection(summary: PlaybackStatsCalculator.PlaybackStatsSummary?) {
-    val cs = MaterialTheme.colorScheme
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            HeroStatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Outlined.Hearing,
-                label = "Listening time",
-                value = if (summary != null) formatDuration(summary.totalDurationMs) else "--",
-                containerColor = cs.primaryContainer,
-                contentColor = cs.onPrimaryContainer
-            )
-            HeroStatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Outlined.MusicNote,
-                label = "Total plays",
-                value = summary?.totalPlayCount?.toString() ?: "--",
-                containerColor = cs.tertiaryContainer,
-                contentColor = cs.onTertiaryContainer
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            HeroStatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Outlined.AutoGraph,
-                label = "Unique songs",
-                value = summary?.uniqueSongs?.toString() ?: "--",
-                containerColor = cs.secondaryContainer,
-                contentColor = cs.onSecondaryContainer
-            )
-            HeroStatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Outlined.CalendarMonth,
-                label = "Active days",
-                value = summary?.activeDays?.toString() ?: "--",
-                containerColor = cs.primaryContainer.copy(alpha = 0.7f),
-                contentColor = cs.onPrimaryContainer
-            )
-        }
     }
 }
 
@@ -1138,4 +957,67 @@ private fun formatMinuteLabel(startMinute: Int): String {
     }
     val period = if (hour < 12) "AM" else "PM"
     return String.format("%02d:%02d %s", displayHour, minute, period)
+}
+
+@Composable
+private fun AnimatedSelectableChip(
+    selected: Boolean = false,
+    onClick: () -> Unit = {},
+    label: @Composable () -> Unit = {},
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
+    colors: androidx.compose.material3.SelectableChipColors = FilterChipDefaults.filterChipColors()
+) {
+    val scale by animateFloatAsState(targetValue = if (selected) 1f else 0.96f)
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = label,
+        shape = shape,
+        colors = colors,
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+    )
+}
+
+@Composable
+private fun AnimatedSection(index: Int, content: @Composable () -> Unit) {
+    val enter = fadeIn(tween(300 + index * 40)) + slideInVertically(tween(300 + index * 40)) { it / 6 }
+    AnimatedVisibility(
+        visible = true,
+        enter = enter
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun StatsHeroSection(summary: PlaybackStatsCalculator.PlaybackStatsSummary?) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        HeroStatCard(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Outlined.MusicNote,
+            label = "Top song",
+            value = summary?.topSongs?.firstOrNull()?.title ?: "--",
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        HeroStatCard(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Outlined.Album,
+            label = "Top album",
+            value = summary?.topAlbums?.firstOrNull()?.album ?: "--",
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+        HeroStatCard(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Outlined.AutoGraph,
+            label = "Total time",
+            value = summary?.totalDurationMs?.let { formatDuration(it) } ?: "--",
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f),
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+        )
+    }
 }

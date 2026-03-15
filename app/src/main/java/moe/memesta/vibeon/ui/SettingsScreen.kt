@@ -54,10 +54,33 @@ fun SettingsScreen(
             .padding(horizontal = Dimens.SectionSpacing),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(
-            top = contentPadding.calculateTopPadding() + 24.dp,
+            top = 0.dp,
             bottom = contentPadding.calculateBottomPadding() + 24.dp
         )
     ) {
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(vertical = 12.dp)
+            ) {
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = "Settings",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Personalise your Vibe-On experience",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
         // Section: Current Connection (Only show when connected)
         if (isConnected && connectedDevice != null) {
             item {
