@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -131,6 +132,15 @@ fun HomeScreen(
     val sidebarBottomSection = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
 
     val listState = rememberLazyListState()
+    val heroScrollOffsetPx by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex == 0) {
+                listState.firstVisibleItemScrollOffset.toFloat()
+            } else {
+                520f
+            }
+        }
+    }
 
     // Pull-to-refresh state (declared early so it can be referenced by preserved-data logic below)
     var isRefreshing by remember { mutableStateOf(false) }
@@ -457,7 +467,7 @@ fun HomeScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxWidth()
-                .offset { androidx.compose.ui.unit.IntOffset(0, contentPullOffset.toInt()) }
+                .graphicsLayer { translationY = contentPullOffset }
                 .nestedScroll(nestedScrollConnection),
             contentPadding = PaddingValues(
                 top = 0.dp,
@@ -481,7 +491,8 @@ fun HomeScreen(
                             albums = effectiveFeatured,
                             onPlayClick = { album -> onAlbumSelected(album.name) },
                             displayLanguage = displayLanguage,
-                            pullProgress = heroPullProgress
+                            pullProgress = heroPullProgress,
+                            scrollOffsetPx = heroScrollOffsetPx
                         )
                     }
                 }
@@ -714,7 +725,8 @@ fun HeroHeader(
     albums: List<AlbumInfo>,
     onPlayClick: (AlbumInfo) -> Unit,
     displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage = moe.memesta.vibeon.data.local.DisplayLanguage.ORIGINAL,
-    pullProgress: Float = 0f
+    pullProgress: Float = 0f,
+    scrollOffsetPx: Float = 0f
 ) {
     if (albums.isEmpty()) return
 
@@ -770,6 +782,8 @@ fun HeroHeader(
                 val request = remember(album.coverUrl) {
                     ImageRequest.Builder(context)
                         .data(album.coverUrl)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .crossfade(true)
                         .build()
                 }
@@ -817,7 +831,12 @@ fun HeroHeader(
 
                 // Album art background
                 AsyncImage(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            // Draw-phase-only parallax avoids relayout during scroll.
+                            translationY = (scrollOffsetPx * 0.22f).coerceIn(0f, 120f)
+                        },
                     contentScale = ContentScale.Crop,
                     model = request,
                     contentDescription = null

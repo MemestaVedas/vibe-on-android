@@ -1,8 +1,8 @@
 package moe.memesta.vibeon.ui.theme
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.*
@@ -110,13 +110,13 @@ object VibeAnimations {
  */
 fun Modifier.bouncyClickable(
     enabled: Boolean = true,
-    scaleDown: Float = 0.92f,
+    scaleDown: Float = 0.95f,
     // Use a sentinel object to distinguish "not provided" from explicit null
     indication: Any? = IndicationSentinel,
     onClick: () -> Unit
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    var isPressed by remember { mutableStateOf(false) }
     
     // Resolve indication: if it's our sentinel, use LocalIndication.current
     val resolvedIndication = if (indication === IndicationSentinel) {
@@ -125,9 +125,21 @@ fun Modifier.bouncyClickable(
         indication as? androidx.compose.foundation.Indication
     }
 
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> isPressed = true
+                is PressInteraction.Release, is PressInteraction.Cancel -> isPressed = false
+            }
+        }
+    }
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = VibeAnimations.SpringExpressive,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "bouncyScale"
     )
 
