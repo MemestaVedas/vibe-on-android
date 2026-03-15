@@ -81,6 +81,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import coil.compose.AsyncImage
@@ -859,6 +860,12 @@ fun NowPlayingContent(
 
                     // Island 2: Volume Control
                     var width by remember { mutableFloatStateOf(0f) }
+                    val targetVolume = volume.toFloat().coerceIn(0f, 1f)
+                    val animatedVolumeFill by animateFloatAsState(
+                        targetValue = targetVolume,
+                        animationSpec = MotionTokens.Effects.fast(),
+                        label = "animatedVolumeFill"
+                    )
                     Box(
                         modifier = Modifier
                             .weight(1.2f)
@@ -886,9 +893,28 @@ fun NowPlayingContent(
                         // Active volume fill
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(volume.toFloat().coerceIn(0f, 1f))
+                                .fillMaxWidth(animatedVolumeFill)
                                 .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.tertiaryContainer)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primaryContainer,
+                                            MaterialTheme.colorScheme.tertiaryContainer
+                                        )
+                                    )
+                                )
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .offset {
+                                    val x = (width * animatedVolumeFill - 10.dp.toPx())
+                                        .coerceIn(0f, (width - 20.dp.toPx()).coerceAtLeast(0f))
+                                    IntOffset(x.roundToInt(), 0)
+                                }
+                                .size(20.dp)
+                                .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f), CircleShape)
                         )
                         
                         // Volume Icon
