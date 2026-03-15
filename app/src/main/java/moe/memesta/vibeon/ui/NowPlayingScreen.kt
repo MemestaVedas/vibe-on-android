@@ -446,19 +446,25 @@ fun NowPlayingContent(
     val artistRomajiSubtitle = if (showArtistRomajiSubtitle) artistRomaji else null
 
     // Main Container with immersive blurred background
-        // Kinetic art stage: subtle breathing scale while playing
-        val artInfinite = rememberInfiniteTransition(label = "artBreath")
-        val artBreathScale by artInfinite.animateFloat(
-            initialValue = 1f,
-            targetValue = 1.018f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 2800, easing = androidx.compose.animation.core.EaseInOutSine),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "artBreathScale"
-        )
+        // Kinetic art stage: only breathe when actively playing and motion is allowed.
+        val prefersReducedMotion = rememberPrefersReducedMotion()
+        val artBreathScale = if (isPlaying && !prefersReducedMotion) {
+            val artInfinite = rememberInfiniteTransition(label = "artBreath")
+            val breathingScale by artInfinite.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.018f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 2800, easing = androidx.compose.animation.core.EaseInOutSine),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "artBreathScale"
+            )
+            breathingScale
+        } else {
+            1f
+        }
         val effectiveArtScale by animateFloatAsState(
-            targetValue = if (isPlaying) artBreathScale else 1f,
+            targetValue = artBreathScale,
             animationSpec = MotionTokens.Effects.slow(),
             label = "artScale"
         )
