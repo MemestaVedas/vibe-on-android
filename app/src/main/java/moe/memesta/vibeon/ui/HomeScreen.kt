@@ -99,6 +99,7 @@ fun HomeScreen(
     onViewAllSongs: () -> Unit,
     onViewPlaylists: () -> Unit,
     onViewStats: () -> Unit,
+    onViewOfflineSongs: () -> Unit,
         onViewTorrents: () -> Unit,
         onViewServerDetails: () -> Unit,
     onViewAllAlbums: () -> Unit,
@@ -350,16 +351,16 @@ fun HomeScreen(
                         NavigationDrawerItem(
                             icon = {
                                 Icon(
-                                    imageVector = Icons.Rounded.BarChart,
+                                    imageVector = Icons.Rounded.PlaylistPlay,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary
                                 )
                             },
-                            label = { Text("Statistics") },
+                            label = { Text("Offline Songs") },
                             selected = false,
                             onClick = {
                                 scope.launch { drawerState.close() }
-                                onViewStats()
+                                onViewOfflineSongs()
                             },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )

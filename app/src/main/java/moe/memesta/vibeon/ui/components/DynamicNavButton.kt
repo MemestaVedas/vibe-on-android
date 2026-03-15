@@ -49,7 +49,7 @@ data class NavPage(
 val NavPages = listOf(
     NavPage("settings", "Settings", SettingsShape, 4, Icons.Rounded.Settings),
     NavPage("artists", "Artists", ArtistsShape, 3, Icons.Rounded.Person),
-    NavPage("offline_songs", "Offline", PlaylistsShape, 2, Icons.Rounded.PlaylistPlay), // Keep Playlist shape/icon or change to something else
+    NavPage("stats", "Stats", PlaylistsShape, 2, Icons.Rounded.BarChart),
     NavPage("albums", "Albums", AlbumsShape, 1, Icons.Rounded.Album),
     NavPage("library", "Home", CircleShape, 0, Icons.Rounded.Home)
 )

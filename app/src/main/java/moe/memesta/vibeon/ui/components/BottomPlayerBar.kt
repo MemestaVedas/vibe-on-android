@@ -112,7 +112,7 @@ fun BottomPlayerBar(
         when (pagerState.currentPage) {
             0 -> "library"
             1 -> "albums"
-            2 -> "playlists"
+            2 -> "stats"
             3 -> "artists"
             4 -> "settings"
             else -> "library"

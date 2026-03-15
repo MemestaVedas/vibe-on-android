@@ -46,7 +46,8 @@ fun MainContentPager(
                 onSearchClick = onSearchClick,
                 onViewAllSongs = { navController.navigate("all_songs") },
                 onViewPlaylists = { navController.navigate("playlists") },
-                onViewStats = { navController.navigate("stats") },
+                onViewStats = { scope.launch { pagerState.animateScrollToPage(2) } },
+                onViewOfflineSongs = { navController.navigate("offline_songs") },
                     onViewTorrents = { navController.navigate("torrents") },
                     onViewServerDetails = { navController.navigate("server_details") },
                 onViewAllAlbums = { 
@@ -76,10 +77,12 @@ fun MainContentPager(
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope
             )
-            2 -> OfflineSongsScreen(
-                contentPadding = contentPadding,
-                playbackViewModel = playbackViewModel
-            )
+            2 -> statsViewModel?.let { vm ->
+                moe.memesta.vibeon.ui.stats.StatsScreen(
+                    statsViewModel = vm,
+                    onBackPressed = { scope.launch { pagerState.animateScrollToPage(0) } }
+                )
+            }
             3 -> ArtistsListScreen(
                 viewModel = libraryViewModel,
                 onBackClick = { },
