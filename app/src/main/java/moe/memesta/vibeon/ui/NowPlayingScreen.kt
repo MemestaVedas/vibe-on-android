@@ -13,6 +13,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
@@ -441,6 +443,26 @@ fun NowPlayingContent(
     val artistRomajiSubtitle = if (showArtistRomajiSubtitle) artistRomaji else null
 
     // Main Container with immersive blurred background
+        // Kinetic art stage: subtle breathing scale while playing
+        val artInfinite = rememberInfiniteTransition(label = "artBreath")
+        val artBreathScale by artInfinite.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.018f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2800, easing = androidx.compose.animation.core.EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "artBreathScale"
+        )
+        val effectiveArtScale by animateFloatAsState(
+            targetValue = if (isPlaying) artBreathScale else 1f,
+            animationSpec = MotionTokens.Effects.slow(),
+            label = "artScale"
+        )
+
+        // Double-tap like state
+        var showLikeHeart by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -475,6 +497,7 @@ fun NowPlayingContent(
                     .fillMaxWidth()
                     .aspectRatio(1f) // Restore full 1:1 square layout
                     .clip(RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp))
+                        .graphicsLayer { scaleX = effectiveArtScale; scaleY = effectiveArtScale }
                     .pointerInput(Unit) {
                         detectVerticalDragGestures { change, dragAmount ->
                             if (dragAmount > 20f) {
@@ -484,9 +507,14 @@ fun NowPlayingContent(
                         }
                     }
                     .pointerInput(Unit) {
-                        detectTapGestures {
-                            onNavigateToAlbum()
-                        }
+                            detectTapGestures(
+                                onTap = { onNavigateToAlbum() },
+                                onDoubleTap = {
+                                    connectionViewModel.toggleFavorite(currentTrack.path)
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    showLikeHeart = true
+                                }
+                            )
                     }
             ) {
                 HorizontalPager(
@@ -536,14 +564,38 @@ fun NowPlayingContent(
                         }
                     }
                 }
+                // Heart burst — double-tap like feedback
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showLikeHeart,
+                    enter = fadeIn(animationSpec = tween(80)) +
+                            scaleIn(initialScale = 0.35f, animationSpec = MotionTokens.Spatial.fast()),
+                    exit  = fadeOut(animationSpec = tween(280)) +
+                            scaleOut(targetScale = 1.5f, animationSpec = tween(280))
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Filled.Favorite,
+                            contentDescription = null,
+                            tint = Color(0xFFFF4081),
+                            modifier = Modifier.size(96.dp)
+                        )
+                    }
+                }
             }
-                    
-            // Metadata section now below the album art
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 24.dp)
-            ) {
+
+            // Heart auto-resets after burst animation
+            LaunchedEffect(showLikeHeart) {
+                if (showLikeHeart) {
+                    kotlinx.coroutines.delay(700)
+                    showLikeHeart = false
+                }
+            }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 24.dp)
+                ) {
                 Text(
                     text = title.ifEmpty { "No Track" },
                     style = MaterialTheme.typography.displaySmall,
