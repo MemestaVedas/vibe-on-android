@@ -142,7 +142,7 @@ fun StatsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 6.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -164,7 +164,7 @@ fun StatsScreen(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Statistics",
                 style = MaterialTheme.typography.displaySmall,

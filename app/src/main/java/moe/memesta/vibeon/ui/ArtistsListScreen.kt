@@ -1,5 +1,6 @@
 package moe.memesta.vibeon.ui
 
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -20,10 +21,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.ui.components.ArtistGridItem
@@ -89,7 +97,7 @@ fun ArtistsListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -105,7 +113,7 @@ fun ArtistsListScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "Artists",
@@ -294,6 +302,41 @@ private fun ArtistSpotlightCard(
     onClick: () -> Unit,
     onPlay: () -> Unit
 ) {
+    var dominantColor by remember(photoUrl) { mutableStateOf<Color?>(null) }
+    val gradientColor = dominantColor ?: MaterialTheme.colorScheme.primary
+    val onGradientColor = dominantColor?.let { color ->
+        val r = (color.red * 255).toInt()
+        val g = (color.green * 255).toInt()
+        val b = (color.blue * 255).toInt()
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        if (luminance > 0.5) Color.Black else Color.White
+    } ?: MaterialTheme.colorScheme.onPrimary
+
+    val context = LocalContext.current
+    LaunchedEffect(photoUrl) {
+        if (photoUrl != null) {
+            try {
+                withContext(Dispatchers.IO) {
+                    val request = ImageRequest.Builder(context)
+                        .data(photoUrl)
+                        .allowHardware(false)
+                        .build()
+                    val result = context.imageLoader.execute(request)
+                    if (result is SuccessResult) {
+                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                        bitmap?.let {
+                            val palette = Palette.from(it).generate()
+                            palette.dominantSwatch?.let { swatch ->
+                                dominantColor = Color(swatch.rgb)
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -325,7 +368,7 @@ private fun ArtistSpotlightCard(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.66f)
+                                    gradientColor.copy(alpha = 0.88f)
                             )
                         )
                     )
@@ -339,21 +382,21 @@ private fun ArtistSpotlightCard(
                 Text(
                     text = "Spotlight Artist",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = onGradientColor
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = artistName,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = onGradientColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = trackCount,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+                    color = onGradientColor.copy(alpha = 0.92f)
                 )
             }
 

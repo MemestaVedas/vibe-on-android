@@ -1,5 +1,6 @@
 package moe.memesta.vibeon.ui
 
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,10 +50,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.data.local.LibraryViewStyle
 import moe.memesta.vibeon.ui.components.SortBottomSheet
@@ -100,7 +109,7 @@ fun AlbumsGridScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = Dimens.ScreenPadding, vertical = 12.dp)
+                    .padding(horizontal = Dimens.ScreenPadding, vertical = 6.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -116,7 +125,7 @@ fun AlbumsGridScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "Albums",
@@ -293,6 +302,41 @@ private fun AlbumSpotlightCard(
     onClick: () -> Unit,
     onPlay: () -> Unit
 ) {
+    var dominantColor by remember(coverUrl) { mutableStateOf<Color?>(null) }
+    val gradientColor = dominantColor ?: MaterialTheme.colorScheme.primary
+    val onGradientColor = dominantColor?.let { color ->
+        val r = (color.red * 255).toInt()
+        val g = (color.green * 255).toInt()
+        val b = (color.blue * 255).toInt()
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        if (luminance > 0.5) Color.Black else Color.White
+    } ?: MaterialTheme.colorScheme.onPrimary
+
+    val context = LocalContext.current
+    LaunchedEffect(coverUrl) {
+        if (coverUrl != null) {
+            try {
+                withContext(Dispatchers.IO) {
+                    val request = ImageRequest.Builder(context)
+                        .data(coverUrl)
+                        .allowHardware(false)
+                        .build()
+                    val result = context.imageLoader.execute(request)
+                    if (result is SuccessResult) {
+                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                        bitmap?.let {
+                            val palette = Palette.from(it).generate()
+                            palette.dominantSwatch?.let { swatch ->
+                                dominantColor = Color(swatch.rgb)
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -324,7 +368,7 @@ private fun AlbumSpotlightCard(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)
+                                    gradientColor.copy(alpha = 0.88f)
                             )
                         )
                     )
@@ -338,21 +382,21 @@ private fun AlbumSpotlightCard(
                 Text(
                     text = "Memory Highlight",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = onGradientColor
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = albumName,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = onGradientColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "$artistName • $songCount songs",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f),
+                    color = onGradientColor.copy(alpha = 0.92f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
