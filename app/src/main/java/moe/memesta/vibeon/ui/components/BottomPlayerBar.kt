@@ -70,6 +70,7 @@ import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
 import android.os.Build
 import moe.memesta.vibeon.ui.shapes.*
+import moe.memesta.vibeon.ui.theme.OrbitPlayButton
 
 // Design tokens for non-accent colors
 private val NavBarBg = Color(0xFF0F0F14)
@@ -286,32 +287,22 @@ fun BottomPlayerBar(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         // Play/Pause Button
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    if (isMobilePlayback) {
-                                        val nextPlayState = !effectiveIsPlaying
-                                        playbackViewModel.setPlayerPlayWhenReady(nextPlayState)
-                                        playbackViewModel.updateIsPlaying(nextPlayState)
-                                    } else {
-                                        if (effectiveIsPlaying) connectionViewModel.pause() else connectionViewModel.play()
-                                    }
-                                },
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (effectiveIsPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                    contentDescription = "Play/Pause",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
+                        // Play/Pause — OrbitPlayButton with orbit arc while playing
+                        OrbitPlayButton(
+                            isPlaying = effectiveIsPlaying,
+                            onClick = {
+                                if (isMobilePlayback) {
+                                    val nextPlayState = !effectiveIsPlaying
+                                    playbackViewModel.setPlayerPlayWhenReady(nextPlayState)
+                                    playbackViewModel.updateIsPlaying(nextPlayState)
+                                } else {
+                                    if (effectiveIsPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                                }
+                            },
+                            playIcon = Icons.Rounded.PlayArrow,
+                            pauseIcon = Icons.Rounded.Pause,
+                            size = 44.dp
+                        )
                     }
                 }
             }

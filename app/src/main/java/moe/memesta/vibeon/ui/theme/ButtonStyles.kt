@@ -18,8 +18,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -298,3 +299,86 @@ fun PrismIconButton(
         }
     }
 }
+
+    // ─── OrbitPlayButton ─────────────────────────────────────────────────────────
+
+    /**
+     * Compact circular play/pause button for mini-players and toolbars.
+     *
+     * Shares the same orbit arc animation as [OrbitButton] but fits in a fixed [size] circle.
+     */
+    @Composable
+    fun OrbitPlayButton(
+        isPlaying: Boolean,
+        onClick: () -> Unit,
+        modifier: Modifier = Modifier,
+        size: Dp = 44.dp,
+        enabled: Boolean = true,
+        playIcon: ImageVector,
+        pauseIcon: ImageVector
+    ) {
+        val ixSource = remember { MutableInteractionSource() }
+        val isPressed by ixSource.collectIsPressedAsState()
+        val prefersReducedMotion = rememberPrefersReducedMotion()
+
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.92f else 1f,
+            animationSpec = if (prefersReducedMotion) snap() else MotionTokens.Spatial.fast(),
+            label = "orbitPlayScale"
+        )
+        val infiniteTransition = rememberInfiniteTransition(label = "orbitPlayArc")
+        val arcDeg by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2200, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "orbitPlayArcDeg"
+        )
+        val arcAlpha by animateFloatAsState(
+            targetValue = if (isPlaying && !prefersReducedMotion) 0.7f else 0f,
+            animationSpec = tween(MotionTokens.Duration.Standard),
+            label = "orbitPlayArcAlpha"
+        )
+
+        Surface(
+            onClick = onClick,
+            modifier = modifier
+                .size(size)
+                .graphicsLayer { scaleX = scale; scaleY = scale },
+            shape = CircleShape,
+            enabled = enabled,
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            interactionSource = ixSource
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Icon(
+                    imageVector = if (isPlaying) pauseIcon else playIcon,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(size * 0.5f)
+                )
+                if (arcAlpha > 0f) {
+                    Canvas(modifier = Modifier.matchParentSize()) {
+                        val strokePx = 1.5.dp.toPx()
+                        rotate(degrees = arcDeg, pivot = center) {
+                            drawArc(
+                                color = Color.White.copy(alpha = arcAlpha),
+                                startAngle = -60f,
+                                sweepAngle = 80f,
+                                useCenter = false,
+                                topLeft = Offset(strokePx, strokePx),
+                                size = Size(
+                                    width = this.size.width - strokePx * 2,
+                                    height = this.size.height - strokePx * 2
+                                ),
+                                style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
