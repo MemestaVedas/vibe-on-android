@@ -65,6 +65,9 @@ import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.data.local.LibraryViewStyle
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.ui.theme.Dimens
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.utils.LocalAlbumViewStyle
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -81,15 +84,18 @@ fun AlbumsGridScreen(
     val albums by viewModel.filteredAlbums.collectAsState()
     val currentSortOption by viewModel.currentAlbumSortOption.collectAsState()
     val albumViewStyle = LocalAlbumViewStyle.current
+    val displayLanguage = LocalDisplayLanguage.current
     var searchQuery by remember { mutableStateOf("") }
     var showSortSheet by remember { mutableStateOf(false) }
 
-    val visibleAlbums = remember(albums, searchQuery) {
+    val visibleAlbums = remember(albums, searchQuery, displayLanguage) {
         if (searchQuery.isBlank()) {
             albums
         } else {
             albums.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
+                it.getDisplayName(displayLanguage).contains(searchQuery, ignoreCase = true) ||
+                    it.getDisplayArtist(displayLanguage).contains(searchQuery, ignoreCase = true) ||
+                    it.name.contains(searchQuery, ignoreCase = true) ||
                     it.artist.contains(searchQuery, ignoreCase = true)
             }
         }
@@ -248,8 +254,8 @@ fun AlbumsGridScreen(
             if (albumViewStyle == LibraryViewStyle.MODERN && spotlightAlbum != null) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     AlbumSpotlightCard(
-                        albumName = spotlightAlbum.name,
-                        artistName = spotlightAlbum.artist,
+                        albumName = spotlightAlbum.getDisplayName(displayLanguage),
+                        artistName = spotlightAlbum.getDisplayArtist(displayLanguage),
                         songCount = spotlightAlbum.songCount,
                         coverUrl = spotlightAlbum.coverUrl,
                         onClick = { onAlbumClick(spotlightAlbum.name) },
@@ -267,8 +273,8 @@ fun AlbumsGridScreen(
                 key = { it.name }
             ) { album ->
                 AlbumGridItem(
-                    albumName = album.name,
-                    artistName = album.artist,
+                    albumName = album.getDisplayName(displayLanguage),
+                    artistName = album.getDisplayArtist(displayLanguage),
                     coverUrl = album.coverUrl,
                     songCount = album.songCount,
                     onClick = { onAlbumClick(album.name) },

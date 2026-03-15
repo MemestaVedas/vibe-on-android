@@ -64,35 +64,8 @@ fun LyricsScreen(
     // Default to ROMAJI as requested
     var viewMode by remember { mutableStateOf(LyricsViewMode.ROMAJI) }
 
-    // Parse lyrics
-    val lyrics = remember(lyricsData) {
-        if (lyricsData?.hasSynced == true && !lyricsData?.syncedLyrics.isNullOrEmpty()) {
-            val jpLyrics = parseLrc(lyricsData!!.syncedLyrics!!)
-            
-            // If Romaji lyrics available, merge them
-            if (!lyricsData?.syncedLyricsRomaji.isNullOrEmpty()) {
-                val romajiLyrics = parseLrc(lyricsData!!.syncedLyricsRomaji!!)
-                
-                // Merge: combine corresponding lines from both
-                jpLyrics.mapIndexed { index, jpGroup ->
-                    val romajiGroup = romajiLyrics.getOrNull(index)
-                    if (romajiGroup != null && jpGroup.timestamp == romajiGroup.timestamp) {
-                        // Merge both lines
-                        LyricGroup(jpGroup.timestamp, jpGroup.lines + romajiGroup.lines)
-                    } else {
-                        // Just JP line if no matching Romaji
-                        jpGroup
-                    }
-                }
-            } else {
-                jpLyrics
-            }
-        } else if (!lyricsData?.plainLyrics.isNullOrEmpty()) {
-             // Fallback for plain text
-             lyricsData!!.plainLyrics!!.lines().map { LyricGroup(0, listOf(it)) }
-        } else {
-             emptyList()
-        }
+    val lyrics = remember(lyricsData, viewMode) {
+        buildLyricsForView(lyricsData, viewMode)
     }
 
     val isEmpty = lyrics.isEmpty()
@@ -274,6 +247,48 @@ fun parseLrc(lrc: String): List<LyricGroup> {
             LyricGroup(timestamp, groupEntries.map { it.text })
         }
         .sortedBy { it.timestamp }
+}
+
+fun buildLyricsForView(
+    lyricsData: moe.memesta.vibeon.data.LyricsData?,
+    viewMode: LyricsViewMode
+): List<LyricGroup> {
+    if (lyricsData == null) return emptyList()
+
+    if (lyricsData.hasSynced && !lyricsData.syncedLyrics.isNullOrEmpty()) {
+        val jpLyrics = parseLrc(lyricsData.syncedLyrics!!)
+        val romajiLyrics = lyricsData.syncedLyricsRomaji
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::parseLrc)
+            .orEmpty()
+
+        return when (viewMode) {
+            LyricsViewMode.JP -> jpLyrics
+            LyricsViewMode.ROMAJI -> {
+                if (romajiLyrics.isNotEmpty()) romajiLyrics else jpLyrics
+            }
+            LyricsViewMode.BOTH -> {
+                if (romajiLyrics.isEmpty()) {
+                    jpLyrics
+                } else {
+                    jpLyrics.mapIndexed { index, jpGroup ->
+                        val romajiGroup = romajiLyrics.getOrNull(index)
+                        if (romajiGroup != null && jpGroup.timestamp == romajiGroup.timestamp) {
+                            LyricGroup(jpGroup.timestamp, jpGroup.lines + romajiGroup.lines)
+                        } else {
+                            jpGroup
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return lyricsData.plainLyrics
+        ?.takeIf { it.isNotBlank() }
+        ?.lines()
+        ?.map { LyricGroup(0, listOf(it)) }
+        .orEmpty()
 }
 
 private data class TempLyricEntry(val timestamp: Long, val text: String)

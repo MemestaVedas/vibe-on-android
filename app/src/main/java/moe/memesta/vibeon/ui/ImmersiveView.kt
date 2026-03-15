@@ -55,6 +55,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayName
 
 /**
  * Immersive landscape dock mode screen.
@@ -71,6 +74,9 @@ fun ImmersiveView(
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val playbackState by playbackViewModel.playbackState.collectAsState()
     val lyricsData by connectionViewModel.lyrics.collectAsState()
+    val displayLanguage = LocalDisplayLanguage.current
+    val displayTitle = currentTrack.getDisplayName(displayLanguage).ifEmpty { playbackState.title }
+    val displayArtist = currentTrack.getDisplayArtist(displayLanguage).ifEmpty { playbackState.artist }
 
     // Hide system bars while immersive view is visible
     val view = LocalView.current
@@ -291,7 +297,7 @@ fun ImmersiveView(
             ) {
                 // Track info
                 Text(
-                    text = playbackState.title,
+                    text = displayTitle,
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp
@@ -305,7 +311,7 @@ fun ImmersiveView(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = playbackState.artist,
+                    text = displayArtist,
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White.copy(alpha = 0.70f),
                     maxLines = 1,
@@ -433,26 +439,7 @@ fun ImmersiveView(
             ) {
                 // Parse lyrics
                 val lyrics = remember(lyricsData) {
-                    if (lyricsData?.hasSynced == true && !lyricsData?.syncedLyrics.isNullOrEmpty()) {
-                        val jpLyrics = parseLrc(lyricsData!!.syncedLyrics!!)
-                        
-                        // Merge Romaji if available
-                        if (!lyricsData?.syncedLyricsRomaji.isNullOrEmpty()) {
-                            val romajiLyrics = parseLrc(lyricsData!!.syncedLyricsRomaji!!)
-                            jpLyrics.mapIndexed { index, jpGroup ->
-                                val romajiGroup = romajiLyrics.getOrNull(index)
-                                if (romajiGroup != null && jpGroup.timestamp == romajiGroup.timestamp) {
-                                    LyricGroup(jpGroup.timestamp, jpGroup.lines + romajiGroup.lines)
-                                } else jpGroup
-                            }
-                        } else {
-                            jpLyrics
-                        }
-                    } else if (!lyricsData?.plainLyrics.isNullOrEmpty()) {
-                        lyricsData!!.plainLyrics!!.lines().map { LyricGroup(0, listOf(it)) }
-                    } else {
-                        emptyList()
-                    }
+                    buildLyricsForView(lyricsData, LyricsViewMode.ROMAJI)
                 }
 
                 val isEmpty = lyrics.isEmpty()

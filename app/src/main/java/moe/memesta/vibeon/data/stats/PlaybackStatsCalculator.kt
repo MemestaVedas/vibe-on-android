@@ -39,7 +39,11 @@ class PlaybackStatsCalculator {
     data class SongPlaybackSummary(
         val songId: String,
         val title: String,
+        val titleRomaji: String? = null,
+        val titleEn: String? = null,
         val artist: String,
+        val artistRomaji: String? = null,
+        val artistEn: String? = null,
         val albumArtUrl: String?,
         val totalDurationMs: Long,
         val playCount: Int
@@ -47,6 +51,8 @@ class PlaybackStatsCalculator {
 
     data class ArtistPlaybackSummary(
         val artist: String,
+        val artistRomaji: String? = null,
+        val artistEn: String? = null,
         val totalDurationMs: Long,
         val playCount: Int,
         val uniqueSongs: Int
@@ -61,6 +67,8 @@ class PlaybackStatsCalculator {
 
     data class AlbumPlaybackSummary(
         val album: String,
+        val albumRomaji: String? = null,
+        val albumEn: String? = null,
         val albumArtUrl: String?,
         val totalDurationMs: Long,
         val playCount: Int,
@@ -198,7 +206,11 @@ class PlaybackStatsCalculator {
                 SongPlaybackSummary(
                     songId = songId,
                     title = title,
+                    titleRomaji = song.titleRomaji,
+                    titleEn = song.titleEn,
                     artist = artist,
+                    artistRomaji = song.artistRomaji,
+                    artistEn = song.artistEn,
                     albumArtUrl = song.albumArtUrl,
                     totalDurationMs = segmentsForSong.sumOf { it.durationMs },
                     playCount = segmentsForSong.size
@@ -290,6 +302,8 @@ class PlaybackStatsCalculator {
                 val uniqueSongCount = groupedSongs.size
                 ArtistPlaybackSummary(
                     artist = artist,
+                    artistRomaji = groupedSongs.firstNotNullOfOrNull { (songId, _) -> songMap[songId]?.artistRomaji },
+                    artistEn = groupedSongs.firstNotNullOfOrNull { (songId, _) -> songMap[songId]?.artistEn },
                     totalDurationMs = flattened.sumOf { it.durationMs },
                     playCount = flattened.size,
                     uniqueSongs = uniqueSongCount
@@ -315,6 +329,8 @@ class PlaybackStatsCalculator {
                     .firstOrNull()
                 AlbumPlaybackSummary(
                     album = album,
+                    albumRomaji = firstSong?.albumRomaji,
+                    albumEn = firstSong?.albumEn,
                     albumArtUrl = firstSong?.albumArtUrl,
                     totalDurationMs = flattened.sumOf { it.durationMs },
                     playCount = flattened.size,

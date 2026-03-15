@@ -14,9 +14,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import moe.memesta.vibeon.data.MediaSessionData
 import moe.memesta.vibeon.data.WebSocketClient
 import moe.memesta.vibeon.ui.image.AppImageLoader
+import moe.memesta.vibeon.ui.utils.getDisplayAlbum
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.widget.WidgetUpdater
 
 /**
@@ -49,6 +51,8 @@ object MediaNotificationManager {
 
     private var serviceRef: PlaybackService? = null
     private var lastArtBitmap: Bitmap? = null
+    private val playerSettingsRepository
+        get() = VibeonApp.instance.container.playerSettingsRepository
 
     // ------------------------------------------------------------------
     // Initialisation
@@ -88,9 +92,11 @@ object MediaNotificationManager {
         // Track metadata + play state → update notification
         combine(
             client.currentTrack,
-            client.isPlaying
-        ) { track, playing -> Pair(track, playing) }
-            .onEach { (track, playing) ->
+            client.isPlaying,
+            playerSettingsRepository.displayLanguage
+        ) { track, playing, displayLanguage ->
+            Triple(track, playing, displayLanguage)
+        }.onEach { (track, playing, displayLanguage) ->
                 val service = serviceRef ?: return@onEach
                 currentTrackPath = track.path
 
@@ -117,13 +123,13 @@ object MediaNotificationManager {
                     lastArtBitmap = artBitmap
 
                     // Update the home-screen widget
-                    WidgetUpdater.onTrackChanged(track, playing)
+                    WidgetUpdater.onTrackChanged(track, playing, displayLanguage)
 
                     scope.launch(Dispatchers.Main) {
                         val metadata = MediaMetadata.Builder()
-                            .setTitle(track.title.ifEmpty { "No Track" })
-                            .setArtist(track.artist.ifEmpty { "Unknown Artist" })
-                            .setAlbumTitle(track.album)
+                            .setTitle(track.getDisplayName(displayLanguage).ifEmpty { "No Track" })
+                            .setArtist(track.getDisplayArtist(displayLanguage).ifEmpty { "Unknown Artist" })
+                            .setAlbumTitle(track.getDisplayAlbum(displayLanguage))
                             .apply {
                                 artBitmap?.let {
                                     setArtworkData(

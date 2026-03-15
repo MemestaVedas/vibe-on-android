@@ -50,6 +50,8 @@ class PlayerSettingsRepository(context: Context) {
     )
     val artistViewStyle: StateFlow<LibraryViewStyle> = _artistViewStyle.asStateFlow()
 
+    fun getDisplayLanguage(): DisplayLanguage = _displayLanguage.value
+
     fun setDisplayLanguage(language: DisplayLanguage) {
         prefs.edit().putString(KEY_DISPLAY_LANGUAGE, language.value).apply()
         _displayLanguage.value = language

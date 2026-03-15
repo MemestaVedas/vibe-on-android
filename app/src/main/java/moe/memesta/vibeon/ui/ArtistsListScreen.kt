@@ -37,6 +37,8 @@ import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.ui.components.ArtistGridItem
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.ui.utils.LocalArtistViewStyle
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.data.local.LibraryViewStyle
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -53,26 +55,31 @@ fun ArtistsListScreen(
     val tracks by viewModel.tracks.collectAsState()
     val currentSortOption by viewModel.currentArtistSortOption.collectAsState()
     val artistViewStyle = LocalArtistViewStyle.current
+    val displayLanguage = LocalDisplayLanguage.current
     var showSortSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val artists = remember(tracks, searchQuery, currentSortOption) {
+    val artists = remember(tracks, searchQuery, currentSortOption, displayLanguage) {
         tracks.groupBy { it.artist }
             .map { (artist, artistTracks) ->
+                val firstTrack = artistTracks.firstOrNull()
                 ArtistItemData(
                     name = artist,
                     followerCount = "${artistTracks.size} Tracks",
-                    photoUrl = artistTracks.firstOrNull()?.coverUrl
+                    photoUrl = firstTrack?.coverUrl,
+                    nameRomaji = firstTrack?.artistRomaji,
+                    nameEn = firstTrack?.artistEn
                 )
             }
             .filter {
-                searchQuery.isEmpty() || 
+                searchQuery.isEmpty() ||
+                it.getDisplayName(displayLanguage).contains(searchQuery, ignoreCase = true) ||
                 it.name.contains(searchQuery, ignoreCase = true)
             }
             .let { items ->
                 when (currentSortOption) {
-                    SortOption.ArtistNameAZ -> items.sortedBy { it.name.lowercase() }
-                    SortOption.ArtistNameZA -> items.sortedByDescending { it.name.lowercase() }
+                    SortOption.ArtistNameAZ -> items.sortedBy { it.getDisplayName(displayLanguage).lowercase() }
+                    SortOption.ArtistNameZA -> items.sortedByDescending { it.getDisplayName(displayLanguage).lowercase() }
                     SortOption.ArtistTrackCountDesc -> items.sortedByDescending {
                         it.followerCount.substringBefore(' ').toIntOrNull() ?: 0
                     }
@@ -166,7 +173,7 @@ fun ArtistsListScreen(
                                 onClick = { onArtistClick(artist.name) },
                                 label = {
                                     Text(
-                                        text = artist.name,
+                                        text = artist.getDisplayName(displayLanguage),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -253,7 +260,7 @@ fun ArtistsListScreen(
             if (artistViewStyle == LibraryViewStyle.MODERN && spotlightArtist != null) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     ArtistSpotlightCard(
-                        artistName = spotlightArtist.name,
+                        artistName = spotlightArtist.getDisplayName(displayLanguage),
                         trackCount = spotlightArtist.followerCount,
                         photoUrl = spotlightArtist.photoUrl,
                         onClick = { onArtistClick(spotlightArtist.name) },
@@ -270,7 +277,7 @@ fun ArtistsListScreen(
                 }
             ) { artist ->
                 ArtistGridItem(
-                    artistName = artist.name,
+                    artistName = artist.getDisplayName(displayLanguage),
                     photoUrl = artist.photoUrl,
                     onClick = { onArtistClick(artist.name) },
                     sharedTransitionScope = sharedTransitionScope,

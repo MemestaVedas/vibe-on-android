@@ -19,6 +19,10 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.VibeonApp
 import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.data.MediaSessionData
+import moe.memesta.vibeon.data.local.DisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayAlbum
+import moe.memesta.vibeon.ui.utils.getDisplayName
 import java.io.ByteArrayOutputStream
 import androidx.core.graphics.drawable.toBitmap
 
@@ -50,7 +54,7 @@ object WidgetUpdater {
     /**
      * Updates widget with new track information.
      */
-    fun onTrackChanged(track: MediaSessionData, isPlaying: Boolean) {
+    fun onTrackChanged(track: MediaSessionData, isPlaying: Boolean, displayLanguage: DisplayLanguage) {
         val context = VibeonApp.instance
         scope.launch {
             // Download and cache album art only when URL changes
@@ -79,10 +83,14 @@ object WidgetUpdater {
             }
             cachedColors = colors
 
+            val displayTitle = track.getDisplayName(displayLanguage).ifEmpty { "No Track" }
+            val displayArtist = track.getDisplayArtist(displayLanguage).ifEmpty { "Unknown Artist" }
+            val displayAlbum = track.getDisplayAlbum(displayLanguage)
+
             updateWidget(context, WidgetPlaybackState(
-                title = track.title.ifEmpty { "No Track" },
-                artist = track.artist.ifEmpty { "Unknown Artist" },
-                album = track.album,
+                title = displayTitle,
+                artist = displayArtist,
+                album = displayAlbum,
                 isPlaying = isPlaying,
                 isLiked = MediaNotificationManager.isCurrentFavorite,
                 isShuffled = MediaNotificationManager.isShuffled,

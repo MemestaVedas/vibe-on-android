@@ -89,6 +89,10 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.stats.PlaybackStatsCalculator
 import moe.memesta.vibeon.data.stats.StatsTimeRange
 import moe.memesta.vibeon.ui.components.VibeContainedLoadingIndicator
+import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.getDisplayAlbum
+import moe.memesta.vibeon.ui.utils.getDisplayArtist
+import moe.memesta.vibeon.ui.utils.getDisplayTitle
 import java.io.File
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -127,6 +131,7 @@ fun StatsScreen(
     val uiState by statsViewModel.uiState.collectAsStateWithLifecycleCompat()
     val summary = uiState.summary
     val cs = MaterialTheme.colorScheme
+    val displayLanguage = LocalDisplayLanguage.current
     val lazyListState = rememberLazyListState()
     val mediaBaseUrl = statsViewModel.mediaBaseUrl
     var selectedMetric by rememberSaveable { mutableStateOf(TimelineMetric.ListeningTime) }
@@ -202,7 +207,7 @@ fun StatsScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 item(key = "hero") {
-                    AnimatedSection(index = 0) { StatsHeroSection(summary = summary) }
+                    AnimatedSection(index = 0) { StatsHeroSection(summary = summary, displayLanguage = displayLanguage) }
                 }
                 item(key = "timeline") {
                     AnimatedSection(index = 1) {
@@ -219,7 +224,8 @@ fun StatsScreen(
                             summary = summary,
                             selectedDimension = selectedDimension,
                             onDimensionSelected = { selectedDimension = it },
-                            mediaBaseUrl = mediaBaseUrl
+                            mediaBaseUrl = mediaBaseUrl,
+                            displayLanguage = displayLanguage
                         )
                     }
                 }
@@ -461,7 +467,8 @@ private fun CategoryMetricsSection(
     summary: PlaybackStatsCalculator.PlaybackStatsSummary?,
     selectedDimension: CategoryDimension,
     onDimensionSelected: (CategoryDimension) -> Unit,
-    mediaBaseUrl: String
+    mediaBaseUrl: String,
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage
 ) {
     val palette = dimensionPalette(selectedDimension)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -490,7 +497,7 @@ private fun CategoryMetricsSection(
                 )
             }
         }
-        val entries = buildCategoryEntries(summary, selectedDimension)
+        val entries = buildCategoryEntries(summary, selectedDimension, displayLanguage)
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = palette.container)
@@ -526,18 +533,19 @@ private fun CategoryMetricsSection(
 
 private fun buildCategoryEntries(
     summary: PlaybackStatsCalculator.PlaybackStatsSummary?,
-    dimension: CategoryDimension
+    dimension: CategoryDimension,
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage
 ): List<CategoryEntry> {
     summary ?: return emptyList()
     return when (dimension) {
         CategoryDimension.Song -> summary.topSongs.map { s ->
-            CategoryEntry(s.title, s.artist, s.totalDurationMs, s.albumArtUrl)
+            CategoryEntry(s.getDisplayTitle(displayLanguage), s.getDisplayArtist(displayLanguage), s.totalDurationMs, s.albumArtUrl)
         }
         CategoryDimension.Artist -> summary.topArtists.map { a ->
-            CategoryEntry(a.artist, "${a.playCount} plays Â· ${a.uniqueSongs} songs", a.totalDurationMs)
+            CategoryEntry(a.getDisplayArtist(displayLanguage), "${a.playCount} plays Â· ${a.uniqueSongs} songs", a.totalDurationMs)
         }
         CategoryDimension.Album -> summary.topAlbums.map { al ->
-            CategoryEntry(al.album, "${al.playCount} plays", al.totalDurationMs, al.albumArtUrl)
+            CategoryEntry(al.getDisplayAlbum(displayLanguage), "${al.playCount} plays Â· ${al.uniqueSongs} songs", al.totalDurationMs, al.albumArtUrl)
         }
         CategoryDimension.Genre -> summary.topGenres.map { g ->
             CategoryEntry(g.genre, formatDuration(g.totalDurationMs), g.totalDurationMs)
@@ -993,13 +1001,16 @@ private fun AnimatedSection(index: Int, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun StatsHeroSection(summary: PlaybackStatsCalculator.PlaybackStatsSummary?) {
+private fun StatsHeroSection(
+    summary: PlaybackStatsCalculator.PlaybackStatsSummary?,
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         HeroStatCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Outlined.MusicNote,
             label = "Top song",
-            value = summary?.topSongs?.firstOrNull()?.title ?: "--",
+            value = summary?.topSongs?.firstOrNull()?.getDisplayTitle(displayLanguage) ?: "--",
             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         )
@@ -1007,7 +1018,7 @@ private fun StatsHeroSection(summary: PlaybackStatsCalculator.PlaybackStatsSumma
             modifier = Modifier.weight(1f),
             icon = Icons.Outlined.Album,
             label = "Top album",
-            value = summary?.topAlbums?.firstOrNull()?.album ?: "--",
+            value = summary?.topAlbums?.firstOrNull()?.getDisplayAlbum(displayLanguage) ?: "--",
             containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         )

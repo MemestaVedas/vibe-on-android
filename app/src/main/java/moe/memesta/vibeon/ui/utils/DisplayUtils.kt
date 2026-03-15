@@ -7,6 +7,7 @@ import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.local.DisplayLanguage
 import moe.memesta.vibeon.data.local.TrackEntity
+import moe.memesta.vibeon.data.stats.PlaybackStatsCalculator
 
 private fun pickText(vararg candidates: String?): String {
     return candidates.firstOrNull { !it.isNullOrBlank() } ?: ""
@@ -88,6 +89,22 @@ fun AlbumInfo.getDisplayArtist(language: DisplayLanguage): String {
 // ArtistItemData Helpers
 fun ArtistItemData.getDisplayName(language: DisplayLanguage): String {
     return selectByLanguage(language, name, nameRomaji, nameEn)
+}
+
+fun PlaybackStatsCalculator.SongPlaybackSummary.getDisplayTitle(language: DisplayLanguage): String {
+    return selectByLanguage(language, title, titleRomaji, titleEn)
+}
+
+fun PlaybackStatsCalculator.SongPlaybackSummary.getDisplayArtist(language: DisplayLanguage): String {
+    return selectByLanguage(language, artist, artistRomaji, artistEn)
+}
+
+fun PlaybackStatsCalculator.ArtistPlaybackSummary.getDisplayArtist(language: DisplayLanguage): String {
+    return selectByLanguage(language, artist, artistRomaji, artistEn)
+}
+
+fun PlaybackStatsCalculator.AlbumPlaybackSummary.getDisplayAlbum(language: DisplayLanguage): String {
+    return selectByLanguage(language, album, albumRomaji, albumEn)
 }
 
 // Album Normalization
