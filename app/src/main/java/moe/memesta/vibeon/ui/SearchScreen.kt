@@ -237,7 +237,10 @@ fun SearchScreen(
                                                     contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                                                     horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                                 ) {
-                                                    items(songResults.take(10)) { track ->
+                                                    items(
+                                                        items = songResults.take(10),
+                                                        key = { it.path }
+                                                    ) { track ->
                                                         SquareTrackCard(
                                                             track = track,
                                                             onClick = {
@@ -260,7 +263,10 @@ fun SearchScreen(
                                                     contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                                                     horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                                 ) {
-                                                    items(albumResults) { album ->
+                                                    items(
+                                                        items = albumResults,
+                                                        key = { it.name }
+                                                    ) { album ->
                                                         AlbumCard(
                                                             albumName = album.getDisplayName(displayLanguage),
                                                             coverUrl = album.coverUrl,
@@ -283,7 +289,10 @@ fun SearchScreen(
                                                     contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                                                     horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                                                 ) {
-                                                    items(artistResults) { artist ->
+                                                    items(
+                                                        items = artistResults,
+                                                        key = { it.name }
+                                                    ) { artist ->
                                                         ArtistPill(
                                                             artistName = artist.getDisplayName(displayLanguage),
                                                             photoUrl = artist.photoUrl,

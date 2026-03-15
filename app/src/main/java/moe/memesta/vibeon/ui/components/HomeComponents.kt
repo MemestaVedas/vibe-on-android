@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -69,6 +70,8 @@ fun GridTrackCard(
                 val request = remember(track.coverUrl) {
                     ImageRequest.Builder(context)
                         .data(track.coverUrl)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .crossfade(true)
                         .build()
                 }
@@ -135,6 +138,8 @@ fun SquareTrackCard(
                 val request = remember(track.coverUrl) {
                     ImageRequest.Builder(context)
                         .data(track.coverUrl)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .crossfade(true)
                         .build()
                 }
@@ -203,6 +208,8 @@ fun AlbumCard(
                 val request = remember(coverUrl) {
                     ImageRequest.Builder(context)
                         .data(coverUrl)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
                         .crossfade(true)
                         .build()
                 }
@@ -283,6 +290,8 @@ fun ArtistPill(
                     val request = remember(photoUrl) {
                         ImageRequest.Builder(context)
                             .data(photoUrl)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
                             .crossfade(true)
                             .build()
                     }

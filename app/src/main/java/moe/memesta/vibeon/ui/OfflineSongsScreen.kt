@@ -29,6 +29,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import moe.memesta.vibeon.ui.theme.Dimens
 
@@ -117,7 +118,10 @@ fun OfflineSongsScreen(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                 }
-                items(songs) { song ->
+                items(
+                    items = songs,
+                    key = { it.id }
+                ) { song ->
                     OfflineSongItem(
                         song = song,
                         onClick = {
@@ -176,6 +180,8 @@ fun OfflineMiniPlayer(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(android.net.Uri.parse(albumArtUri))
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCachePolicy(CachePolicy.ENABLED)
                                 .crossfade(true)
                                 .build(),
                             contentDescription = null,
@@ -257,6 +263,8 @@ fun OfflineSongItem(song: OfflineSong, onClick: () -> Unit) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(android.net.Uri.parse(albumArtUri))
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
                     .crossfade(true)
                     .build(),
                 contentDescription = null,
