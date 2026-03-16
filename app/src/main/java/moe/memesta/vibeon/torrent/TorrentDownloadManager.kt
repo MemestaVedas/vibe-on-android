@@ -52,13 +52,19 @@ enum class TorrentState {
     ERROR
 }
 
-class TorrentDownloadManager(private val context: Context) {
+class TorrentDownloadManager(
+    private val context: Context,
+    private val settingsRepository: TorrentSessionSettingsRepository
+) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val session = SessionManager()
 
     private val _downloads = MutableStateFlow<List<TorrentDownload>>(emptyList())
     val downloads: StateFlow<List<TorrentDownload>> = _downloads.asStateFlow()
+
+    private val _sessionSettings = MutableStateFlow(settingsRepository.load())
+    val sessionSettings: StateFlow<TorrentSessionSettings> = _sessionSettings.asStateFlow()
 
     /** Maps info-hash → magnet link so we can reconstruct state */
     private val magnetMap = mutableMapOf<String, String>()
@@ -76,12 +82,7 @@ class TorrentDownloadManager(private val context: Context) {
     private val stateFile = File(context.filesDir, "torrent_state.json")
 
     init {
-        val settings = SettingsPack().apply {
-            connectionsLimit(200)
-            activeDownloads(5)
-            activeSeeds(5)
-            setEnableDht(true)
-        }
+        val settings = buildSettingsPack(_sessionSettings.value)
         session.start(SessionParams(settings))
         loadPersistedState()
         restorePersistedDownloads()
@@ -146,6 +147,16 @@ class TorrentDownloadManager(private val context: Context) {
 
     fun stop() {
         session.stop()
+    }
+
+    fun updateSessionSettings(settings: TorrentSessionSettings) {
+        val normalized = settings.normalized()
+        settingsRepository.save(normalized)
+        _sessionSettings.value = normalized
+        // Libtorrent setting APIs vary by binding; apply only if methods are available.
+        runCatching {
+            session.swig().applySettings(buildSettingsPack(normalized).swig())
+        }
     }
 
     private fun findHandle(id: String): TorrentHandle? {
@@ -282,6 +293,34 @@ class TorrentDownloadManager(private val context: Context) {
             "&tr=${URLEncoder.encode(it, "UTF-8")}"
         }
         return magnetLink + trackers
+    }
+
+    private fun buildSettingsPack(sessionSettings: TorrentSessionSettings): SettingsPack {
+        val normalized = sessionSettings.normalized()
+        return SettingsPack().apply {
+            connectionsLimit(normalized.connectionsLimit)
+            activeDownloads(normalized.activeDownloads)
+            activeSeeds(normalized.activeSeeds)
+            setEnableDht(normalized.enableDht)
+            applyOptionalIntSetting("downloadRateLimit", normalized.maxDownloadRateBytes)
+            applyOptionalIntSetting("uploadRateLimit", normalized.maxUploadRateBytes)
+            applyOptionalBooleanSetting("setEnableLsd", normalized.enableLsd)
+            applyOptionalBooleanSetting("setEnableUtp", normalized.enableUtp)
+        }
+    }
+
+    private fun SettingsPack.applyOptionalIntSetting(methodName: String, value: Int) {
+        runCatching {
+            javaClass.getMethod(methodName, Int::class.javaPrimitiveType)
+                .invoke(this, value)
+        }
+    }
+
+    private fun SettingsPack.applyOptionalBooleanSetting(methodName: String, value: Boolean) {
+        runCatching {
+            javaClass.getMethod(methodName, Boolean::class.javaPrimitiveType)
+                .invoke(this, value)
+        }
     }
 
     private data class PersistedTorrent(
