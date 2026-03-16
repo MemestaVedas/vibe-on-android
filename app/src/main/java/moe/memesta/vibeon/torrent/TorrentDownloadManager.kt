@@ -159,17 +159,26 @@ class TorrentDownloadManager(
     }
 
     fun remove(id: String, deleteFiles: Boolean) {
-        val handle = findHandle(id) ?: return
-        val magnet = magnetMap[id] ?: handle.makeMagnetUri().orEmpty()
-        if (deleteFiles) {
-            session.remove(handle, SessionHandle.DELETE_FILES)
-        } else {
-            session.remove(handle)
+        val handle = findHandle(id)
+        val magnet = magnetMap[id] ?: handle?.makeMagnetUri().orEmpty()
+
+        if (handle != null) {
+            val removed = runCatching {
+                if (deleteFiles) {
+                    session.remove(handle, SessionHandle.DELETE_FILES)
+                } else {
+                    session.remove(handle)
+                }
+            }.isSuccess
+
+            if (!removed) {
+                _lastError.value = "Failed to remove torrent from active session."
+            }
         }
+
         magnetMap.remove(id)
-        if (magnet.isNotBlank()) {
-            removePersistedByMagnet(magnet)
-        }
+        removePersistedForTorrent(id = id, magnetLink = magnet)
+        _downloads.value = _downloads.value.filterNot { it.id == id }
         refreshDownloads()
     }
 
@@ -280,6 +289,28 @@ class TorrentDownloadManager(
         persistedDownloads.removeAll { it.magnetLink == magnetLink }
         if (persistedDownloads.size != before) {
             savePersistedState()
+        }
+    }
+
+    private fun removePersistedForTorrent(id: String, magnetLink: String?) {
+        val normalizedId = id.trim().lowercase()
+        val magnetIdentity = magnetLink
+            ?.takeIf { it.isNotBlank() }
+            ?.let { magnetIdentityKey(it) }
+
+        val before = persistedDownloads.size
+        persistedDownloads.removeAll { persisted ->
+            val persistedIdentity = magnetIdentityKey(persisted.magnetLink)
+            persistedIdentity == normalizedId || (magnetIdentity != null && persistedIdentity == magnetIdentity)
+        }
+
+        if (persistedDownloads.size != before) {
+            savePersistedState()
+            return
+        }
+
+        if (!magnetLink.isNullOrBlank()) {
+            removePersistedByMagnet(magnetLink)
         }
     }
 
