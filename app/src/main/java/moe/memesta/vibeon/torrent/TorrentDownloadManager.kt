@@ -290,11 +290,23 @@ class TorrentDownloadManager(
             val root = JSONObject(json)
             val arr = root.optJSONArray("downloads") ?: JSONArray()
             persistedDownloads.clear()
+            val seen = mutableSetOf<String>()
             for (i in 0 until arr.length()) {
                 val item = arr.optJSONObject(i) ?: continue
                 val magnet = item.optString("magnet", "")
                 val path = item.optString("savePath", "")
-                if (magnet.isNotBlank() && path.isNotBlank()) {
+                if (magnet.isBlank() || path.isBlank()) {
+                    continue
+                }
+                if (!isValidMagnet(magnet)) {
+                    continue
+                }
+                val identity = magnetIdentityKey(magnet)
+                if (identity in seen) {
+                    continue
+                }
+                seen.add(identity)
+                if (File(path).exists() || File(path).mkdirs()) {
                     persistedDownloads.add(PersistedTorrent(magnet, path))
                 }
             }
@@ -313,7 +325,16 @@ class TorrentDownloadManager(
                 )
             }
             val root = JSONObject().apply { put("downloads", arr) }
-            stateFile.writeText(root.toString())
+            val temp = File(stateFile.parentFile, "${stateFile.name}.tmp")
+            temp.writeText(root.toString())
+            if (stateFile.exists()) {
+                stateFile.delete()
+            }
+            val moved = temp.renameTo(stateFile)
+            if (!moved) {
+                stateFile.writeText(root.toString())
+                temp.delete()
+            }
         }
     }
 
