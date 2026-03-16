@@ -32,10 +32,12 @@ import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.DiscoveredDevice
+import moe.memesta.vibeon.torrent.TorrentViewModel
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.pairing.PairingScreen
 import moe.memesta.vibeon.ui.onboarding.WelcomeScreen
@@ -56,6 +58,7 @@ fun AppNavHost(
 ) {
     val navController = rememberNavController()
     var currentDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
+    val torrentViewModel: TorrentViewModel = viewModel()
     
     val pagerState = rememberPagerState(pageCount = { 5 })
     val scope = rememberCoroutineScope()
@@ -567,7 +570,8 @@ fun AppNavHost(
                 
                     composable("torrents") {
                         TorrentsScreen(
-                            onBackPressed = { navController.popBackStack() }
+                            onBackPressed = { navController.popBackStack() },
+                            viewModel = torrentViewModel
                         )
                     }
                 

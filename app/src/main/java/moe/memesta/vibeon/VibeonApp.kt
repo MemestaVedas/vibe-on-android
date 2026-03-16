@@ -15,5 +15,8 @@ class VibeonApp : Application() {
         super.onCreate()
         instance = this
         container = AppContainer(this)
+
+        // Initialize torrent manager on app startup so persisted torrents restore immediately.
+        container.torrentDownloadManager
     }
 }

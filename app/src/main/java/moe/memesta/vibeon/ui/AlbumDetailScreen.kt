@@ -122,6 +122,11 @@ fun AlbumDetailScreen(
         animationSpec = tween(1000),
         label = "albumVibrant"
     )
+    val animatedMuted by animateColorAsState(
+        targetValue = if (themeColors.muted != Color.Transparent) themeColors.muted else MaterialTheme.colorScheme.secondary,
+        animationSpec = tween(1000),
+        label = "albumMuted"
+    )
 
     Box(
         modifier = Modifier
@@ -202,7 +207,8 @@ fun AlbumDetailScreen(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
                                             Color.Transparent,
-                                            MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)
+                                            animatedVibrant.copy(alpha = 0.42f),
+                                            animatedVibrant.copy(alpha = 0.82f)
                                         ),
                                         startY = 100f
                                     )
@@ -262,7 +268,7 @@ fun AlbumDetailScreen(
                                 text = displayAlbumName,
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = animatedVibrant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -270,7 +276,7 @@ fun AlbumDetailScreen(
                                 text = displayArtistName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                color = animatedMuted,
                                 modifier = Modifier.bouncyClickable(onClick = {
                                     navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
                                 })

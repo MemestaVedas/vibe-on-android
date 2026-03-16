@@ -8,6 +8,8 @@ import moe.memesta.vibeon.data.local.FavoritesManager
 import moe.memesta.vibeon.data.local.OnboardingManager
 import moe.memesta.vibeon.data.local.PlayerSettingsRepository
 import moe.memesta.vibeon.data.stats.LocalPlaybackStatsRepository
+import moe.memesta.vibeon.torrent.TorrentDownloadManager
+import moe.memesta.vibeon.torrent.TorrentStoragePreferences
 
 class AppContainer(private val context: Context) {
     val webSocketClient: WebSocketClient by lazy {
@@ -32,5 +34,13 @@ class AppContainer(private val context: Context) {
 
     val onboardingManager: OnboardingManager by lazy {
         OnboardingManager(context)
+    }
+
+    val torrentDownloadManager: TorrentDownloadManager by lazy {
+        TorrentDownloadManager(context.applicationContext)
+    }
+
+    val torrentStoragePreferences: TorrentStoragePreferences by lazy {
+        TorrentStoragePreferences(context.applicationContext)
     }
 }
