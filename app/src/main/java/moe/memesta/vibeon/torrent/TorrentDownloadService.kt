@@ -9,6 +9,10 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.Drawable
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -101,8 +105,28 @@ class TorrentDownloadService : Service() {
         indeterminate: Boolean = false
     ): Notification {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_widget_music_note)
-            .setContentTitle(title)
+            .setSmallIcon(R.drawable.finalmono)
+
+        // Add a slightly scaled large icon so the logo appears a bit bigger in the
+        // notification content (scale ~1.25x). Small icon size is controlled by
+        // the system; using a large icon gives a larger presence in the shade.
+        try {
+            val scale = 1.25f
+            val d: Drawable? = ContextCompat.getDrawable(this, R.drawable.finalmono)
+            if (d != null) {
+                val w = (d.intrinsicWidth * scale).toInt().coerceAtLeast(1)
+                val h = (d.intrinsicHeight * scale).toInt().coerceAtLeast(1)
+                val bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bm)
+                d.setBounds(0, 0, w, h)
+                d.draw(canvas)
+                builder.setLargeIcon(bm)
+            }
+        } catch (t: Throwable) {
+            // If anything goes wrong, ignore and continue with the small icon only.
+        }
+
+        builder.setContentTitle(title)
             .setContentText(text)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
