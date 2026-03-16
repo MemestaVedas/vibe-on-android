@@ -46,6 +46,7 @@ class TorrentViewModel(application: Application) : AndroidViewModel(application)
     val savePath: StateFlow<String?> = _savePath.asStateFlow()
 
     val downloads = downloadManager.downloads
+    val lastDownloadError = downloadManager.lastError
 
     // Default download directory: Music/Vibe-On/
     val defaultSavePath: String
@@ -112,6 +113,7 @@ class TorrentViewModel(application: Application) : AndroidViewModel(application)
     fun pauseDownload(id: String) = downloadManager.pause(id)
     fun resumeDownload(id: String) = downloadManager.resume(id)
     fun removeDownload(id: String, deleteFiles: Boolean) = downloadManager.remove(id, deleteFiles)
+    fun clearDownloadError() = downloadManager.clearLastError()
 
     override fun onCleared() {
         super.onCleared()

@@ -55,6 +55,7 @@ fun TorrentsScreen(
     val sort by viewModel.sort.collectAsState()
     val order by viewModel.order.collectAsState()
     val downloads by viewModel.downloads.collectAsState()
+    val lastDownloadError by viewModel.lastDownloadError.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var deleteTarget by remember { mutableStateOf<TorrentDownload?>(null) }
@@ -209,6 +210,20 @@ fun TorrentsScreen(
                 TextButton(onClick = {
                     folderPickerError = null
                 }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = null
+        )
+    }
+
+    if (lastDownloadError != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearDownloadError() },
+            title = { Text("Torrent Error") },
+            text = { Text(lastDownloadError ?: "Unexpected torrent error") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearDownloadError() }) {
                     Text("OK")
                 }
             },

@@ -63,6 +63,9 @@ class TorrentDownloadManager(
     private val _downloads = MutableStateFlow<List<TorrentDownload>>(emptyList())
     val downloads: StateFlow<List<TorrentDownload>> = _downloads.asStateFlow()
 
+    private val _lastError = MutableStateFlow<String?>(null)
+    val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
     private val _sessionSettings = MutableStateFlow(settingsRepository.load())
     val sessionSettings: StateFlow<TorrentSessionSettings> = _sessionSettings.asStateFlow()
 
@@ -112,9 +115,34 @@ class TorrentDownloadManager(
     }
 
     fun addMagnet(magnetLink: String, savePath: String) {
-        val dir = File(savePath).apply { mkdirs() }
+        val normalizedInput = magnetLink.trim()
+        if (!isValidMagnet(normalizedInput)) {
+            _lastError.value = "Invalid magnet link."
+            return
+        }
+
+        if (isDuplicateMagnet(normalizedInput)) {
+            _lastError.value = "This torrent is already in your downloads list."
+            return
+        }
+
+        val dir = File(savePath)
+        if (!dir.exists() && !dir.mkdirs()) {
+            _lastError.value = "Unable to create download folder."
+            return
+        }
+
         val normalizedMagnet = withFallbackTrackers(magnetLink)
-        session.download(normalizedMagnet, dir, torrent_flags_t())
+        val added = runCatching {
+            session.download(normalizedMagnet, dir, torrent_flags_t())
+        }.isSuccess
+
+        if (!added) {
+            _lastError.value = "Failed to start torrent session for this magnet."
+            return
+        }
+
+        _lastError.value = null
         upsertPersisted(normalizedMagnet, dir.absolutePath)
         ensureForegroundService()
         refreshDownloads()
@@ -149,14 +177,16 @@ class TorrentDownloadManager(
         session.stop()
     }
 
+    fun clearLastError() {
+        _lastError.value = null
+    }
+
     fun updateSessionSettings(settings: TorrentSessionSettings) {
         val normalized = settings.normalized()
         settingsRepository.save(normalized)
         _sessionSettings.value = normalized
         // Libtorrent setting APIs vary by binding; apply only if methods are available.
-        runCatching {
-            session.swig().applySettings(buildSettingsPack(normalized).swig())
-        }
+        applySettingsIfSupported(buildSettingsPack(normalized))
     }
 
     private fun findHandle(id: String): TorrentHandle? {
@@ -211,8 +241,12 @@ class TorrentDownloadManager(
 
         persistedDownloads.forEach { entry ->
             val dir = File(entry.savePath).apply { mkdirs() }
-            runCatching {
+            val restored = runCatching {
                 session.download(entry.magnetLink, dir, torrent_flags_t())
+            }.isSuccess
+
+            if (!restored) {
+                _lastError.value = "Some saved torrents could not be restored after restart."
             }
         }
 
@@ -295,6 +329,33 @@ class TorrentDownloadManager(
         return magnetLink + trackers
     }
 
+    private fun isValidMagnet(magnetLink: String): Boolean {
+        if (!magnetLink.startsWith("magnet:?", ignoreCase = true)) return false
+        val lower = magnetLink.lowercase()
+        return lower.contains("xt=urn:btih:") || lower.contains("xt=urn:btmh:")
+    }
+
+    private fun isDuplicateMagnet(magnetLink: String): Boolean {
+        val incomingKey = magnetIdentityKey(magnetLink)
+        val existingKeys = buildSet {
+            magnetMap.values.forEach { add(magnetIdentityKey(it)) }
+            persistedDownloads.forEach { add(magnetIdentityKey(it.magnetLink)) }
+        }
+        return incomingKey in existingKeys
+    }
+
+    private fun magnetIdentityKey(magnetLink: String): String {
+        val normalized = magnetLink.trim()
+        val match = Regex("[?&]xt=urn:(?:btih|btmh):([^&]+)", RegexOption.IGNORE_CASE)
+            .find(normalized)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.lowercase()
+            ?.trim()
+
+        return if (match.isNullOrBlank()) normalized.lowercase() else match
+    }
+
     private fun buildSettingsPack(sessionSettings: TorrentSessionSettings): SettingsPack {
         val normalized = sessionSettings.normalized()
         return SettingsPack().apply {
@@ -320,6 +381,16 @@ class TorrentDownloadManager(
         runCatching {
             javaClass.getMethod(methodName, Boolean::class.javaPrimitiveType)
                 .invoke(this, value)
+        }
+    }
+
+    private fun applySettingsIfSupported(settingsPack: SettingsPack) {
+        val method = session.javaClass.methods.firstOrNull { candidate ->
+            candidate.name == "applySettings" && candidate.parameterTypes.size == 1
+        } ?: return
+
+        runCatching {
+            method.invoke(session, settingsPack)
         }
     }
 
