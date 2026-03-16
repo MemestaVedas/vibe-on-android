@@ -27,6 +27,7 @@ data class TrackInfo(
     val album: String,
     val duration: Double,
     val coverUrl: String? = null,
+    val year: Int? = null,
     val discNumber: Int? = null,
     val trackNumber: Int? = null,
     val titleRomaji: String? = null,

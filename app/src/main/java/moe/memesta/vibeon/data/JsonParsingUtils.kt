@@ -26,6 +26,7 @@ fun JSONObject.toTrackInfo(baseUrl: String): TrackInfo {
         album = getString("album"),
         duration = optDouble("durationSecs", 0.0),
         coverUrl = resolveCoverUrl(rawCover, baseUrl),
+        year = extractYearFromJson(this),
         discNumber = optInt("discNumber", -1).takeIf { it != -1 },
         trackNumber = optInt("trackNumber", -1).takeIf { it != -1 },
         titleRomaji = optString("titleRomaji", null).takeIf { it != "null" },
@@ -36,6 +37,18 @@ fun JSONObject.toTrackInfo(baseUrl: String): TrackInfo {
         albumEn = optString("albumEn", null).takeIf { it != "null" },
         playlistTrackId = optLong("playlistTrackId", -1L).takeIf { it != -1L }
     )
+}
+
+private fun extractYearFromJson(json: JSONObject): Int? {
+    val directYear = json.optInt("year", -1).takeIf { it in 1000..2999 }
+        ?: json.optInt("releaseYear", -1).takeIf { it in 1000..2999 }
+    if (directYear != null) return directYear
+
+    val rawDate = json.optString("releaseDate", "")
+        .ifEmpty { json.optString("date", "") }
+        .ifEmpty { json.optString("originalDate", "") }
+    val yearPrefix = rawDate.take(4).toIntOrNull()
+    return yearPrefix?.takeIf { it in 1000..2999 }
 }
 
 /** Parses a JSON queue item object into a [QueueItem], resolving cover URL against [baseUrl]. */

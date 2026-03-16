@@ -54,6 +54,7 @@ class LibraryRepository(
                 album = entity.album,
                 duration = entity.duration,
                 coverUrl = finalCoverUrl,
+                year = entity.year,
                 titleRomaji = entity.titleRomaji,
                 titleEn = entity.titleEn,
                 artistRomaji = entity.artistRomaji,
@@ -196,7 +197,7 @@ class LibraryRepository(
                 album = track.album,
                 duration = track.duration,
                 albumArtUrl = relativeCoverUrl,
-                year = null,
+                year = track.year ?: inferYearFromPath(track.path, track.album),
                 genre = null,
                 trackNumber = track.trackNumber,
                 discNumber = track.discNumber,
@@ -210,6 +211,14 @@ class LibraryRepository(
             )
         }
         trackDao.insertTracks(entities)
+    }
+
+    private fun inferYearFromPath(path: String, album: String): Int? {
+        val regex = Regex("(19|20)\\d{2}")
+        val pathYear = regex.find(path)?.value?.toIntOrNull()
+        if (pathYear in 1900..2099) return pathYear
+        val albumYear = regex.find(album)?.value?.toIntOrNull()
+        return albumYear?.takeIf { it in 1900..2099 }
     }
 
     suspend fun searchTracks(): List<TrackInfo> {

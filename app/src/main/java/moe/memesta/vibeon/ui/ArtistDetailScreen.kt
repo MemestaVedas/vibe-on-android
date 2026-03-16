@@ -92,9 +92,32 @@ fun ArtistDetailScreen(
                     albumId = albumName,
                     displayAlbum = first?.getDisplayAlbum(displayLanguage) ?: albumName,
                     coverUrl = first?.coverUrl,
+                    year = groupedTracks.mapNotNull { it.year }.maxOrNull()
+                        ?: inferYearFromAlbumOrPath(albumName, groupedTracks.firstOrNull()?.path),
                     tracks = groupedTracks
                 )
             }
+            .sortedWith(
+                compareBy<ArtistAlbumGroup> { it.year ?: Int.MIN_VALUE }
+                    .thenBy { it.displayAlbum.lowercase() }
+            )
+    }
+
+    val albumYearLanes = remember(artistAlbums) {
+        artistAlbums
+            .groupBy { it.year }
+            .toList()
+            .sortedBy { (year, _) -> year ?: Int.MIN_VALUE }
+            .map { (year, albums) ->
+                ArtistAlbumYearLane(
+                    year = year,
+                    albums = albums.sortedBy { it.displayAlbum.lowercase() }
+                )
+            }
+    }
+
+    val songsAlbumOrder = remember(albumYearLanes) {
+        albumYearLanes.asReversed().flatMap { it.albums }
     }
 
     val scrollState = rememberLazyListState()
@@ -304,13 +327,20 @@ fun ArtistDetailScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            itemsIndexed(artistAlbums.chunked(3)) { rowIndex, albumChunk ->
+            itemsIndexed(albumYearLanes) { laneIndex, lane ->
+                Text(
+                    text = lane.year?.toString() ?: "Unknown",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = animatedVibrant.copy(alpha = 0.85f),
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenPadding, vertical = 6.dp)
+                )
+
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                     horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                 ) {
-                    items(albumChunk) { album ->
+                    items(lane.albums) { album ->
                         AlbumCard(
                             albumName = album.displayAlbum,
                             coverUrl = album.coverUrl,
@@ -323,8 +353,8 @@ fun ArtistDetailScreen(
                     }
                 }
 
-                if (rowIndex == 0) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                if (laneIndex == 0) {
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -357,7 +387,7 @@ fun ArtistDetailScreen(
             }
 
             // Songs Zone (bottom), grouped subtly by album
-            artistAlbums.forEach { album ->
+            songsAlbumOrder.forEach { album ->
                 item(key = "album-header-${album.albumId}") {
                     Row(
                         modifier = Modifier
@@ -366,7 +396,7 @@ fun ArtistDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = album.displayAlbum,
+                            text = if (album.year != null) "${album.year} • ${album.displayAlbum}" else album.displayAlbum,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -464,6 +494,20 @@ private data class ArtistAlbumGroup(
     val albumId: String,
     val displayAlbum: String,
     val coverUrl: String?,
+    val year: Int?,
     val tracks: List<TrackInfo>
 )
+
+private data class ArtistAlbumYearLane(
+    val year: Int?,
+    val albums: List<ArtistAlbumGroup>
+)
+
+private fun inferYearFromAlbumOrPath(albumName: String, samplePath: String?): Int? {
+    val regex = Regex("(19|20)\\d{2}")
+    val fromAlbum = regex.find(albumName)?.value?.toIntOrNull()
+    if (fromAlbum in 1900..2099) return fromAlbum
+    val fromPath = samplePath?.let { regex.find(it)?.value?.toIntOrNull() }
+    return fromPath?.takeIf { it in 1900..2099 }
+}
 
