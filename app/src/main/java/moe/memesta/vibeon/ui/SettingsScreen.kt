@@ -1,5 +1,11 @@
 package moe.memesta.vibeon.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
+import android.provider.DocumentsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,9 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import moe.memesta.vibeon.VibeonApp
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.local.FavoriteDevice
@@ -36,6 +44,46 @@ fun SettingsScreen(
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
+    val appContext = VibeonApp.instance.applicationContext
+    val torrentStoragePreferences = remember { VibeonApp.instance.container.torrentStoragePreferences }
+    val defaultTorrentPath = remember {
+        val musicDir = appContext.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+            ?: appContext.filesDir
+        java.io.File(musicDir, "Vibe-On").absolutePath
+    }
+
+    var torrentSavePath by remember { mutableStateOf(torrentStoragePreferences.savePath ?: defaultTorrentPath) }
+    var torrentPathError by remember { mutableStateOf<String?>(null) }
+
+    val torrentPathPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) {
+            torrentPathError = "No folder selected."
+            return@rememberLauncherForActivityResult
+        }
+
+        runCatching {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            appContext.contentResolver.takePersistableUriPermission(uri, flags)
+        }
+
+        val resolvedPath = treeUriToPath(uri)
+        if (resolvedPath.isNullOrBlank()) {
+            torrentPathError = "Selected folder is not supported on this device."
+            return@rememberLauncherForActivityResult
+        }
+
+        val dir = java.io.File(resolvedPath)
+        if (!dir.exists() && !dir.mkdirs()) {
+            torrentPathError = "Failed to access selected folder."
+            return@rememberLauncherForActivityResult
+        }
+
+        torrentStoragePreferences.savePath = dir.absolutePath
+        torrentSavePath = dir.absolutePath
+    }
+
     var favorites by remember { mutableStateOf(favoritesManager.getFavorites()) }
     var showRenameDialog by remember { mutableStateOf<FavoriteDevice?>(null) }
     var expandedDevice by remember { mutableStateOf<String?>(null) }
@@ -272,6 +320,74 @@ fun SettingsScreen(
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
 
+        item {
+            Text(
+                text = "Torrent Downloads",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Default Download Folder",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Torrent files are written to this folder by default.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                    ) {
+                        Text(
+                            text = torrentSavePath,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(10.dp),
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { torrentPathPickerLauncher.launch(null) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Choose Folder")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                torrentStoragePreferences.savePath = defaultTorrentPath
+                                torrentSavePath = defaultTorrentPath
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Use App Default")
+                        }
+                    }
+                }
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+
         // Section: Player Settings
         item {
             Text(
@@ -440,6 +556,35 @@ fun SettingsScreen(
             }
         )
     }
+
+    if (torrentPathError != null) {
+        AlertDialog(
+            onDismissRequest = { torrentPathError = null },
+            title = { Text("Folder Selection Failed") },
+            text = { Text(torrentPathError ?: "Unable to use selected folder.") },
+            confirmButton = {
+                TextButton(onClick = { torrentPathError = null }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+}
+
+private fun treeUriToPath(uri: Uri): String? {
+    val docId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return null
+    val parts = docId.split(":", limit = 2)
+    if (parts.isEmpty()) return null
+
+    val volume = parts[0]
+    val relative = if (parts.size > 1) parts[1] else ""
+
+    val base = when (volume.lowercase()) {
+        "primary" -> Environment.getExternalStorageDirectory().absolutePath
+        else -> "/storage/$volume"
+    }
+
+    return if (relative.isBlank()) base else "$base/$relative"
 }
 
 @Composable

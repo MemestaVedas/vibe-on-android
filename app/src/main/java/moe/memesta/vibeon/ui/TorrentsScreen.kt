@@ -56,6 +56,7 @@ fun TorrentsScreen(
     val order by viewModel.order.collectAsState()
     val downloads by viewModel.downloads.collectAsState()
     val lastDownloadError by viewModel.lastDownloadError.collectAsState()
+    val savePath by viewModel.savePath.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var deleteTarget by remember { mutableStateOf<TorrentDownload?>(null) }
@@ -135,6 +136,27 @@ fun TorrentsScreen(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     text = { Text("Search Nyaa") }
+                )
+            }
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Dimens.ScreenPadding, vertical = 8.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+            ) {
+                Text(
+                    text = if (savePath.isNullOrBlank()) {
+                        "Download folder: ${viewModel.defaultSavePath}"
+                    } else {
+                        "Download folder: ${viewModel.getEffectiveSavePath()}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 

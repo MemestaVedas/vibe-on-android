@@ -56,6 +56,12 @@ class TorrentViewModel(application: Application) : AndroidViewModel(application)
             return File(musicDir, "Vibe-On").absolutePath
         }
 
+    init {
+        if (_savePath.value.isNullOrBlank()) {
+            setSavePath(defaultSavePath)
+        }
+    }
+
     fun hasConfiguredSavePath(): Boolean = !_savePath.value.isNullOrBlank()
 
     fun setSavePath(path: String) {
@@ -82,6 +88,15 @@ class TorrentViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun getEffectiveSavePath(): String = _savePath.value ?: defaultSavePath
+
+    fun getSavePathStatusText(): String {
+        val configured = _savePath.value
+        return if (configured.isNullOrBlank()) {
+            "Default app storage: $defaultSavePath"
+        } else {
+            "Current download folder: $configured"
+        }
+    }
 
     fun setQuery(q: String) { _query.value = q }
     fun setCategory(c: NyaaCategory) { _category.value = c }
