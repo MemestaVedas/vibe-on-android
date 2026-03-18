@@ -20,6 +20,13 @@ val MPlusRoundedFont = FontFamily(
     Font(R.font.m_plus_rounded_1c_bold, FontWeight.Bold)
 )
 
+// Dedicated alias for the Now Playing expressive title system.
+val MPlus1pRoundedFamily = FontFamily(
+    Font(R.font.m_plus_rounded_1c_regular, FontWeight.W300),
+    Font(R.font.m_plus_rounded_1c_medium, FontWeight.W500),
+    Font(R.font.m_plus_rounded_1c_bold, FontWeight.W800)
+)
+
 val RobotoFlexFont = FontFamily(
     Font(R.font.roboto_flex_regular, FontWeight.Normal)
 )
