@@ -27,11 +27,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -74,15 +79,25 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.util.lerp
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
@@ -97,8 +112,10 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
 import kotlin.math.sin
+import kotlin.random.Random
 import moe.memesta.vibeon.data.MediaSessionData
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.data.local.ScrubberMode
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeBackground
 import moe.memesta.vibeon.ui.theme.VibeSurfaceContainer
@@ -125,6 +142,9 @@ fun NowPlayingScreen(
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val playbackState by playbackViewModel.playbackState.collectAsState()
+    val scrubberMode by playbackViewModel.scrubberMode.collectAsState()
+    val artGestureHintShown by playbackViewModel.artGestureHintShown.collectAsState()
+    val heartBurstEvent by playbackViewModel.heartBurstEvent.collectAsState()
     val displayLanguage = LocalDisplayLanguage.current
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val isPlaying by connectionViewModel.isPlaying.collectAsState()
@@ -172,6 +192,34 @@ fun NowPlayingScreen(
         label = "lyricsSubtleTextColor"
     )
 
+    val detectedBpm = remember(currentTrack.title, currentTrack.artist, currentTrack.album) {
+        extractBpmFromTrack(currentTrack)
+    }
+    val bpmHueOffset = remember(detectedBpm) {
+        detectedBpm?.let { bpm ->
+            when {
+                bpm < 80f -> 10f
+                bpm > 140f -> -10f
+                else -> androidx.compose.ui.util.lerp(10f, -10f, (bpm - 80f) / 60f)
+            }
+        }
+    }
+    val scopedPrimaryContainerSeed = when {
+        themeColors.vibrant != Color.Transparent -> themeColors.vibrant.copy(alpha = 0.35f).compositeOver(MaterialTheme.colorScheme.surface)
+        themeColors.muted != Color.Transparent -> themeColors.muted.copy(alpha = 0.28f).compositeOver(MaterialTheme.colorScheme.surface)
+        else -> MaterialTheme.colorScheme.primaryContainer
+    }
+    val scopedPrimaryContainerTarget = if (bpmHueOffset != null) {
+        shiftHue(scopedPrimaryContainerSeed, bpmHueOffset)
+    } else {
+        scopedPrimaryContainerSeed
+    }
+    val scopedPrimaryContainer by animateColorAsState(
+        targetValue = scopedPrimaryContainerTarget,
+        animationSpec = tween(600),
+        label = "scopedPrimaryContainer"
+    )
+
     LaunchedEffect(coverUrl) {
         if (coverUrl != null) {
             val loader = AppImageLoader.get(context)
@@ -204,64 +252,78 @@ fun NowPlayingScreen(
         ) {
             item {
                 Box(modifier = Modifier.fillParentMaxHeight()) {
-                    NowPlayingContent(
-                        title = currentTrack.getDisplayName(displayLanguage),
-                        artist = currentTrack.getDisplayArtist(displayLanguage),
-                        titleRomaji = currentTrack.titleRomaji,
-                        artistRomaji = currentTrack.artistRomaji,
-                        originalTitle = currentTrack.title,
-                        originalArtist = currentTrack.artist,
-                        isPlaying = effectiveIsPlaying,
-                        progress = playbackState.progress,
-                        duration = playbackState.duration,
-                        coverUrl = currentTrack.coverUrl,
-                        isMobilePlayback = isMobilePlayback,
-                        currentTrack = currentTrack,
-                        isLiked = isLiked,
-                        connectionViewModel = connectionViewModel,
-                        isShuffled = isShuffled,
-                        repeatMode = repeatMode,
-                        volume = volume,
-                        onPlayPauseToggle = {
-                            if (isMobilePlayback) {
-                                playbackViewModel.setPlayerPlayWhenReady(!effectiveIsPlaying)
-                                playbackViewModel.updateIsPlaying(!effectiveIsPlaying)
-                            } else {
-                                if (effectiveIsPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                    MaterialTheme(
+                        colorScheme = MaterialTheme.colorScheme.copy(
+                            primaryContainer = scopedPrimaryContainer,
+                            onPrimaryContainer = if (scopedPrimaryContainer.luminance() > 0.55f) Color.Black else Color.White
+                        )
+                    ) {
+                        NowPlayingContent(
+                            title = currentTrack.getDisplayName(displayLanguage),
+                            artist = currentTrack.getDisplayArtist(displayLanguage),
+                            titleRomaji = currentTrack.titleRomaji,
+                            artistRomaji = currentTrack.artistRomaji,
+                            originalTitle = currentTrack.title,
+                            originalArtist = currentTrack.artist,
+                            isPlaying = effectiveIsPlaying,
+                            progress = playbackState.progress,
+                            duration = playbackState.duration,
+                            coverUrl = currentTrack.coverUrl,
+                            isMobilePlayback = isMobilePlayback,
+                            currentTrack = currentTrack,
+                            isLiked = isLiked,
+                            connectionViewModel = connectionViewModel,
+                            isShuffled = isShuffled,
+                            repeatMode = repeatMode,
+                            volume = volume,
+                            onPlayPauseToggle = {
+                                if (isMobilePlayback) {
+                                    playbackViewModel.setPlayerPlayWhenReady(!effectiveIsPlaying)
+                                    playbackViewModel.updateIsPlaying(!effectiveIsPlaying)
+                                } else {
+                                    if (effectiveIsPlaying) connectionViewModel.pause() else connectionViewModel.play()
+                                }
+                            },
+                            onSkipNext = {
+                                android.util.Log.i("NowPlayingScreen", "⏭️ Skip Next button pressed")
+                                connectionViewModel.next()
+                            },
+                            onSkipPrevious = {
+                                android.util.Log.i("NowPlayingScreen", "⏮️ Skip Previous button pressed")
+                                connectionViewModel.previous()
+                            },
+                            onSeek = { progress ->
+                                val positionSecs = (progress * playbackState.duration / 1000.0)
+                                connectionViewModel.seek(positionSecs)
+                            },
+                            onBackToLibrary = onBackPressed,
+                            onTogglePlaybackLocation = {
+                                if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
+                                else playbackViewModel.requestMobilePlayback()
+                            },
+                            onLyricsClick = {
+                                scope.launch { listState.animateScrollToItem(1) }
+                            },
+                            onQueueClick = { showQueueSheet = !showQueueSheet },
+                            isQueueSheetVisible = showQueueSheet,
+                            onNavigateToAlbum = { onNavigateToAlbum(currentTrack.album.ifEmpty { currentTrack.artist }) },
+                            lyricsSurfaceColor = lyricsSurfaceColor,
+                            lyricsTextColor = lyricsTextColor,
+                            lyricsSubtleTextColor = lyricsSubtleTextColor,
+                            scrubberMode = scrubberMode,
+                            onToggleScrubberMode = { playbackViewModel.toggleScrubberMode() },
+                            artGestureHintShown = artGestureHintShown,
+                            onMarkArtGestureHintShown = { playbackViewModel.markArtGestureHintShown() },
+                            heartBurstEvent = heartBurstEvent,
+                            onHeartBurst = { x, y -> playbackViewModel.triggerHeartBurst(x, y) },
+                            onHeartBurstComplete = { playbackViewModel.clearHeartBurst() },
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            expandLyrics = {
+                                scope.launch { listState.animateScrollToItem(1) }
                             }
-                        },
-                        onSkipNext = {
-                            android.util.Log.i("NowPlayingScreen", "⏭️ Skip Next button pressed")
-                            connectionViewModel.next()
-                        },
-                        onSkipPrevious = {
-                            android.util.Log.i("NowPlayingScreen", "⏮️ Skip Previous button pressed")
-                            connectionViewModel.previous()
-                        },
-                        onSeek = { progress ->
-                            val positionSecs = (progress * playbackState.duration / 1000.0)
-                            connectionViewModel.seek(positionSecs)
-                        },
-                        onBackToLibrary = onBackPressed,
-                        onTogglePlaybackLocation = {
-                            if (isMobilePlayback) playbackViewModel.stopMobilePlayback()
-                            else playbackViewModel.requestMobilePlayback()
-                        },
-                        onLyricsClick = {
-                            scope.launch { listState.animateScrollToItem(1) }
-                        },
-                        onQueueClick = { showQueueSheet = !showQueueSheet },
-                        isQueueSheetVisible = showQueueSheet,
-                        onNavigateToAlbum = { onNavigateToAlbum(currentTrack.album.ifEmpty { currentTrack.artist }) },
-                        lyricsSurfaceColor = lyricsSurfaceColor,
-                        lyricsTextColor = lyricsTextColor,
-                        lyricsSubtleTextColor = lyricsSubtleTextColor,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        expandLyrics = {
-                            scope.launch { listState.animateScrollToItem(1) }
-                        }
-                    )
+                        )
+                    }
                 }
             }
             item {
@@ -358,6 +420,13 @@ fun NowPlayingContent(
     lyricsSurfaceColor: Color,
     lyricsTextColor: Color,
     lyricsSubtleTextColor: Color,
+    scrubberMode: ScrubberMode,
+    onToggleScrubberMode: () -> Unit,
+    artGestureHintShown: Boolean,
+    onMarkArtGestureHintShown: () -> Unit,
+    heartBurstEvent: HeartBurstEvent?,
+    onHeartBurst: (Float, Float) -> Unit,
+    onHeartBurstComplete: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     expandLyrics: () -> Unit = {}
@@ -445,6 +514,18 @@ fun NowPlayingContent(
     val showArtistRomajiSubtitle = !artistRomaji.isNullOrBlank() && !artistRomaji.equals(artist, ignoreCase = true) && !artistRomaji.equals(originalArtist, ignoreCase = true)
     val artistRomajiSubtitle = if (showArtistRomajiSubtitle) artistRomaji else null
 
+    val targetTitleWeight = titleWeightForLength(title.length)
+    val animatedTitleWeight by animateIntAsState(
+        targetValue = targetTitleWeight,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "titleWeight"
+    )
+    val animatedTitleSpacing by animateFloatAsState(
+        targetValue = letterSpacingForWeight(animatedTitleWeight),
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "titleSpacing"
+    )
+
     // Main Container with immersive blurred background
         // Kinetic art stage: only breathe when actively playing and motion is allowed.
         val prefersReducedMotion = rememberPrefersReducedMotion()
@@ -481,9 +562,29 @@ fun NowPlayingContent(
             animationSpec = MotionTokens.Effects.slow(),
             label = "artGlowAlpha"
         )
+        val configuration = LocalConfiguration.current
+        val albumCardSize = configuration.screenWidthDp.dp * 0.82f
+        val albumCardShape = RoundedCornerShape(
+            topStart = 16.dp,
+            topEnd = 16.dp,
+            bottomStart = 40.dp,
+            bottomEnd = 40.dp
+        )
+        var lastTapOffset by remember { mutableStateOf(Offset.Zero) }
+        var showGestureHint by remember { mutableStateOf(!artGestureHintShown) }
+        val artHintPulseScale by animateFloatAsState(
+            targetValue = if (showGestureHint) 0.97f else 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
+            label = "artHintPulse"
+        )
 
-        // Double-tap like state
-        var showLikeHeart by remember { mutableStateOf(false) }
+        LaunchedEffect(artGestureHintShown) {
+            if (!artGestureHintShown) {
+                onMarkArtGestureHintShown()
+                delay(3000)
+                showGestureHint = false
+            }
+        }
 
     Box(
         modifier = Modifier
@@ -505,6 +606,16 @@ fun NowPlayingContent(
                     .alpha(0.6f),
                 contentScale = ContentScale.Crop
             )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, MaterialTheme.colorScheme.surface),
+                            startY = with(LocalDensity.current) { configuration.screenHeightDp.dp.toPx() * 0.35f }
+                        )
+                    )
+            )
         }
 
         // Main content Column
@@ -516,34 +627,76 @@ fun NowPlayingContent(
             // Album Art - Immersive Header Style
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f) // Restore full 1:1 square layout
-                    .shadow(
-                        elevation = artStageElevation,
-                        shape = RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp),
-                        clip = false
-                    )
-                    .clip(RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp))
-                        .graphicsLayer { scaleX = effectiveArtScale; scaleY = effectiveArtScale }
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { change, dragAmount ->
-                            if (dragAmount > 20f) {
-                                change.consume()
-                                expandLyrics()
-                            }
-                        }
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(albumCardSize)
+                        .graphicsLayer { scaleX = effectiveArtScale * artHintPulseScale; scaleY = effectiveArtScale * artHintPulseScale }
+                        .shadow(elevation = artStageElevation, shape = albumCardShape, clip = false)
+                ) {
+                    val ghost1 = pagerItems.getOrNull((currentIndex + 1).coerceAtMost((pagerItems.size - 1).coerceAtLeast(0)))
+                    val ghost2 = pagerItems.getOrNull((currentIndex + 2).coerceAtMost((pagerItems.size - 1).coerceAtLeast(0)))
+
+                    if (ghost2 != null && ghost2.stableKey != pagerItems.getOrNull(currentIndex)?.stableKey) {
+                        AsyncImage(
+                            model = ghost2.coverUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .offset(x = 6.dp, y = 6.dp)
+                                .scale(0.95f)
+                                .alpha(0.3f)
+                                .clip(albumCardShape),
+                            contentScale = ContentScale.Crop
+                        )
                     }
-                    .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = { onNavigateToAlbum() },
-                                onDoubleTap = {
+                    if (ghost1 != null && ghost1.stableKey != pagerItems.getOrNull(currentIndex)?.stableKey) {
+                        AsyncImage(
+                            model = ghost1.coverUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .offset(x = 3.dp, y = 3.dp)
+                                .scale(0.975f)
+                                .alpha(0.6f)
+                                .clip(albumCardShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(albumCardShape)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onPress = { offset ->
+                                    lastTapOffset = offset
+                                    tryAwaitRelease()
+                                })
+                            }
+                            .combinedClickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onNavigateToAlbum() },
+                                onDoubleClick = {
                                     connectionViewModel.toggleFavorite(currentTrack.path)
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    showLikeHeart = true
-                                }
+                                    onHeartBurst(lastTapOffset.x, lastTapOffset.y)
+                                },
+                                onLongClick = { showPlaylistDialog = true }
                             )
-                    }
-            ) {
+                            .semantics {
+                                onClick(label = "Go to album") { onNavigateToAlbum(); true }
+                                customActions = listOf(
+                                    CustomAccessibilityAction("Like track") {
+                                        connectionViewModel.toggleFavorite(currentTrack.path)
+                                        true
+                                    }
+                                )
+                            }
+                    ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -606,31 +759,26 @@ fun NowPlayingContent(
                         }
                     }
                 }
-                // Heart burst — double-tap like feedback
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showLikeHeart,
-                    enter = fadeIn(animationSpec = tween(80)) +
-                            scaleIn(initialScale = 0.35f, animationSpec = MotionTokens.Spatial.fast()),
-                    exit  = fadeOut(animationSpec = tween(280)) +
-                            scaleOut(targetScale = 1.5f, animationSpec = tween(280))
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Filled.Favorite,
-                            contentDescription = null,
-                            tint = Color(0xFFFF4081),
-                            modifier = Modifier.size(96.dp)
-                        )
                     }
+
+                    HeartBurstOverlay(
+                        event = heartBurstEvent,
+                        reduceMotion = prefersReducedMotion,
+                        onComplete = onHeartBurstComplete
+                    )
                 }
             }
 
-            // Heart auto-resets after burst animation
-            LaunchedEffect(showLikeHeart) {
-                if (showLikeHeart) {
-                    kotlinx.coroutines.delay(700)
-                    showLikeHeart = false
-                }
+            AnimatedVisibility(visible = showGestureHint) {
+                Text(
+                    text = "Tap for album  ·  Double tap to like",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
             }
 
                 Column(
@@ -638,17 +786,30 @@ fun NowPlayingContent(
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 24.dp)
                 ) {
-                Text(
-                    text = title.ifEmpty { "No Track" },
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .basicMarquee(iterations = Int.MAX_VALUE)
-                )
+                AnimatedContent(
+                    targetState = title.ifEmpty { "No Track" },
+                    transitionSpec = {
+                        (slideInVertically(initialOffsetY = { it }) + fadeIn(tween(200))) togetherWith
+                            (slideOutVertically(targetOffsetY = { -it }) + fadeOut(tween(150)))
+                    },
+                    label = "titleTrackChange"
+                ) { animatedTitle ->
+                    Text(
+                        text = animatedTitle,
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontFamily = MPlus1pRoundedFamily,
+                            fontWeight = FontWeight(animatedTitleWeight),
+                            letterSpacing = animatedTitleSpacing.em
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fadingEdgeMask()
+                            .basicMarquee(iterations = Int.MAX_VALUE)
+                    )
+                }
                 
                 if (romajiSubtitle != null) {
                     Text(
@@ -671,8 +832,10 @@ fun NowPlayingContent(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = artist.ifEmpty { "Unknown Artist" },
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = MPlus1pRoundedFamily,
+                                fontWeight = FontWeight.W400
+                            ),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -718,92 +881,143 @@ fun NowPlayingContent(
                         .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Squiggly Progress Bar
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
                     // Duration is in milliseconds — convert to seconds for display
                     val durationSecs = duration / 1000L
                     val elapsedSecs = (progress * durationSecs).toLong().coerceIn(0L, durationSecs.coerceAtLeast(0L))
                     val totalSecs = durationSecs.coerceAtLeast(0L)
 
-                    Text(
-                        text = formatTime(elapsedSecs),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(48.dp)
-                    )
-                    
-                    var isDraggingSeek by remember { mutableStateOf(false) }
-                    Box(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                        SquigglyProgressBar(
-                            progress = progress,
-                            isPlaying = isPlaying,
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            onSeek = onSeek,
-                            onDragStart = { isDraggingSeek = true },
-                            onDragEnd = { isDraggingSeek = false }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(0.88f)
+                            .align(Alignment.CenterHorizontally),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatTime(elapsedSecs),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
+                            onClick = onToggleScrubberMode,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (scrubberMode == ScrubberMode.WAVEFORM) Icons.Outlined.GraphicEq else Icons.Outlined.HorizontalRule,
+                                contentDescription = if (scrubberMode == ScrubberMode.WAVEFORM) "Switch to classic progress bar" else "Switch to waveform",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = formatTime(totalSecs),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    
-                    Text(
-                        text = formatTime(totalSecs),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(48.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.End
-                    )
-                }
+
+                    AnimatedContent(
+                        targetState = scrubberMode,
+                        transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(100)) },
+                        label = "scrubberModeSwap"
+                    ) { mode ->
+                        if (mode == ScrubberMode.WAVEFORM) {
+                            WaveformScrubber(
+                                amplitudes = rememberWaveformAmplitudes(currentTrack.path),
+                                progress = progress,
+                                onSeek = onSeek,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.88f)
+                                    .height(48.dp)
+                                    .align(Alignment.CenterHorizontally)
+                            )
+                        } else {
+                            Slider(
+                                value = progress.coerceIn(0f, 1f),
+                                onValueChange = onSeek,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.88f)
+                                    .align(Alignment.CenterHorizontally)
+                                    .height(20.dp),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                                ),
+                                thumb = {
+                                    Box(
+                                        Modifier
+                                            .size(22.dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                    )
+                                }
+                            )
+                        }
+                    }
                 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Main Controls — futuristic transport cluster
+                // Main Controls
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.spacedBy(0.dp, Alignment.CenterHorizontally)
                 ) {
-                    // Previous — PrismIconButton
-                    PrismIconButton(
-                        onClick = onSkipPrevious,
-                        icon = Icons.Rounded.SkipPrevious,
-                        contentDescription = "Previous track",
-                        size = 64.dp,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onSkipPrevious()
+                        },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous track",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(24.dp))
 
-                    // Play/Pause — OrbitButton (orbit arc active while playing)
-                    OrbitButton(
-                        onClick = onPlayPauseToggle,
-                        isActive = isPlaying,
-                        modifier = Modifier.size(80.dp)
+                    FloatingActionButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onPlayPauseToggle()
+                        },
+                        modifier = Modifier.size(96.dp),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = RoundedCornerShape(28.dp)
                     ) {
                         Icon(
                             if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = "Play/Pause",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(40.dp)
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(48.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(24.dp))
 
-                    // Next — PrismIconButton (mirrored prism via rotationY)
-                    PrismIconButton(
-                        onClick = onSkipNext,
-                        icon = Icons.Rounded.SkipNext,
-                        contentDescription = "Next track",
-                        size = 64.dp,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onSkipNext()
+                        },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            Icons.Rounded.SkipNext,
+                            contentDescription = "Next track",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -952,16 +1166,10 @@ fun NowPlayingContent(
             Box(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), CircleShape)
-                    .size(40.dp)
-                    .bouncyClickable(onClick = onBackToLibrary),
+                    .size(40.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = "Dismiss",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(28.dp)
-                )
+                MorphDismissButton(onClick = onBackToLibrary)
             }
 
             Text(
@@ -1412,6 +1620,251 @@ private fun formatTime(seconds: Long): String {
     val minutes = totalSeconds / 60
     val secs = totalSeconds % 60
     return String.format("%d:%02d", minutes, secs)
+}
+
+@Composable
+fun WaveformScrubber(
+    amplitudes: List<Float>,
+    progress: Float,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val activeBarColor = MaterialTheme.colorScheme.primaryContainer
+    val inactiveBarColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+    val thumbColor = MaterialTheme.colorScheme.primary
+    var widthPx by remember { mutableFloatStateOf(1f) }
+    var fineSeek by remember { mutableStateOf(false) }
+    val fineScale by animateFloatAsState(
+        targetValue = if (fineSeek) 2f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "fineSeekScale"
+    )
+    val clamped = progress.coerceIn(0f, 1f)
+
+    Canvas(
+        modifier = modifier
+            .graphicsLayer { scaleX = fineScale }
+            .onSizeChanged { widthPx = it.width.toFloat().coerceAtLeast(1f) }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { fineSeek = true },
+                    onPress = {
+                        tryAwaitRelease()
+                        fineSeek = false
+                    },
+                    onTap = { offset ->
+                        onSeek((offset.x / widthPx).coerceIn(0f, 1f))
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures { change, _ ->
+                    change.consume()
+                    onSeek((change.position.x / widthPx).coerceIn(0f, 1f))
+                }
+            }
+            .semantics {
+                progressBarRangeInfo = androidx.compose.ui.semantics.ProgressBarRangeInfo(clamped, 0f..1f)
+                setProgress(label = "Seek") { newValue ->
+                    onSeek(newValue.coerceIn(0f, 1f))
+                    true
+                }
+            }
+    ) {
+        val bars = amplitudes.ifEmpty { List(56) { 0.2f } }
+        val barSlot = size.width / bars.size
+        val barWidth = barSlot * 0.6f
+        val progressX = clamped * size.width
+        bars.forEachIndexed { index, amp ->
+            val x = index * barSlot
+            val h = (size.height * amp.coerceIn(0f, 1f)).coerceAtLeast(size.height * 0.12f)
+            val y = (size.height - h) / 2f
+            drawRoundRect(
+                color = if (x <= progressX) activeBarColor else inactiveBarColor,
+                topLeft = Offset(x, y),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+            )
+        }
+        drawCircle(
+            color = thumbColor,
+            radius = 10.dp.toPx(),
+            center = Offset(progressX.coerceIn(0f, size.width), size.height / 2f)
+        )
+    }
+}
+
+@Composable
+fun HeartBurstOverlay(
+    event: HeartBurstEvent?,
+    reduceMotion: Boolean,
+    onComplete: () -> Unit
+) {
+    if (event == null) return
+
+    if (reduceMotion) {
+        var visible by remember(event.timestampMs) { mutableStateOf(true) }
+        LaunchedEffect(event.timestampMs) {
+            delay(300)
+            visible = false
+            onComplete()
+        }
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(100)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier.fillMaxSize().semantics { invisibleToUser() }
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(84.dp)
+                )
+            }
+        }
+        return
+    }
+
+    data class Particle(val angle: Float, val distance: Float, val size: Float, val rotation: Float, val secondary: Boolean, val delayMs: Int)
+    val particles = remember(event.timestampMs) {
+        List(10) { index ->
+            Particle(
+                angle = Random.nextFloat() * (2f * PI.toFloat()),
+                distance = Random.nextInt(80, 160).toFloat(),
+                size = Random.nextInt(16, 40).toFloat(),
+                rotation = Random.nextFloat() * 60f - 30f,
+                secondary = index >= 7,
+                delayMs = index * 40
+            )
+        }
+    }
+    val progressAnims = remember(event.timestampMs) { particles.map { Animatable(0f) } }
+    LaunchedEffect(event.timestampMs) {
+        progressAnims.forEachIndexed { index, anim ->
+            launch {
+                delay(particles[index].delayMs.toLong())
+                anim.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
+            }
+        }
+        delay(980)
+        onComplete()
+    }
+
+    Box(modifier = Modifier.fillMaxSize().semantics { invisibleToUser() }) {
+        particles.forEachIndexed { index, particle ->
+            val p = progressAnims[index].value
+            val eased = 1f - (1f - p) * (1f - p) * (1f - p)
+            val tx = particle.distance * eased * kotlin.math.cos(particle.angle)
+            val ty = particle.distance * eased * kotlin.math.sin(particle.angle)
+            val scale = when {
+                p < 0.4f -> 1.2f * (p / 0.4f)
+                p < 0.6f -> 1.2f - ((p - 0.4f) / 0.2f) * 0.2f
+                else -> 1f
+            }
+            val alpha = if (p <= 0.6f) 1f else (1f - (p - 0.6f) / 0.4f).coerceIn(0f, 1f)
+            Icon(
+                Icons.Filled.Favorite,
+                contentDescription = null,
+                tint = if (particle.secondary) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset { IntOffset((event.x + tx).roundToInt(), (event.y + ty).roundToInt()) }
+                    .size(particle.size.dp)
+                    .graphicsLayer {
+                        rotationZ = particle.rotation
+                        scaleX = scale
+                        scaleY = scale
+                        this.alpha = alpha
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+fun MorphDismissButton(onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val progress by animateFloatAsState(
+        targetValue = if (isPressed) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
+        label = "dismissMorph"
+    )
+    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .semantics { contentDescription = "Close player" },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(24.dp)) {
+            val topY = lerp(0.30f, 0.26f, progress)
+            val midY = lerp(0.58f, 0.66f, progress)
+            val path = Path().apply {
+                moveTo(size.width * 0.2f, size.height * topY)
+                lineTo(size.width * 0.5f, size.height * midY)
+                lineTo(size.width * 0.8f, size.height * topY)
+            }
+            drawPath(
+                path = path,
+                color = iconColor,
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
+    }
+}
+
+private fun titleWeightForLength(charCount: Int): Int = when {
+    charCount <= 12 -> 800
+    charCount <= 24 -> lerp(800f, 300f, (charCount - 12) / 12f).toInt()
+    else -> 300
+}
+
+private fun letterSpacingForWeight(weight: Int): Float {
+    val t = (weight - 300f) / 500f
+    return lerp(-0.02f, 0.01f, 1f - t)
+}
+
+private fun Modifier.fadingEdgeMask(): Modifier = drawWithContent {
+    drawContent()
+    drawRect(
+        brush = Brush.horizontalGradient(
+            0f to Color.Transparent,
+            0.05f to Color.White,
+            0.95f to Color.White,
+            1f to Color.Transparent
+        ),
+        blendMode = androidx.compose.ui.graphics.BlendMode.DstIn
+    )
+}
+
+private fun rememberWaveformAmplitudes(seedKey: String): List<Float> {
+    val seed = seedKey.hashCode().toLong()
+    val random = Random(seed)
+    return List(56) { random.nextFloat().coerceIn(0.1f, 1f) }
+}
+
+private fun extractBpmFromTrack(track: MediaSessionData): Float? {
+    val combined = listOf(track.title, track.artist, track.album).joinToString(" ")
+    val regex = Regex("(\\d{2,3})\\s*bpm", RegexOption.IGNORE_CASE)
+    val bpm = regex.find(combined)?.groupValues?.getOrNull(1)?.toFloatOrNull()
+    return bpm?.coerceIn(40f, 240f)
+}
+
+private fun shiftHue(color: Color, delta: Float): Color {
+    val hsl = FloatArray(3)
+    androidx.core.graphics.ColorUtils.colorToHSL(color.toArgb(), hsl)
+    hsl[0] = (hsl[0] + delta + 360f) % 360f
+    val shifted = androidx.core.graphics.ColorUtils.HSLToColor(hsl)
+    return Color(shifted).copy(alpha = color.alpha)
 }
 
 // End of NowPlayingScreen.kt
