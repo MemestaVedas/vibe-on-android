@@ -42,7 +42,9 @@ import java.nio.charset.StandardCharsets
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
+import androidx.compose.foundation.gestures.scrollBy
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
@@ -157,6 +159,23 @@ fun ArtistDetailScreen(
         return indexWeight + offsetWeight
     }
 
+    suspend fun alignSplitBoundaryToCenter() {
+        repeat(6) {
+            val layoutInfo = scrollState.layoutInfo
+            val splitAnchor = layoutInfo.visibleItemsInfo.firstOrNull { it.key == "split-anchor" }
+            if (splitAnchor != null) {
+                val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+                val desiredCenterOffset = layoutInfo.viewportStartOffset + ((viewportHeight - splitAnchor.size) / 2)
+                val delta = splitAnchor.offset - desiredCenterOffset
+                if (abs(delta) > 1) {
+                    scrollState.scrollBy(delta.toFloat())
+                }
+                return
+            }
+            yield()
+        }
+    }
+
     fun snapToSection() {
         if (artistTracks.isEmpty()) return
 
@@ -171,9 +190,12 @@ fun ArtistDetailScreen(
             else -> splitIndex
         }
 
-        if (targetIndex != scrollState.firstVisibleItemIndex || scrollState.firstVisibleItemScrollOffset > 8) {
-            scope.launch {
-                scrollState.animateScrollToItem(targetIndex)
+        scope.launch {
+            if (targetIndex == splitIndex) {
+                scrollState.animateScrollToItem(splitIndex)
+                alignSplitBoundaryToCenter()
+            } else {
+                scrollState.animateScrollToItem(0)
             }
         }
         lastFlingVelocityY = 0f
@@ -213,6 +235,7 @@ fun ArtistDetailScreen(
     LaunchedEffect(splitIndex, artistTracks.size, hasInitializedStartPosition) {
         if (!hasInitializedStartPosition && artistTracks.isNotEmpty()) {
             scrollState.scrollToItem(splitIndex)
+            alignSplitBoundaryToCenter()
             hasInitializedStartPosition = true
         }
     }
