@@ -127,7 +127,7 @@ fun LyricsScreen(
             ) {
                 itemsIndexed(
                     items = lyrics,
-                    key = { _, lyricGroup -> lyricGroup.timestamp }
+                    key = { index, lyricGroup -> "${lyricGroup.timestamp}_$index" }
                 ) { index, lyricGroup ->
                     LyricGroupItem(
                         lyricGroup = lyricGroup,
