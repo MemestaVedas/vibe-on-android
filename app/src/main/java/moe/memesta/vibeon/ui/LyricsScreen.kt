@@ -126,8 +126,7 @@ fun LyricsScreen(
                 verticalArrangement = Arrangement.spacedBy(32.dp)
             ) {
                 itemsIndexed(
-                    items = lyrics,
-                    key = { index, lyricGroup -> "${lyricGroup.timestamp}_$index" }
+                    items = lyrics
                 ) { index, lyricGroup ->
                     LyricGroupItem(
                         lyricGroup = lyricGroup,
