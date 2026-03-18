@@ -573,11 +573,11 @@ class WebSocketClient {
         private fun onLyrics(json: JSONObject) {
             _isLoadingLyrics.value = false
 
-            val trackPath = json.optString("trackPath")
-            val hasSynced = json.optBoolean("hasSynced")
-            val synced    = json.optStringOrNull("syncedLyrics")
-            val romaji    = json.optStringOrNull("syncedLyricsRomaji")
-            val plain     = json.optStringOrNull("plainLyrics")
+            val trackPath = json.optStringOrNull("trackPath", "track_path") ?: ""
+            val hasSynced = json.optBooleanFlexible("hasSynced", "has_synced")
+            val synced    = json.optStringOrNull("syncedLyrics", "synced_lyrics")
+            val romaji    = json.optStringOrNull("syncedLyricsRomaji", "synced_lyrics_romaji")
+            val plain     = json.optStringOrNull("plainLyrics", "plain_lyrics")
             val instrumental = json.optBoolean("instrumental")
 
             _lyrics.value = LyricsData(trackPath, hasSynced, synced, romaji, plain, instrumental)
@@ -585,6 +585,7 @@ class WebSocketClient {
             // Also update the current track's lyrics text
             val text = synced ?: plain ?: ""
             _currentTrack.value = _currentTrack.value.copy(lyrics = text)
+            Log.i(TAG, "Lyrics received for $trackPath (Synced: $hasSynced, Romaji: ${!romaji.isNullOrBlank()}, Len: ${text.length})")
         }
 
         private fun onLibrary(json: JSONObject) {
@@ -643,6 +644,18 @@ class WebSocketClient {
 // ═════════════════════════════════════════════════════════════════════════════
 
 /** Returns `null` for absent keys, "null" strings, or empty strings. */
-private fun JSONObject.optStringOrNull(key: String): String? {
-    return optString(key, null)?.takeIf { it != "null" && it.isNotEmpty() }
+private fun JSONObject.optStringOrNull(vararg keys: String): String? {
+    for (key in keys) {
+        val value = optString(key, null)?.takeIf { it != "null" && it.isNotEmpty() }
+        if (value != null) return value
+    }
+    return null
+}
+
+private fun JSONObject.optBooleanFlexible(primary: String, fallback: String): Boolean {
+    return when {
+        has(primary) -> optBoolean(primary)
+        has(fallback) -> optBoolean(fallback)
+        else -> false
+    }
 }

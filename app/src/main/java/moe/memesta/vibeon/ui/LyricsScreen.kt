@@ -257,10 +257,11 @@ fun buildLyricsForView(
 
     if (lyricsData.hasSynced && !lyricsData.syncedLyrics.isNullOrEmpty()) {
         val jpLyrics = parseLrc(lyricsData.syncedLyrics!!)
-        val romajiLyrics = lyricsData.syncedLyricsRomaji
-            ?.takeIf { it.isNotBlank() }
+        val romajiRaw = lyricsData.syncedLyricsRomaji?.takeIf { it.isNotBlank() }
+        val romajiLyrics = romajiRaw
             ?.let(::parseLrc)
-            .orEmpty()
+            ?.takeIf { it.isNotEmpty() }
+            ?: mapUntimedRomajiToSyncedTimeline(jpLyrics, romajiRaw)
 
         return when (viewMode) {
             LyricsViewMode.JP -> jpLyrics
@@ -304,6 +305,28 @@ fun buildLyricsForView(
         ?.lines()
         ?.map { LyricGroup(0, listOf(it)) }
         .orEmpty()
+}
+
+private fun mapUntimedRomajiToSyncedTimeline(
+    jpLyrics: List<LyricGroup>,
+    romajiRaw: String?
+): List<LyricGroup> {
+    if (romajiRaw.isNullOrBlank() || jpLyrics.isEmpty()) return emptyList()
+
+    val romajiLines = romajiRaw
+        .lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .toList()
+
+    if (romajiLines.isEmpty()) return emptyList()
+
+    return jpLyrics.mapIndexed { index, jpGroup ->
+        val romajiLine = romajiLines.getOrNull(index)
+            ?: jpGroup.lines.firstOrNull()
+            ?: ""
+        LyricGroup(timestamp = jpGroup.timestamp, lines = listOf(romajiLine))
+    }
 }
 
 private fun preferRomajiLine(lines: List<String>): String {
