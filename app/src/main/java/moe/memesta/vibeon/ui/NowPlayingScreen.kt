@@ -703,11 +703,7 @@ fun NowPlayingContent(
                             onQueueClick()
                         },
                         icon = Icons.Rounded.QueueMusic,
-                        label = if (queue.isNotEmpty()) {
-                            "${(currentIndex + 1).coerceIn(1, queue.size)}/${queue.size}"
-                        } else {
-                            "Queue"
-                        }
+                        label = "Queue"
                     )
                 }
             }
@@ -806,139 +802,113 @@ fun NowPlayingContent(
                         contentDescription = "Next track",
                         size = 64.dp,
                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.graphicsLayer { rotationY = 180f }
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Material 3 Enhanced Controls Bar (Two Islands)
+                // Borderless secondary controls + standard M3 volume slider
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
-                        .padding(horizontal = 0.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        .minimumInteractiveComponentSize(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Island 1: Controls (Device, Shuffle, Repeat)
-                    Row(
-                        modifier = Modifier
-                            .weight(1.8f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .padding(horizontal = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTogglePlaybackLocation()
+                        },
+                        modifier = Modifier.minimumInteractiveComponentSize()
                     ) {
-                        FluxPill(
-                            selected = isMobilePlayback,
-                            onClick = {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onTogglePlaybackLocation()
-                            },
-                            modifier = Modifier.weight(1f),
-                            icon = if (isMobilePlayback) Icons.Rounded.Smartphone else Icons.Rounded.Computer
-                        )
-
-                        FluxPill(
-                            selected = isShuffled,
-                            onClick = {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                connectionViewModel.toggleShuffle()
-                            },
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.Rounded.Shuffle
-                        )
-
-                        FluxPill(
-                            selected = repeatMode == "all" || repeatMode == "one",
-                            onClick = {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                connectionViewModel.toggleRepeat()
-                            },
-                            modifier = Modifier.weight(1f),
-                            icon = if (repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat
+                        Icon(
+                            imageVector = Icons.Rounded.Cast,
+                            contentDescription = if (isMobilePlayback) "Switch to computer playback" else "Switch to mobile playback",
+                            tint = if (isMobilePlayback) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    // Island 2: Volume Control
-                    var width by remember { mutableFloatStateOf(0f) }
-                    val targetVolume = volume.toFloat().coerceIn(0f, 1f)
-                    val animatedVolumeFill by animateFloatAsState(
-                        targetValue = targetVolume,
-                        animationSpec = MotionTokens.Effects.fast(),
-                        label = "animatedVolumeFill"
+                    IconToggleButton(
+                        checked = isShuffled,
+                        onCheckedChange = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            connectionViewModel.toggleShuffle()
+                        },
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = if (isShuffled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            connectionViewModel.toggleRepeat()
+                        },
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            imageVector = if (repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                            contentDescription = "Repeat",
+                            tint = if (repeatMode == "all" || repeatMode == "one") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val volumeValue = volume.toFloat().coerceIn(0f, 1f)
+                    Icon(
+                        imageVector = Icons.Rounded.VolumeDown,
+                        contentDescription = "Volume down",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .minimumInteractiveComponentSize()
+                            .clickable {
+                                val newVolume = (volumeValue - 0.1f).coerceIn(0f, 1f)
+                                connectionViewModel.setVolume(newVolume.toDouble())
+                            },
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Box(
-                        modifier = Modifier
-                            .weight(1.2f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .pointerInput(Unit) {
-                                detectTapGestures { offset ->
-                                    if (width > 0) {
-                                        connectionViewModel.setVolume((offset.x / width).coerceIn(0f, 1f).toDouble())
-                                    }
-                                }
-                            }
-                            .pointerInput(Unit) {
-                                detectHorizontalDragGestures { change, _ ->
-                                    change.consume()
-                                    if (width > 0) {
-                                        connectionViewModel.setVolume((change.position.x / width).coerceIn(0f, 1f).toDouble())
-                                    }
-                                }
-                            }
-                            .onSizeChanged { width = it.width.toFloat() },
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        // Active volume fill
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(animatedVolumeFill)
-                                .fillMaxHeight()
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            MaterialTheme.colorScheme.tertiaryContainer
-                                        )
-                                    )
-                                )
-                        )
 
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .offset {
-                                    val x = (width * animatedVolumeFill - 10.dp.toPx())
-                                        .coerceIn(0f, (width - 20.dp.toPx()).coerceAtLeast(0f))
-                                    IntOffset(x.roundToInt(), 0)
-                                }
-                                .size(20.dp)
-                                .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f), CircleShape)
+                    Slider(
+                        value = volumeValue,
+                        onValueChange = { connectionViewModel.setVolume(it.coerceIn(0f, 1f).toDouble()) },
+                        valueRange = 0f..1f,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                            inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f)
                         )
-                        
-                        // Volume Icon
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                if (volume == 0.0) Icons.Rounded.VolumeOff 
-                                else if (volume < 0.5) Icons.Rounded.VolumeDown 
-                                else Icons.Rounded.VolumeUp,
-                                contentDescription = "Volume",
-                                tint = if (volume > 0) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                } // Closes Enhanced Bar Row
+                    )
+
+                    Icon(
+                        imageVector = Icons.Rounded.VolumeUp,
+                        contentDescription = "Volume up",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .minimumInteractiveComponentSize()
+                            .clickable {
+                                val newVolume = (volumeValue + 0.1f).coerceIn(0f, 1f)
+                                connectionViewModel.setVolume(newVolume.toDouble())
+                            },
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } // Closes inner controls Column
 
             Spacer(modifier = Modifier.weight(1f))
@@ -964,6 +934,12 @@ fun NowPlayingContent(
         }
 
         // Header (Floating) moved to top over album art and column content
+        val trackCounterText = if (queue.isNotEmpty()) {
+            "${(currentIndex + 1).coerceIn(1, queue.size)} / ${queue.size}"
+        } else {
+            "0 / 0"
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -987,6 +963,12 @@ fun NowPlayingContent(
                     modifier = Modifier.size(28.dp)
                 )
             }
+
+            Text(
+                text = trackCounterText,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Box(
                 modifier = Modifier
