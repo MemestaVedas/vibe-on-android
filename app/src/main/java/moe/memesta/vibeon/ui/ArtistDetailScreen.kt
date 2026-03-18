@@ -25,9 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -43,7 +40,6 @@ import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import androidx.compose.foundation.gestures.scrollBy
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import kotlin.math.abs
 
@@ -115,28 +111,8 @@ fun ArtistDetailScreen(
     }
 
     val scrollState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
     val splitIndex = 1 + albumYearLanes.size
     var hasInitializedStartPosition by remember(decodedArtistName) { mutableStateOf(false) }
-
-    var lastFlingVelocityY by remember { mutableStateOf(0f) }
-    val snapVelocityThreshold = 2500f
-
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override suspend fun onPreFling(available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
-                lastFlingVelocityY = available.y
-                return androidx.compose.ui.unit.Velocity.Zero
-            }
-
-            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
-                if (source == NestedScrollSource.Drag) {
-                    lastFlingVelocityY = 0f
-                }
-                return androidx.compose.ui.geometry.Offset.Zero
-            }
-        }
-    }
 
     val splitProgress by remember {
         derivedStateOf {
@@ -153,12 +129,6 @@ fun ArtistDetailScreen(
         }
     }
 
-    fun currentPositionWeight(): Float {
-        val indexWeight = scrollState.firstVisibleItemIndex.toFloat()
-        val offsetWeight = scrollState.firstVisibleItemScrollOffset / 10000f
-        return indexWeight + offsetWeight
-    }
-
     suspend fun alignSplitBoundaryToCenter() {
         repeat(6) {
             val layoutInfo = scrollState.layoutInfo
@@ -173,37 +143,6 @@ fun ArtistDetailScreen(
                 return
             }
             yield()
-        }
-    }
-
-    fun snapToSection() {
-        if (artistTracks.isEmpty()) return
-
-        val currentWeight = currentPositionWeight()
-        val albumsWeight = 0f
-        val songsWeight = splitIndex.toFloat()
-
-        val targetIndex = when {
-            lastFlingVelocityY <= -snapVelocityThreshold -> splitIndex
-            lastFlingVelocityY >= snapVelocityThreshold -> 0
-            abs(currentWeight - albumsWeight) <= abs(currentWeight - songsWeight) -> 0
-            else -> splitIndex
-        }
-
-        scope.launch {
-            if (targetIndex == splitIndex) {
-                scrollState.animateScrollToItem(splitIndex)
-                alignSplitBoundaryToCenter()
-            } else {
-                scrollState.animateScrollToItem(0)
-            }
-        }
-        lastFlingVelocityY = 0f
-    }
-
-    LaunchedEffect(scrollState.isScrollInProgress) {
-        if (!scrollState.isScrollInProgress) {
-            snapToSection()
         }
     }
 
@@ -248,8 +187,7 @@ fun ArtistDetailScreen(
         LazyColumn(
             state = scrollState,
             modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(nestedScrollConnection),
+                .fillMaxSize(),
             contentPadding = PaddingValues(
                 top = 0.dp,
                 bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
