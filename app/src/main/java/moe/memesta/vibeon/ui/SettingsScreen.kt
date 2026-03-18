@@ -33,6 +33,7 @@ import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.local.FavoriteDevice
 import moe.memesta.vibeon.data.local.FavoritesManager
 import moe.memesta.vibeon.data.local.LibraryViewStyle
+import moe.memesta.vibeon.data.local.ScrubberMode
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 
@@ -95,6 +96,7 @@ fun SettingsScreen(
     val displayLanguage by playerSettingsRepository.displayLanguage.collectAsState()
     val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsState()
     val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsState()
+    val scrubberMode by playerSettingsRepository.scrubberMode.collectAsState()
     
     LazyColumn(
         modifier = Modifier
@@ -466,6 +468,25 @@ fun SettingsScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    ListItem(
+                        headlineContent = { Text("Progress bar style") },
+                        supportingContent = {
+                            Text(if (scrubberMode == ScrubberMode.WAVEFORM) "Waveform" else "Classic bar")
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = scrubberMode == ScrubberMode.WAVEFORM,
+                                onCheckedChange = {
+                                    playerSettingsRepository.setScrubberMode(
+                                        if (it) ScrubberMode.WAVEFORM else ScrubberMode.CLASSIC
+                                    )
+                                }
+                            )
+                        }
+                    )
                 }
             }
         }

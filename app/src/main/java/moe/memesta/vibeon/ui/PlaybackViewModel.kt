@@ -14,9 +14,18 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.WebSocketClient
 import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.PlaybackService
+import moe.memesta.vibeon.data.local.PlayerSettingsRepository
+import moe.memesta.vibeon.data.local.ScrubberMode
+
+data class HeartBurstEvent(
+    val x: Float,
+    val y: Float,
+    val timestampMs: Long = System.currentTimeMillis()
+)
 
 class PlaybackViewModel(
     private val webSocketClient: WebSocketClient,
+    private val playerSettingsRepository: PlayerSettingsRepository,
     private var player: Player? = null
 ) : ViewModel() {
 
@@ -34,6 +43,13 @@ class PlaybackViewModel(
 
     private val _offlineSong = MutableStateFlow<OfflineSong?>(null)
     val offlineSong: StateFlow<OfflineSong?> = _offlineSong.asStateFlow()
+
+    val scrubberMode: StateFlow<ScrubberMode> = playerSettingsRepository.scrubberMode
+    val sheetHintShown: StateFlow<Boolean> = playerSettingsRepository.sheetHintShown
+    val artGestureHintShown: StateFlow<Boolean> = playerSettingsRepository.artGestureHintShown
+
+    private val _heartBurstEvent = MutableStateFlow<HeartBurstEvent?>(null)
+    val heartBurstEvent: StateFlow<HeartBurstEvent?> = _heartBurstEvent.asStateFlow()
 
     // ── Internal ─────────────────────────────────────────────────────────
     private var pendingStreamUrl: String? = null
@@ -281,6 +297,30 @@ class PlaybackViewModel(
 
     fun setPlayerPlayWhenReady(playWhenReady: Boolean) {
         player?.playWhenReady = playWhenReady
+    }
+
+    fun setScrubberMode(mode: ScrubberMode) {
+        playerSettingsRepository.setScrubberMode(mode)
+    }
+
+    fun toggleScrubberMode() {
+        playerSettingsRepository.toggleScrubberMode()
+    }
+
+    fun markSheetHintShown() {
+        playerSettingsRepository.setSheetHintShown(true)
+    }
+
+    fun markArtGestureHintShown() {
+        playerSettingsRepository.setArtGestureHintShown(true)
+    }
+
+    fun triggerHeartBurst(x: Float, y: Float) {
+        _heartBurstEvent.value = HeartBurstEvent(x = x, y = y)
+    }
+
+    fun clearHeartBurst() {
+        _heartBurstEvent.value = null
     }
 
     fun seekTo(positionMs: Long) {

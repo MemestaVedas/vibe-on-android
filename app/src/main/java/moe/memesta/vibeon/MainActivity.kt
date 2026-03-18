@@ -114,7 +114,10 @@ val appContainer = VibeonApp.instance.container
         playbackViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return PlaybackViewModel(webSocketClient = appContainer.webSocketClient) as T
+                return PlaybackViewModel(
+                    webSocketClient = appContainer.webSocketClient,
+                    playerSettingsRepository = appContainer.playerSettingsRepository
+                ) as T
             }
         })[PlaybackViewModel::class.java]
         
