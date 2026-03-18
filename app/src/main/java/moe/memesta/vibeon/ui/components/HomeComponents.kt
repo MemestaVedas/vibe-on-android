@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
@@ -176,18 +177,19 @@ fun AlbumCard(
     coverUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    cardSize: Dp = Dimens.StandardCardWidth,
     allowImageLoad: Boolean = true,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     Column(
         modifier = modifier
-            .width(Dimens.StandardCardWidth)
+            .width(cardSize)
             .bouncyClickable(scaleDown = 0.96f, indication = null) { onClick() }
     ) {
         Box(
             modifier = Modifier
-                .size(Dimens.StandardCardWidth)
+                .size(cardSize)
                 .then(
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                         with(sharedTransitionScope) {

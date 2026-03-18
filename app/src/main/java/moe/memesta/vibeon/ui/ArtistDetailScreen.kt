@@ -28,14 +28,10 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import androidx.navigation.NavController
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
@@ -63,7 +59,6 @@ fun ArtistDetailScreen(
 ) {
     val displayLanguage = LocalDisplayLanguage.current
     val tracks by viewModel.tracks.collectAsState()
-    val homeArtists by viewModel.homeArtists.collectAsState()
     
     // Decode URL-encoded artist name
     val decodedArtistName = remember(artistName) {
@@ -77,12 +72,7 @@ fun ArtistDetailScreen(
     val artistTracks = remember(tracks, decodedArtistName) {
         tracks.filter { it.artist == decodedArtistName }
     }
-    
-    // Get artist photo from HomeArtists list
-    val artistInfo = remember(homeArtists, decodedArtistName) {
-        homeArtists.find { it.name == decodedArtistName }
-    }
-    val photoUrl = artistInfo?.photoUrl ?: artistTracks.firstOrNull()?.coverUrl
+
     val displayArtistName = artistTracks.firstOrNull()?.getDisplayArtist(displayLanguage) ?: decodedArtistName
     
     // Derived Albums
@@ -124,8 +114,7 @@ fun ArtistDetailScreen(
 
     val scrollState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    var titleLayout by remember(displayArtistName) { mutableStateOf<TextLayoutResult?>(null) }
-    val splitIndex = 2 + albumYearLanes.size
+    val splitIndex = 1 + albumYearLanes.size
     var hasInitializedStartPosition by remember(decodedArtistName) { mutableStateOf(false) }
 
     var lastFlingVelocityY by remember { mutableStateOf(0f) }
@@ -245,42 +234,21 @@ fun ArtistDetailScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(86.dp))
-                ArtistTopZone(
-                    displayArtistName = displayArtistName,
-                    decodedArtistName = decodedArtistName,
-                    photoUrl = photoUrl,
-                    artistAlbumsCount = artistAlbums.size,
-                    artistTracksCount = artistTracks.size,
-                    splitProgress = splitProgress,
-                    titleLayout = titleLayout,
-                    onTitleLayout = { titleLayout = it },
-                    onPlay = {
-                        if (artistTracks.isNotEmpty()) {
-                            viewModel.playArtist(decodedArtistName)
-                            onTrackSelected(artistTracks.first())
-                        }
-                    },
-                    onShuffle = {
-                        if (artistTracks.isNotEmpty()) {
-                            viewModel.playTrack(artistTracks.random(), artistTracks)
-                            onTrackSelected(artistTracks.first())
-                        }
-                    },
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-
-            item {
                 Text(
                     text = "Albums",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = albumsLabelAlpha),
                     modifier = Modifier
                         .offset { IntOffset(0, albumsHeaderOffsetY.toInt()) }
                         .padding(horizontal = Dimens.ScreenPadding)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Swipe up for albums",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenPadding)
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -299,7 +267,22 @@ fun ArtistDetailScreen(
                 SplitBoundary(
                     dividerColor = dividerColor,
                     songsLabelAlpha = songsLabelAlpha,
-                    albumsCount = artistAlbums.size
+                    artistName = displayArtistName,
+                    albumsCount = artistAlbums.size,
+                    songsCount = artistTracks.size,
+                    onPlay = {
+                        if (artistTracks.isNotEmpty()) {
+                            viewModel.playArtist(decodedArtistName)
+                            onTrackSelected(artistTracks.first())
+                        }
+                    },
+                    onShuffle = {
+                        if (artistTracks.isNotEmpty()) {
+                            val shuffledTrack = artistTracks.random()
+                            viewModel.playTrack(shuffledTrack, artistTracks)
+                            onTrackSelected(shuffledTrack)
+                        }
+                    }
                 )
             }
 
@@ -417,128 +400,6 @@ fun ArtistDetailScreen(
 
 @Composable
 @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-private fun ArtistTopZone(
-    displayArtistName: String,
-    decodedArtistName: String,
-    photoUrl: String?,
-    artistAlbumsCount: Int,
-    artistTracksCount: Int,
-    splitProgress: Float,
-    titleLayout: TextLayoutResult?,
-    onTitleLayout: (TextLayoutResult) -> Unit,
-    onPlay: () -> Unit,
-    onShuffle: () -> Unit,
-    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?
-) {
-    val avatarScale by animateFloatAsState(
-        targetValue = (1f - splitProgress * 0.14f).coerceIn(0.86f, 1f),
-        animationSpec = MotionTokens.Spatial.standard(),
-        label = "avatarScale"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Dimens.ScreenPadding),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (!photoUrl.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .size(112.dp)
-                    .graphicsLayer {
-                        scaleX = avatarScale
-                        scaleY = avatarScale
-                    }
-                    .then(
-                        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                            with(sharedTransitionScope) {
-                                Modifier.sharedElement(
-                                    sharedContentState = rememberSharedContentState(key = "artist-${decodedArtistName}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
-                        } else Modifier
-                    )
-                    .clip(RoundedCornerShape(56.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                AsyncImage(
-                    model = photoUrl,
-                    contentDescription = decodedArtistName,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-        }
-
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val titleStyle = MaterialTheme.typography.displayMedium
-            val maxLineWidthPx = constraints.maxWidth * 0.88f
-            val measuredLineWidth = titleLayout?.getLineRight(0) ?: 0f
-            val isWideTitle = measuredLineWidth > maxLineWidthPx
-            val dynamicWeight = if (isWideTitle) FontWeight.Medium else FontWeight.Black
-            val dynamicLetterSpacing = if (isWideTitle) (-0.1).sp else (-0.8).sp
-
-            Text(
-                text = displayArtistName,
-                style = titleStyle,
-                fontWeight = dynamicWeight,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                letterSpacing = dynamicLetterSpacing,
-                onTextLayout = onTitleLayout
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Text(
-                text = "$artistAlbumsCount Albums • $artistTracksCount Tracks",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Button(
-                onClick = onPlay,
-                contentPadding = PaddingValues(horizontal = 26.dp, vertical = 12.dp)
-            ) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Play")
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            OutlinedButton(onClick = onShuffle) {
-                Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Shuffle")
-            }
-        }
-    }
-}
-
-@Composable
-@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 private fun YearAlbumLane(
     lane: ArtistAlbumYearLane,
     navController: NavController,
@@ -561,6 +422,7 @@ private fun YearAlbumLane(
             AlbumCard(
                 albumName = album.displayAlbum,
                 coverUrl = album.coverUrl,
+                cardSize = Dimens.StandardCardWidth + 24.dp,
                 onClick = {
                     navController.navigate("album/${java.net.URLEncoder.encode(album.albumId, "UTF-8")}")
                 },
@@ -575,7 +437,11 @@ private fun YearAlbumLane(
 private fun SplitBoundary(
     dividerColor: Color,
     songsLabelAlpha: Float,
-    albumsCount: Int
+    artistName: String,
+    albumsCount: Int,
+    songsCount: Int,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -598,17 +464,33 @@ private fun SplitBoundary(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Albums $albumsCount",
+                text = "Albums",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            HorizontalDivider(
+            Column(
                 modifier = Modifier.weight(1f),
-                color = dividerColor.copy(alpha = 0.45f)
-            )
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = artistName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "$albumsCount albums • $songsCount songs",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             Spacer(modifier = Modifier.width(8.dp))
 
@@ -618,6 +500,30 @@ private fun SplitBoundary(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = songsLabelAlpha)
             )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = onPlay,
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+            ) {
+                Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Play")
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            OutlinedButton(onClick = onShuffle) {
+                Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Shuffle")
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
