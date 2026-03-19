@@ -1022,57 +1022,26 @@ fun NowPlayingContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Borderless secondary controls + standard M3 volume slider
-                Row(
+                PixelStyleToggleRow(
+                    isMobilePlayback = isMobilePlayback,
+                    isShuffled = isShuffled,
+                    repeatMode = repeatMode,
+                    onTogglePlaybackLocation = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onTogglePlaybackLocation()
+                    },
+                    onShuffleToggle = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        connectionViewModel.toggleShuffle()
+                    },
+                    onRepeatToggle = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        connectionViewModel.toggleRepeat()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .minimumInteractiveComponentSize(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onTogglePlaybackLocation()
-                        },
-                        modifier = Modifier.minimumInteractiveComponentSize()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Cast,
-                            contentDescription = if (isMobilePlayback) "Switch to computer playback" else "Switch to mobile playback",
-                            tint = if (isMobilePlayback) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    IconToggleButton(
-                        checked = isShuffled,
-                        onCheckedChange = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            connectionViewModel.toggleShuffle()
-                        },
-                        modifier = Modifier.minimumInteractiveComponentSize()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = if (isShuffled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            connectionViewModel.toggleRepeat()
-                        },
-                        modifier = Modifier.minimumInteractiveComponentSize()
-                    ) {
-                        Icon(
-                            imageVector = if (repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                            contentDescription = "Repeat",
-                            tint = if (repeatMode == "all" || repeatMode == "one") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                        .padding(horizontal = 24.dp)
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -1108,6 +1077,102 @@ fun NowPlayingContent(
                             activeTrackColor = MaterialTheme.colorScheme.primaryContainer,
                             inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f)
                         )
+
+                        @Composable
+                        private fun PixelStyleToggleRow(
+                            isMobilePlayback: Boolean,
+                            isShuffled: Boolean,
+                            repeatMode: String,
+                            onTogglePlaybackLocation: () -> Unit,
+                            onShuffleToggle: () -> Unit,
+                            onRepeatToggle: () -> Unit,
+                            modifier: Modifier = Modifier
+                        ) {
+                            val rowShape = RoundedCornerShape(30.dp)
+
+                            Surface(
+                                modifier = modifier,
+                                shape = rowShape,
+                                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    PixelStyleToggleButton(
+                                        modifier = Modifier.weight(1f),
+                                        active = isMobilePlayback,
+                                        icon = if (isMobilePlayback) Icons.Rounded.PhoneAndroid else Icons.Rounded.Computer,
+                                        contentDescription = if (isMobilePlayback) "Switch to computer playback" else "Switch to mobile playback",
+                                        activeColor = MaterialTheme.colorScheme.tertiary,
+                                        activeContentColor = MaterialTheme.colorScheme.onTertiary,
+                                        inactiveColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = onTogglePlaybackLocation
+                                    )
+
+                                    PixelStyleToggleButton(
+                                        modifier = Modifier.weight(1f),
+                                        active = isShuffled,
+                                        icon = Icons.Rounded.Shuffle,
+                                        contentDescription = "Shuffle",
+                                        activeColor = MaterialTheme.colorScheme.primary,
+                                        activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                                        inactiveColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = onShuffleToggle
+                                    )
+
+                                    val repeatActive = repeatMode == "all" || repeatMode == "one"
+                                    PixelStyleToggleButton(
+                                        modifier = Modifier.weight(1f),
+                                        active = repeatActive,
+                                        icon = if (repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                                        contentDescription = "Repeat",
+                                        activeColor = MaterialTheme.colorScheme.secondary,
+                                        activeContentColor = MaterialTheme.colorScheme.onSecondary,
+                                        inactiveColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = onRepeatToggle
+                                    )
+                                }
+                            }
+                        }
+
+                        @Composable
+                        private fun PixelStyleToggleButton(
+                            modifier: Modifier,
+                            active: Boolean,
+                            icon: androidx.compose.ui.graphics.vector.ImageVector,
+                            contentDescription: String,
+                            activeColor: Color,
+                            activeContentColor: Color,
+                            inactiveColor: Color,
+                            inactiveContentColor: Color,
+                            onClick: () -> Unit
+                        ) {
+                            Surface(
+                                onClick = onClick,
+                                modifier = modifier
+                                    .height(52.dp)
+                                    .minimumInteractiveComponentSize(),
+                                shape = RoundedCornerShape(26.dp),
+                                color = if (active) activeColor else inactiveColor,
+                                contentColor = if (active) activeContentColor else inactiveContentColor,
+                                tonalElevation = if (active) 2.dp else 0.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = contentDescription,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
                     )
 
                     Icon(
