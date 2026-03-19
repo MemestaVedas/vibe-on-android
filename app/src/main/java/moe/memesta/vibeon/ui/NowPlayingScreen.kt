@@ -563,7 +563,7 @@ fun NowPlayingContent(
             label = "artGlowAlpha"
         )
         val configuration = LocalConfiguration.current
-        val albumCardSize = configuration.screenWidthDp.dp * 0.82f
+        val albumCardSize = configuration.screenWidthDp.dp
         val albumCardShape = RoundedCornerShape(
             topStart = 16.dp,
             topEnd = 16.dp,
@@ -814,7 +814,6 @@ fun NowPlayingContent(
                         overflow = TextOverflow.Clip,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fadingEdgeMask()
                             .basicMarquee(iterations = Int.MAX_VALUE)
                     )
                 }
