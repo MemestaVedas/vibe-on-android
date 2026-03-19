@@ -529,10 +529,10 @@ fun HomeScreen(
                         SectionHeader(
                             "Albums", 
                             onSeeAllClick = onViewAllAlbums,
-                            modifier = Modifier.padding(top = Dimens.SectionPadding)
+                            modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
                         FadeEdgeLazyRow(
-                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                            contentPadding = PaddingValues(horizontal = 0.dp),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
@@ -580,10 +580,10 @@ fun HomeScreen(
                         SectionHeader(
                             "Top Artists", 
                             onSeeAllClick = onViewAllArtists,
-                            modifier = Modifier.padding(top = Dimens.SectionPadding)
+                            modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
                         FadeEdgeLazyRow(
-                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                            contentPadding = PaddingValues(horizontal = 0.dp),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
                         ) {
                             items(
@@ -631,10 +631,10 @@ fun HomeScreen(
                         SectionHeader(
                             title = "Your Songs", 
                             onSeeAllClick = onViewAllSongs,
-                            modifier = Modifier.padding(top = Dimens.SectionPadding)
+                            modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
                         FadeEdgeLazyRow(
-                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                            contentPadding = PaddingValues(horizontal = 0.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(
