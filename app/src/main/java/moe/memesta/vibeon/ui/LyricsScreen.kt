@@ -220,20 +220,51 @@ private enum class LyricsViewModeToggleData(val mode: LyricsViewMode, val label:
 }
 
 fun parseLrc(lrc: String): List<LyricGroup> {
-    val regex = "\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})\\](.*)".toRegex()
+    val timestampRegex = "\\[\\s*(\\d{1,2})\\s*:\\s*(\\d{2})(?:\\s*[.:]\\s*(\\d{1,3}))?\\s*]".toRegex()
     val entries = mutableListOf<TempLyricEntry>()
 
-    lrc.lineSequence().forEach { line ->
-        regex.find(line)?.let { match ->
-            val (min, sec, ms, textRaw) = match.destructured
-            val timestamp = min.toLong() * 60000 + sec.toLong() * 1000 + ms.padEnd(3, '0').take(3).toLong()
-            val text = textRaw.trim()
+    val normalizedLrc = lrc
+        .replace("\\r\\n", "\n")
+        .replace("\\n", "\n")
+        .replace("\\r", "\n")
+
+    normalizedLrc.lineSequence().forEach { rawLine ->
+        val line = rawLine.trim()
+        if (line.isEmpty()) return@forEach
+
+        val tags = timestampRegex.findAll(line).toList()
+        if (tags.isEmpty()) return@forEach
+
+        val segments = tags.mapIndexed { index, tag ->
+            val segmentStart = tag.range.last + 1
+            val segmentEnd = tags.getOrNull(index + 1)?.range?.first ?: line.length
+            line.substring(segmentStart, segmentEnd).trim()
+        }
+
+        val commonLineForAllTags =
+            tags.size > 1 &&
+                segments.dropLast(1).all { it.isEmpty() } &&
+                segments.lastOrNull().orEmpty().isNotEmpty()
+
+        tags.forEachIndexed { index, tag ->
+            val min = tag.groupValues[1]
+            val sec = tag.groupValues[2]
+            val fraction = tag.groupValues.getOrNull(3).orEmpty()
+            val timestamp = min.toLong() * 60000 + sec.toLong() * 1000 + fraction.padEnd(3, '0').take(3).toLong()
+
+            val text = if (commonLineForAllTags) {
+                segments.lastOrNull().orEmpty()
+            } else {
+                segments[index]
+            }
+
             if (text.isNotBlank()) {
-                // Split by " / " to support inline dual lyrics
                 if (text.contains(" / ")) {
-                    val parts = text.split(" / ")
-                    parts.forEach { part ->
-                        entries.add(TempLyricEntry(timestamp, part.trim()))
+                    text.split(" / ").forEach { part ->
+                        val cleanedPart = part.trim()
+                        if (cleanedPart.isNotEmpty()) {
+                            entries.add(TempLyricEntry(timestamp, cleanedPart))
+                        }
                     }
                 } else {
                     entries.add(TempLyricEntry(timestamp, text))
@@ -241,6 +272,7 @@ fun parseLrc(lrc: String): List<LyricGroup> {
             }
         }
     }
+
     return entries.groupBy { it.timestamp }
         .map { (timestamp, groupEntries) ->
             LyricGroup(timestamp, groupEntries.map { it.text })
@@ -299,11 +331,22 @@ fun buildLyricsForView(
         }
     }
 
-    return lyricsData.plainLyrics
-        ?.takeIf { it.isNotBlank() }
-        ?.lines()
-        ?.map { LyricGroup(0, listOf(it)) }
-        .orEmpty()
+    val plainRaw = lyricsData.plainLyrics?.takeIf { it.isNotBlank() }
+    if (plainRaw != null) {
+        val parsedFromPlain = parseLrc(plainRaw)
+        if (parsedFromPlain.isNotEmpty()) return parsedFromPlain
+
+        return plainRaw
+            .replace("\\r\\n", "\n")
+            .replace("\\n", "\n")
+            .replace("\\r", "\n")
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { LyricGroup(0, listOf(it)) }
+    }
+
+    return emptyList()
 }
 
 private fun mapUntimedRomajiToSyncedTimeline(
