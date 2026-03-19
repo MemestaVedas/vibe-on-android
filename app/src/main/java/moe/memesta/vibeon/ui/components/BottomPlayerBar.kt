@@ -411,6 +411,8 @@ private fun AlbumArtWithPulse(
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedKey: String
 ) {
+    val miniArtShape = RoundedCornerShape(14.dp)
+
     Box(
         modifier = Modifier.size(52.dp),
         contentAlignment = Alignment.Center
@@ -423,8 +425,8 @@ private fun AlbumArtWithPulse(
                         sharedContentState = rememberSharedContentState(key = "album-$sharedKey"),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
-                    .clip(AlbumArtStarShape)
-                    .border(1.dp, MaterialTheme.colorScheme.primary, AlbumArtStarShape)
+                    .clip(miniArtShape)
+                    .border(1.dp, MaterialTheme.colorScheme.primary, miniArtShape)
                     .background(Color.DarkGray)
             ) {
                 if (coverUrl != null) {
@@ -432,7 +434,7 @@ private fun AlbumArtWithPulse(
                     val request = remember(coverUrl) {
                         coil.request.ImageRequest.Builder(context)
                             .data(coverUrl)
-                            .crossfade(true)
+                            .crossfade(false)
                             .build()
                     }
                     AsyncImage(

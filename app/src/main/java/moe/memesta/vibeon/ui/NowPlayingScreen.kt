@@ -728,6 +728,7 @@ fun NowPlayingContent(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .clip(albumCardShape)
                                 .sharedElement(
                                     sharedContentState = rememberSharedContentState(key = "album-${item.stableKey}"),
                                     animatedVisibilityScope = animatedVisibilityScope
@@ -735,8 +736,15 @@ fun NowPlayingContent(
                             contentAlignment = Alignment.Center
                         ) {
                             if (!displayCover.isNullOrEmpty()) {
+                                val context = LocalContext.current
+                                val artRequest = remember(displayCover) {
+                                    ImageRequest.Builder(context)
+                                        .data(displayCover)
+                                        .crossfade(false)
+                                        .build()
+                                }
                                 AsyncImage(
-                                    model = displayCover,
+                                    model = artRequest,
                                     contentDescription = "Album Art",
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop // Immersive crop
