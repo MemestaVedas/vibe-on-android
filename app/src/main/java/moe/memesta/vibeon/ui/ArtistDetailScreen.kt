@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
-import moe.memesta.vibeon.ui.components.AlbumTrackRow
+import moe.memesta.vibeon.ui.AlbumTrackRow
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.MotionTokens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
