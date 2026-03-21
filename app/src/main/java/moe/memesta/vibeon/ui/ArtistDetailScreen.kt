@@ -18,6 +18,9 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.*
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.material3.carousel.CarouselItemScope
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +28,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -32,8 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
+import moe.memesta.vibeon.ui.components.AlbumTrackRow
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.MotionTokens
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
@@ -194,7 +204,20 @@ fun ArtistDetailScreen(
             )
         ) {
             item {
-                Spacer(modifier = Modifier.height(86.dp))
+                ArtistHeaderBanner(
+                    artistName = displayArtistName,
+                    albumsCount = artistAlbums.size,
+                    songsCount = artistTracks.size,
+                    coverUrl = artistTracks.firstOrNull()?.coverUrl,
+                    onShuffle = {
+                        if (artistTracks.isNotEmpty()) {
+                            val shuffledTrack = artistTracks.random()
+                            viewModel.playTrack(shuffledTrack, artistTracks)
+                            onTrackSelected(shuffledTrack)
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "Albums",
                     style = MaterialTheme.typography.headlineSmall,
@@ -203,13 +226,6 @@ fun ArtistDetailScreen(
                     modifier = Modifier
                         .offset { IntOffset(0, albumsHeaderOffsetY.toInt()) }
                         .padding(horizontal = Dimens.ScreenPadding)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Swipe up for albums",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = Dimens.ScreenPadding)
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -225,27 +241,18 @@ fun ArtistDetailScreen(
             }
 
             item(key = "split-anchor") {
-                SplitBoundary(
-                    dividerColor = dividerColor,
-                    songsLabelAlpha = songsLabelAlpha,
-                    artistName = displayArtistName,
-                    albumsCount = artistAlbums.size,
-                    songsCount = artistTracks.size,
-                    onPlay = {
-                        if (artistTracks.isNotEmpty()) {
-                            viewModel.playArtist(decodedArtistName)
-                            onTrackSelected(artistTracks.first())
-                        }
-                    },
-                    onShuffle = {
-                        if (artistTracks.isNotEmpty()) {
-                            val shuffledTrack = artistTracks.random()
-                            viewModel.playTrack(shuffledTrack, artistTracks)
-                            onTrackSelected(shuffledTrack)
-                        }
-                    }
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Songs",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = songsLabelAlpha),
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenPadding)
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
+
+
 
             songsAlbumOrder.forEach { album ->
                 item(key = "album-header-${album.albumId}") {
@@ -360,7 +367,7 @@ fun ArtistDetailScreen(
 }
 
 @Composable
-@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 private fun YearAlbumLane(
     lane: ArtistAlbumYearLane,
     navController: NavController,
@@ -374,122 +381,174 @@ private fun YearAlbumLane(
         modifier = Modifier.padding(horizontal = Dimens.ScreenPadding, vertical = 4.dp)
     )
 
-    LazyRow(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
-        horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-    ) {
-        items(lane.albums) { album ->
-            AlbumCard(
-                albumName = album.displayAlbum,
-                coverUrl = album.coverUrl,
-                cardSize = Dimens.StandardCardWidth + 24.dp,
-                onClick = {
+    val carouselState = rememberCarouselState { lane.albums.size }
+
+    HorizontalMultiBrowseCarousel(
+        state = carouselState,
+        preferredItemWidth = Dimens.StandardCardWidth + 24.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(Dimens.StandardCardWidth + 24.dp),
+        itemSpacing = Dimens.ItemSpacing,
+        contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding)
+    ) { index ->
+        val album = lane.albums[index]
+        Box(
+            modifier = Modifier
+                .maskClip(MaterialTheme.shapes.extraLarge)
+                .fillMaxSize()
+                .bouncyClickable(scaleDown = 0.96f, indication = null) {
                     navController.navigate("album/${java.net.URLEncoder.encode(album.albumId, "UTF-8")}")
-                },
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope
+                }
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (album.coverUrl != null) {
+                val context = LocalContext.current
+                val request = remember(album.coverUrl) {
+                    ImageRequest.Builder(context)
+                        .data(album.coverUrl)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .crossfade(true)
+                        .build()
+                }
+                AsyncImage(
+                    model = request,
+                    contentDescription = album.displayAlbum,
+                    modifier = Modifier.fillMaxSize()
+                        .then(
+                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                        sharedContentState = rememberSharedContentState(key = "album-${album.displayAlbum}"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                            } else Modifier
+                        ),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Text(
+                    text = album.displayAlbum.take(1).uppercase(),
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+
+            // Dark gradient overlay for text readability
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+                            startY = 150f
+                        )
+                    )
+            )
+
+            Text(
+                text = album.displayAlbum,
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
             )
         }
     }
 }
 
 @Composable
-private fun SplitBoundary(
-    dividerColor: Color,
-    songsLabelAlpha: Float,
+private fun ArtistHeaderBanner(
     artistName: String,
     albumsCount: Int,
     songsCount: Int,
-    onPlay: () -> Unit,
+    coverUrl: String?,
     onShuffle: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Dimens.ScreenPadding)
+            .height(300.dp)
     ) {
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .border(
-                    width = 1.dp,
-                    color = dividerColor.copy(alpha = 0.38f),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.26f))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(260.dp)
+                .clip(RoundedCornerShape(bottomStart = 48.dp, bottomEnd = 48.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
-            Text(
-                text = "Albums",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
+            if (coverUrl != null) {
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.6f)
+                                )
+                            )
+                        )
+                )
+            }
             Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(24.dp)
             ) {
                 Text(
                     text = artistName,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = Color.White
                 )
                 Text(
-                    text = "$albumsCount albums • $songsCount songs",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = "$albumsCount albums",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.8f)
                 )
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = "Songs",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = songsLabelAlpha)
-            )
         }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+        
+        Text(
+            text = "$songsCount songs",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 24.dp, bottom = 0.dp)
+        )
+        
+        FloatingActionButton(
+            onClick = onShuffle,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 24.dp, bottom = 12.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Button(
-                onClick = onPlay,
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
-            ) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Play")
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            OutlinedButton(onClick = onShuffle) {
-                Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Shuffle")
-            }
+            Icon(Icons.Rounded.Shuffle, contentDescription = "Shuffle")
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
+
+
 
 private data class ArtistAlbumGroup(
     val albumId: String,
