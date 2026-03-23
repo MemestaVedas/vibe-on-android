@@ -945,8 +945,8 @@ fun NowPlayingContent(
                                 progress = progress,
                                 isPlaying = isPlaying,
                                 thumbColor = MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
-                                activeTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
                                 onSeek = onSeek,
                                 modifier = Modifier
                                     .fillMaxWidth(0.88f)
@@ -967,10 +967,34 @@ fun NowPlayingContent(
                     IconButton(
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            connectionViewModel.toggleShuffle()
+                        },
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(
+                                if (isShuffled) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
+                                CircleShape
+                            )
+                            .minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            Icons.Rounded.Shuffle,
+                            contentDescription = "Shuffle",
+                            tint = if (isShuffled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             onSkipPrevious()
                         },
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(52.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f), CircleShape)
                             .minimumInteractiveComponentSize()
                     ) {
                         Icon(
@@ -980,7 +1004,7 @@ fun NowPlayingContent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(24.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     FloatingActionButton(
                         onClick = {
@@ -1000,7 +1024,7 @@ fun NowPlayingContent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(24.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     IconButton(
                         onClick = {
@@ -1008,7 +1032,8 @@ fun NowPlayingContent(
                             onSkipNext()
                         },
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(52.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f), CircleShape)
                             .minimumInteractiveComponentSize()
                     ) {
                         Icon(
@@ -1017,32 +1042,33 @@ fun NowPlayingContent(
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    val repeatActive = repeatMode == "all" || repeatMode == "one"
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            connectionViewModel.toggleRepeat()
+                        },
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(
+                                if (repeatActive) MaterialTheme.colorScheme.secondary.copy(alpha = 0.22f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
+                                CircleShape
+                            )
+                            .minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            if (repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                            contentDescription = "Repeat",
+                            tint = if (repeatActive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
-
-                PixelStyleToggleRow(
-                    isMobilePlayback = isMobilePlayback,
-                    isShuffled = isShuffled,
-                    repeatMode = repeatMode,
-                    onTogglePlaybackLocation = {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onTogglePlaybackLocation()
-                    },
-                    onShuffleToggle = {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        connectionViewModel.toggleShuffle()
-                    },
-                    onRepeatToggle = {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        connectionViewModel.toggleRepeat()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier
@@ -1050,6 +1076,42 @@ fun NowPlayingContent(
                         .padding(horizontal = 24.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Surface(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTogglePlaybackLocation()
+                        },
+                        shape = RoundedCornerShape(22.dp),
+                        color = if (isMobilePlayback) {
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.26f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+                        },
+                        contentColor = if (isMobilePlayback) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .height(44.dp)
+                            .minimumInteractiveComponentSize()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isMobilePlayback) Icons.Rounded.PhoneAndroid else Icons.Rounded.Computer,
+                                contentDescription = if (isMobilePlayback) "Mobile playback" else "Computer playback",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = if (isMobilePlayback) "Mobile" else "PC",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
                     val volumeValue = volume.toFloat().coerceIn(0f, 1f)
                     Icon(
                         imageVector = Icons.Rounded.VolumeDown,
@@ -1073,8 +1135,8 @@ fun NowPlayingContent(
                             .padding(horizontal = 8.dp),
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                            inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f)
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)
                         )
 
                         )
@@ -1601,9 +1663,9 @@ fun WaveformScrubber(
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val activeBarColor = MaterialTheme.colorScheme.primaryContainer
-    val inactiveBarColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
-    val thumbColor = MaterialTheme.colorScheme.primary
+    val activeBarColor = MaterialTheme.colorScheme.primary
+    val inactiveBarColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f)
+    val thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.95f)
     var widthPx by remember { mutableFloatStateOf(1f) }
     var fineSeek by remember { mutableStateOf(false) }
     val fineScale by animateFloatAsState(

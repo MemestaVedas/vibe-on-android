@@ -123,7 +123,7 @@ fun LyricsScreen(
                     .padding(horizontal = Dimens.SectionSpacing),
                 contentPadding = PaddingValues(top = 64.dp, bottom = 200.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(32.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 itemsIndexed(
                     items = lyrics
@@ -425,7 +425,7 @@ fun LyricGroupItem(
     )
     
     val scale by animateFloatAsState(
-        targetValue = if (isActive) 1.25f else 0.85f,
+        targetValue = if (isActive) 1.12f else 0.92f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -449,6 +449,7 @@ fun LyricGroupItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 20.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -462,7 +463,7 @@ fun LyricGroupItem(
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
                 letterSpacing = 0.5.sp,
-                lineHeight = 36.sp
+                lineHeight = 30.sp
             ),
             color = textColor,
             textAlign = TextAlign.Center,
