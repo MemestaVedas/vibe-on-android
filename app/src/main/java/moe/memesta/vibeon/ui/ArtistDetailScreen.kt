@@ -448,7 +448,7 @@ private fun YearAlbumLane(
                     text = album.displayAlbum.take(1).uppercase(),
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.52f)
                 )
             }
 

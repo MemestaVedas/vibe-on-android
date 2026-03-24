@@ -194,7 +194,7 @@ fun AlbumDetailScreen(
                                 modifier = Modifier
                                     .size(120.dp)
                                     .align(Alignment.Center),
-                                tint = Color.White.copy(alpha = 0.2f)
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.24f)
                             )
                         }
                         
@@ -234,7 +234,7 @@ fun AlbumDetailScreen(
                             Icon(
                                 Icons.Rounded.ArrowBack,
                                 contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurface,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -268,7 +268,7 @@ fun AlbumDetailScreen(
                                 text = displayAlbumName,
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onPrimary,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -276,7 +276,7 @@ fun AlbumDetailScreen(
                                 text = displayArtistName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondary,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.86f),
                                 modifier = Modifier.bouncyClickable(onClick = {
                                     navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
                                 })

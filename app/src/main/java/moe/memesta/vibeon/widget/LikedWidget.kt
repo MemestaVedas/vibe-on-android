@@ -154,7 +154,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                     Image(
                         provider = ImageProvider(R.drawable.finalmono),
                         contentDescription = "Vibe-on",
-                        colorFilter = ColorFilter.tint(ColorProvider(colorOnPrimary)),
+                        colorFilter = ColorFilter.tint(ColorProvider(colorOnPrimaryContainer)),
                         modifier = GlanceModifier.size(34.dp)
                     )
                 }
