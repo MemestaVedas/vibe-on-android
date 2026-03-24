@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
-import moe.memesta.vibeon.ui.theme.MPlusRoundedFont
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.Smartphone
@@ -257,7 +256,7 @@ private fun WelcomePage(
             text = "Your music, everywhere",
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = 16.sp,
-                fontFamily = MPlusRoundedFont,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center
             ),
@@ -325,7 +324,7 @@ private fun ConnectServerPage(contentColor: Color) {
             text = "Keep the desktop app running",
             style = MaterialTheme.typography.bodyMedium.copy(
                 textAlign = TextAlign.Center,
-                fontFamily = MPlusRoundedFont
+                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif
             ),
             color = contentColor.copy(alpha = 0.6f)
         )
@@ -469,7 +468,7 @@ private fun GestureIntroPage(contentColor: Color) {
             text = "Press and hold the nav button\nto switch between pages",
             style = MaterialTheme.typography.bodyMedium.copy(
                 textAlign = TextAlign.Center,
-                fontFamily = MPlusRoundedFont
+                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif
             ),
             color = contentColor.copy(alpha = 0.6f)
         )

@@ -22,7 +22,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
 import moe.memesta.vibeon.ui.theme.MPlusRoundedFont
 
 /**
@@ -196,7 +195,7 @@ private fun WalkthroughStep(
                 text = title,
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontSize = 52.sp,
-                    fontFamily = NorlineFontFamily,
+                    fontFamily = MPlusRoundedFont,
                     fontWeight = FontWeight.Normal,
                     letterSpacing = 3.sp,
                     textAlign = TextAlign.Center

@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,10 +57,11 @@ import moe.memesta.vibeon.ui.ConnectionState
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.components.AlbumPalette
 import moe.memesta.vibeon.ui.components.extractAlbumPalette
-import moe.memesta.vibeon.ui.theme.MPlusRoundedFont
 import moe.memesta.vibeon.ui.utils.ContrastGuard
 
-val NorlineFontFamily = MPlusRoundedFont
+val NorlineFontFamily = FontFamily(
+    Font(R.font.norline_rounded, FontWeight.Normal)
+)
 
 @Composable
 fun ExpressiveStar(modifier: Modifier = Modifier, color: Color) {
@@ -265,18 +267,16 @@ fun PairingScreen(
                 }
                 
                 // CTA text
-                val ctaText = when {
-                    isFailed -> "RETRY"
-                    isConnected -> "LET'S GO!"
-                    isConnecting -> "CONNECTING..."
-                    else -> "CONNECT TO A SERVER"
-                }
-                val ctaUsesNorline = ctaText == "CONNECT TO A SERVER"
                 Text(
-                    text = ctaText,
+                    text = when {
+                        isFailed -> "RETRY"
+                        isConnected -> "LET'S GO!"
+                        isConnecting -> "CONNECTING..."
+                        else -> "CONNECT TO A SERVER"
+                    },
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontSize = 52.sp,
-                        fontFamily = if (ctaUsesNorline) NorlineFontFamily else MPlusRoundedFont,
+                        fontFamily = NorlineFontFamily,
                         fontWeight = FontWeight.Normal,
                         letterSpacing = 1.sp,
                         lineHeight = 56.sp,
@@ -425,18 +425,16 @@ fun PairingScreen(
                     Spacer(modifier = Modifier.weight(0.7f))
 
                     // Title
-                    val heroTitle = when {
-                        isFailed -> "CONNECTION LOST"
-                        isConnected -> "Let's VIBE-ON!"
-                        devices.isNotEmpty() -> "FOUND SERVERS"
-                        else -> "SEARCHING FOR VIBES"
-                    }
-                    val heroUsesNorline = heroTitle == "SEARCHING FOR VIBES"
                     Text(
-                        text = heroTitle,
+                        text = when {
+                            isFailed -> "CONNECTION LOST"
+                            isConnected -> "Let's VIBE-ON!"
+                            devices.isNotEmpty() -> "FOUND SERVERS"
+                            else -> "SEARCHING FOR VIBES"
+                        },
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontSize = if (isConnected || devices.isNotEmpty() || isFailed) 62.sp else 84.sp,
-                            fontFamily = if (heroUsesNorline) NorlineFontFamily else MPlusRoundedFont,
+                            fontFamily = NorlineFontFamily,
                             fontWeight = FontWeight.Normal,
                             letterSpacing = 2.sp,
                             lineHeight = if (isConnected || devices.isNotEmpty() || isFailed) 66.sp else 88.sp,
@@ -458,7 +456,7 @@ fun PairingScreen(
                         },
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 16.sp,
-                            fontFamily = MPlusRoundedFont,
+                            fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center
                         ),

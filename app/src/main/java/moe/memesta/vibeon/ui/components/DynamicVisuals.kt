@@ -319,7 +319,7 @@ fun EmptyLibraryPlaceholder(
         androidx.compose.material3.Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium.copy(
-                fontFamily = moe.memesta.vibeon.ui.pairing.NorlineFontFamily,
+                fontFamily = moe.memesta.vibeon.ui.theme.MPlusRoundedFont,
                 letterSpacing = 2.sp,
                 color = Color.White.copy(alpha = 0.7f)
             )
