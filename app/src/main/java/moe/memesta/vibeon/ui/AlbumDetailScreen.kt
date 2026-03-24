@@ -127,6 +127,16 @@ fun AlbumDetailScreen(
         animationSpec = tween(1000),
         label = "albumMuted"
     )
+    val animatedOnVibrant by animateColorAsState(
+        targetValue = if (themeColors.vibrant != Color.Transparent) themeColors.onVibrant else MaterialTheme.colorScheme.onPrimary,
+        animationSpec = tween(1000),
+        label = "albumOnVibrant"
+    )
+    val animatedOnMuted by animateColorAsState(
+        targetValue = if (themeColors.muted != Color.Transparent) themeColors.onMuted else MaterialTheme.colorScheme.onSecondary,
+        animationSpec = tween(1000),
+        label = "albumOnMuted"
+    )
 
     Box(
         modifier = Modifier
@@ -151,6 +161,7 @@ fun AlbumDetailScreen(
                 ) {
                     // Extract colors on the fly
                     LaunchedEffect(coverUrl) {
+                        themeColors = ThemeColors()
                         if (coverUrl != null) {
                             val loader = AppImageLoader.get(context)
                             val request = ImageRequest.Builder(context)
@@ -194,7 +205,7 @@ fun AlbumDetailScreen(
                                 modifier = Modifier
                                     .size(120.dp)
                                     .align(Alignment.Center),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.24f)
+                                tint = animatedOnVibrant.copy(alpha = 0.24f)
                             )
                         }
                         
@@ -207,8 +218,8 @@ fun AlbumDetailScreen(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
                                             Color.Transparent,
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f),
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+                                            animatedMuted.copy(alpha = 0.48f),
+                                            animatedMuted.copy(alpha = 0.9f)
                                         ),
                                         startY = 100f
                                     )
@@ -229,12 +240,12 @@ fun AlbumDetailScreen(
                             onClick = onBackClick,
                             modifier = Modifier
                                 .size(44.dp)
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), CircleShape)
+                                .background(animatedVibrant.copy(alpha = 0.64f), CircleShape)
                         ) {
                             Icon(
                                 Icons.Rounded.ArrowBack,
                                 contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                tint = animatedOnVibrant,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -243,12 +254,12 @@ fun AlbumDetailScreen(
                             onClick = { showSortSheet = true },
                             modifier = Modifier
                                 .size(44.dp)
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), CircleShape)
+                                .background(animatedMuted.copy(alpha = 0.62f), CircleShape)
                         ) {
                             Icon(
                                 Icons.Rounded.Sort,
                                 contentDescription = "Sort",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                tint = animatedOnMuted,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -268,7 +279,7 @@ fun AlbumDetailScreen(
                                 text = displayAlbumName,
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = animatedOnVibrant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -276,7 +287,7 @@ fun AlbumDetailScreen(
                                 text = displayArtistName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.86f),
+                                color = animatedOnVibrant.copy(alpha = 0.86f),
                                 modifier = Modifier.bouncyClickable(onClick = {
                                     navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
                                 })
@@ -293,7 +304,7 @@ fun AlbumDetailScreen(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .background(animatedMuted)
                                     .bouncyClickable {
                                         if (albumTracks.isNotEmpty()) {
                                             // Shuffle the album tracks and play
@@ -307,7 +318,7 @@ fun AlbumDetailScreen(
                                 Icon(
                                     Icons.Rounded.Shuffle,
                                     contentDescription = "Shuffle",
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    tint = animatedOnMuted,
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
@@ -317,7 +328,7 @@ fun AlbumDetailScreen(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.primary)
+                                    .background(animatedVibrant)
                                     .bouncyClickable {
                                         if (albumTracks.isNotEmpty()) {
                                             viewModel.playAlbum(decodedAlbumName)
@@ -329,7 +340,7 @@ fun AlbumDetailScreen(
                                 Icon(
                                     Icons.Rounded.PlayArrow,
                                     contentDescription = "Play All",
-                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    tint = animatedOnVibrant,
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
@@ -386,7 +397,7 @@ fun AlbumDetailScreen(
                             text = "Disc $currentDisc",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = animatedVibrant,
                             modifier = Modifier.padding(horizontal = Dimens.ScreenPadding, vertical = 12.dp)
                         )
                     }
