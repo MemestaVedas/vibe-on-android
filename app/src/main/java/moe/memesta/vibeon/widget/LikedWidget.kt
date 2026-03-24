@@ -99,8 +99,8 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
     val colorOnPrimary            = Color(state.colorOnPrimary)
     val colorSecondaryContainer   = Color(state.colorSecondaryContainer)
     val colorOnSecondaryContainer = Color(state.colorOnSecondaryContainer)
-    val colorOnSecondary          = Color(state.colorOnSecondary)
     val colorErrorContainer       = Color(state.colorErrorContainer)
+    val colorOnErrorContainer     = Color(state.colorOnErrorContainer)
     val colorPrimaryContainer     = Color(state.colorPrimaryContainer)
     val colorOnPrimaryContainer   = Color(state.colorOnPrimaryContainer)
 
@@ -155,7 +155,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                         provider = ImageProvider(R.drawable.finalmono),
                         contentDescription = "Vibe-on",
                         colorFilter = ColorFilter.tint(ColorProvider(colorOnPrimaryContainer)),
-                        modifier = GlanceModifier.size(34.dp)
+                        modifier = GlanceModifier.size(38.dp)
                     )
                 }
 
@@ -281,6 +281,9 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                     modifier = GlanceModifier
                         .fillMaxHeight()
                         .padding(12.dp)
+                        .size(38.dp)
+                        .cornerRadius(19.dp)
+                        .background(ColorProvider(if (state.isLiked) colorErrorContainer else colorSecondaryContainer))
                         .clickable(
                             actionRunCallback<LikedWidgetActionCallback>(
                                 actionParametersOf(keyAction to ACT_LIKE)
@@ -296,10 +299,10 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                         contentDescription = if (state.isLiked) "Unlike" else "Like",
                         colorFilter = ColorFilter.tint(
                             ColorProvider(
-                                if (state.isLiked) colorErrorContainer else colorOnSecondary
+                                if (state.isLiked) colorOnErrorContainer else colorOnSecondaryContainer
                             )
                         ),
-                        modifier = GlanceModifier.size(28.dp)
+                        modifier = GlanceModifier.size(20.dp)
                     )
                 }
             }

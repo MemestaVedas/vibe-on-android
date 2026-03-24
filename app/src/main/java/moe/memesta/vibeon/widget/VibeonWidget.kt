@@ -111,10 +111,10 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
 
     val primaryColor = Color(playerInfo.colorPrimary)
     val onPrimaryColor = Color(playerInfo.colorOnPrimary)
-    val onSecondaryColor = Color(playerInfo.colorOnSecondary)
     val secondaryContainer = Color(playerInfo.colorSecondaryContainer)
     val onSecondaryContainer = Color(playerInfo.colorOnSecondaryContainer)
     val errorContainer = Color(playerInfo.colorErrorContainer)
+    val onErrorContainer = Color(playerInfo.colorOnErrorContainer)
 
     Box(
         modifier = GlanceModifier
@@ -306,25 +306,36 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             .padding(16.dp),
                         contentAlignment = Alignment.BottomEnd
                     ) {
-                        Image(
-                            provider = if (playerInfo.isLiked)
-                                ImageProvider(R.drawable.ic_widget_heart_filled)
-                            else
-                                ImageProvider(R.drawable.ic_widget_heart_outline),
-                            contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
+                        Box(
                             modifier = GlanceModifier
-                                .size(32.dp)
+                                .size(36.dp)
+                                .cornerRadius(18.dp)
+                                .background(
+                                    ColorProvider(
+                                        if (playerInfo.isLiked) errorContainer else secondaryContainer
+                                    )
+                                )
                                 .clickable(
                                     actionRunCallback<WidgetActionCallback>(
                                         actionParametersOf(keyAction to ACT_LIKE)
                                     )
                                 ),
-                            colorFilter = ColorFilter.tint(
-                                ColorProvider(
-                                    if (playerInfo.isLiked) errorContainer else onSecondaryColor
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                provider = if (playerInfo.isLiked)
+                                    ImageProvider(R.drawable.ic_widget_heart_filled)
+                                else
+                                    ImageProvider(R.drawable.ic_widget_heart_outline),
+                                contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
+                                modifier = GlanceModifier.size(20.dp),
+                                colorFilter = ColorFilter.tint(
+                                    ColorProvider(
+                                        if (playerInfo.isLiked) onErrorContainer else onSecondaryContainer
+                                    )
                                 )
                             )
-                        )
+                        }
                     }
                 }
 
@@ -475,12 +486,19 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                 Spacer(modifier = GlanceModifier.defaultWeight())
 
                 // Like
-                Box(modifier = GlanceModifier.size(48.dp).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_LIKE))), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = GlanceModifier
+                        .size(48.dp)
+                        .cornerRadius(24.dp)
+                        .background(ColorProvider(if (playerInfo.isLiked) errorContainer else secondaryContainer))
+                        .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_LIKE))),
+                    contentAlignment = Alignment.Center
+                ) {
                      Image(
                             provider = if (playerInfo.isLiked) ImageProvider(R.drawable.ic_widget_heart_filled) else ImageProvider(R.drawable.ic_widget_heart_outline),
                             contentDescription = "Like",
-                            modifier = GlanceModifier.size(40.dp),
-                            colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) errorContainer else onSecondaryColor))
+                            modifier = GlanceModifier.size(24.dp),
+                            colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) onErrorContainer else onSecondaryContainer))
                      )
                 }
             }
