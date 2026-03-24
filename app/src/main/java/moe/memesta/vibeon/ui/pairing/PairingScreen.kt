@@ -265,16 +265,18 @@ fun PairingScreen(
                 }
                 
                 // CTA text
+                val ctaText = when {
+                    isFailed -> "RETRY"
+                    isConnected -> "LET'S GO!"
+                    isConnecting -> "CONNECTING..."
+                    else -> "CONNECT TO A SERVER"
+                }
+                val ctaUsesNorline = ctaText == "CONNECT TO A SERVER"
                 Text(
-                    text = when {
-                        isFailed -> "RETRY"
-                        isConnected -> "LET'S GO!"
-                        isConnecting -> "CONNECTING..."
-                        else -> "CONNECT TO A SERVER"
-                    },
+                    text = ctaText,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontSize = 52.sp,
-                        fontFamily = NorlineFontFamily,
+                        fontFamily = if (ctaUsesNorline) NorlineFontFamily else MPlusRoundedFont,
                         fontWeight = FontWeight.Normal,
                         letterSpacing = 1.sp,
                         lineHeight = 56.sp,
@@ -423,16 +425,18 @@ fun PairingScreen(
                     Spacer(modifier = Modifier.weight(0.7f))
 
                     // Title
+                    val heroTitle = when {
+                        isFailed -> "CONNECTION LOST"
+                        isConnected -> "Let's VIBE-ON!"
+                        devices.isNotEmpty() -> "FOUND SERVERS"
+                        else -> "SEARCHING FOR VIBES"
+                    }
+                    val heroUsesNorline = heroTitle == "SEARCHING FOR VIBES"
                     Text(
-                        text = when {
-                            isFailed -> "CONNECTION LOST"
-                            isConnected -> "Let's VIBE-ON!"
-                            devices.isNotEmpty() -> "FOUND SERVERS"
-                            else -> "SEARCHING FOR VIBES"
-                        },
+                        text = heroTitle,
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontSize = if (isConnected || devices.isNotEmpty() || isFailed) 62.sp else 84.sp,
-                            fontFamily = NorlineFontFamily,
+                            fontFamily = if (heroUsesNorline) NorlineFontFamily else MPlusRoundedFont,
                             fontWeight = FontWeight.Normal,
                             letterSpacing = 2.sp,
                             lineHeight = if (isConnected || devices.isNotEmpty() || isFailed) 66.sp else 88.sp,

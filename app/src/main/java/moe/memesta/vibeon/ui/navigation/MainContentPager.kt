@@ -25,6 +25,7 @@ fun MainContentPager(
     contentPadding: PaddingValues,
     onNavigateToPlayer: () -> Unit,
     onSearchClick: () -> Unit,
+    onReplayOnboarding: () -> Unit,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope
 ) {
@@ -100,6 +101,7 @@ fun MainContentPager(
                 libraryViewModel = libraryViewModel,
                 favoritesManager = favoritesManager,
                 playerSettingsRepository = playerSettingsRepository,
+                onReplayOnboarding = onReplayOnboarding,
                 contentPadding = contentPadding
             )
         }

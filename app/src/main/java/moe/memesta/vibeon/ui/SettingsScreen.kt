@@ -43,6 +43,7 @@ fun SettingsScreen(
     libraryViewModel: LibraryViewModel?,
     favoritesManager: FavoritesManager,
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
+    onReplayOnboarding: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
     val appContext = VibeonApp.instance.applicationContext
@@ -315,6 +316,61 @@ fun SettingsScreen(
                     ViewStyleSelector(
                         selectedStyle = artistViewStyle,
                         onStyleSelected = playerSettingsRepository::setArtistViewStyle
+                    )
+                }
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+
+        item {
+            Text(
+                text = "Tutorial",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bouncyClickable { onReplayOnboarding() },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Replay onboarding",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Text(
+                            text = "Show Welcome and tutorial again",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.78f)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Replay onboarding",
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                     )
                 }
             }

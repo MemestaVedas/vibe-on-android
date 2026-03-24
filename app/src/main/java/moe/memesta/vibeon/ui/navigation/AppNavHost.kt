@@ -73,6 +73,8 @@ fun AppNavHost(
         mutableStateOf(!onboardingManager.isWelcomeCompleted)
     }
     var showWalkthrough by remember { mutableStateOf(false) }
+    var replayOnboarding by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var suppressPairingOverlay by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     
     // Handle optimistic navigation when auto-connecting to favorites
     val connectionState by connectionViewModel.connectionState.collectAsState()
@@ -384,6 +386,12 @@ fun AppNavHost(
                             contentPadding = innerPadding,
                             onNavigateToPlayer = { navController.navigate("now_playing") { launchSingleTop = true } },
                             onSearchClick = { navController.navigate("search") },
+                            onReplayOnboarding = {
+                                replayOnboarding = true
+                                suppressPairingOverlay = true
+                                showWalkthrough = false
+                                showWelcome = true
+                            },
                             sharedTransitionScope = this@SharedTransitionLayout,
                             animatedVisibilityScope = this
                         )
@@ -635,6 +643,10 @@ fun AppNavHost(
                         onDismiss = {
                             onboardingManager.isWalkthroughCompleted = true
                             showWalkthrough = false
+                            if (replayOnboarding) {
+                                replayOnboarding = false
+                                suppressPairingOverlay = false
+                            }
                         }
                     )
                 }
@@ -642,7 +654,7 @@ fun AppNavHost(
         } // End of Scaffold
             
         // Pairing Overlay - Covers the app until dismissed, placed OUTSIDE Scaffold
-        if (!userDismissedPairing && !showWelcome) {
+        if (!userDismissedPairing && !showWelcome && !showWalkthrough && !suppressPairingOverlay) {
             // We need to manage scanning
             DisposableEffect(Unit) {
                 connectionViewModel.startScanning()
@@ -694,6 +706,9 @@ fun AppNavHost(
                 onComplete = {
                     onboardingManager.isWelcomeCompleted = true
                     showWelcome = false
+                    if (replayOnboarding || !onboardingManager.isWalkthroughCompleted) {
+                        showWalkthrough = true
+                    }
                 }
             )
         }
