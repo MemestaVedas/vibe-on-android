@@ -268,7 +268,7 @@ fun AlbumDetailScreen(
                                 text = displayAlbumName,
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = animatedVibrant,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -276,7 +276,7 @@ fun AlbumDetailScreen(
                                 text = displayArtistName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = animatedMuted,
+                                color = MaterialTheme.colorScheme.onSecondary,
                                 modifier = Modifier.bouncyClickable(onClick = {
                                     navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
                                 })

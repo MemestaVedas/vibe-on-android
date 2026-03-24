@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -120,6 +121,13 @@ fun ArtistDetailScreen(
         albumYearLanes.asReversed().flatMap { it.albums }
     }
 
+    val latestAlbum = remember(artistAlbums) {
+        artistAlbums.maxWithOrNull(
+            compareBy<ArtistAlbumGroup> { it.year ?: Int.MIN_VALUE }
+                .thenBy { it.displayAlbum }
+        )
+    }
+
     val scrollState = rememberLazyListState()
     val splitIndex = 1 + albumYearLanes.size
     var hasInitializedStartPosition by remember(decodedArtistName) { mutableStateOf(false) }
@@ -204,20 +212,26 @@ fun ArtistDetailScreen(
             )
         ) {
             item {
-                ArtistHeaderBanner(
+                FeaturedLatestAlbumBanner(
                     artistName = displayArtistName,
+                    latestAlbumName = latestAlbum?.displayAlbum,
                     albumsCount = artistAlbums.size,
                     songsCount = artistTracks.size,
-                    coverUrl = artistTracks.firstOrNull()?.coverUrl,
-                    onShuffle = {
-                        if (artistTracks.isNotEmpty()) {
-                            val shuffledTrack = artistTracks.random()
-                            viewModel.playTrack(shuffledTrack, artistTracks)
-                            onTrackSelected(shuffledTrack)
+                    coverUrl = latestAlbum?.coverUrl,
+                    onPlayLatest = {
+                        val latestTracks = latestAlbum?.tracks.orEmpty()
+                        if (latestTracks.isNotEmpty()) {
+                            val firstTrack = latestTracks.first()
+                            viewModel.playTrack(firstTrack, latestTracks)
+                            onTrackSelected(firstTrack)
+                        } else if (artistTracks.isNotEmpty()) {
+                            val firstTrack = artistTracks.first()
+                            viewModel.playTrack(firstTrack, artistTracks)
+                            onTrackSelected(firstTrack)
                         }
                     }
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "Albums",
                     style = MaterialTheme.typography.headlineSmall,
@@ -466,22 +480,25 @@ private fun YearAlbumLane(
 }
 
 @Composable
-private fun ArtistHeaderBanner(
+private fun FeaturedLatestAlbumBanner(
     artistName: String,
+    latestAlbumName: String?,
     albumsCount: Int,
     songsCount: Int,
     coverUrl: String?,
-    onShuffle: () -> Unit
+    onPlayLatest: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
+            .height(410.dp)
     ) {
         Box(
             modifier = Modifier
+                .align(Alignment.Center)
                 .fillMaxWidth()
-                .height(260.dp)
+                .padding(horizontal = Dimens.ScreenPadding)
+                .height(290.dp)
                 .clip(RoundedCornerShape(bottomStart = 48.dp, bottomEnd = 48.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
@@ -505,19 +522,30 @@ private fun ArtistHeaderBanner(
                         )
                 )
             }
+
+            Text(
+                text = "$albumsCount albums",
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.92f),
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .rotate(90f)
+                    .padding(end = 20.dp)
+            )
+
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(24.dp)
             ) {
                 Text(
-                    text = artistName,
+                    text = latestAlbumName ?: artistName,
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White
                 )
                 Text(
-                    text = "$albumsCount albums",
+                    text = artistName,
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White.copy(alpha = 0.8f)
                 )
@@ -531,19 +559,19 @@ private fun ArtistHeaderBanner(
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 24.dp, bottom = 0.dp)
+                .padding(start = Dimens.ScreenPadding, bottom = 6.dp)
         )
         
         FloatingActionButton(
-            onClick = onShuffle,
+            onClick = onPlayLatest,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 12.dp),
+                .padding(end = Dimens.ScreenPadding + 6.dp, bottom = 6.dp),
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             shape = RoundedCornerShape(16.dp)
         ) {
-            Icon(Icons.Rounded.Shuffle, contentDescription = "Shuffle")
+            Icon(Icons.Rounded.PlayArrow, contentDescription = "Play latest album")
         }
     }
 }
