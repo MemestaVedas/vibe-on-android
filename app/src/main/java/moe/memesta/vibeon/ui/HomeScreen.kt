@@ -87,6 +87,7 @@ import moe.memesta.vibeon.ui.components.*
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
+import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
