@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext for localhost and specific server IP -->
-    <!-- Allow cleartext for all local connections -->
-    <base-config cleartextTrafficPermitted="true" />
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!-- Local development and LAN pairing hosts that still use plain ws/http -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain>localhost</domain>
+        <domain>127.0.0.1</domain>
+        <domain>10.0.2.2</domain>
+    </domain-config>
 </network-security-config>
