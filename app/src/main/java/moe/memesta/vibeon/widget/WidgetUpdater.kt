@@ -287,15 +287,15 @@ object WidgetUpdater {
         } catch (e: Exception) {
             Log.e("WidgetUpdater", "Failed to extract colors, using defaults", e)
             return PaletteColors(
-                primary = 0xFF1C1B1F.toInt(),
-                onPrimary = 0xFFFFFFFF.toInt(),
-                secondary = 0xFF49454F.toInt(),
-                onSecondary = 0xFFFFFFFF.toInt(),
+                primary = 0xFFD0BCFF.toInt(),
+                onPrimary = 0xFF381E72.toInt(),
+                secondary = 0xFFCCC2DC.toInt(),
+                onSecondary = 0xFF332D41.toInt(),
                 error = 0xFFE53935.toInt(),
-                primaryContainer = 0xFF1F3140.toInt(),
-                onPrimaryContainer = 0xFFD3E4F7.toInt(),
-                secondaryContainer = 0xFF2B2535.toInt(),
-                onSecondaryContainer = 0xFFEADDFF.toInt(),
+                primaryContainer = 0xFF4F378B.toInt(),
+                onPrimaryContainer = 0xFFEADDFF.toInt(),
+                secondaryContainer = 0xFF4A4458.toInt(),
+                onSecondaryContainer = 0xFFE8DEF8.toInt(),
                 errorContainer = 0xFF8C1D18.toInt(),
                 onErrorContainer = 0xFFF9DEDC.toInt()
             )
