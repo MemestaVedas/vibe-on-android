@@ -28,6 +28,8 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material3.*
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +81,7 @@ import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.AlbumInfo
+import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.*
 import moe.memesta.vibeon.ui.shapes.*
@@ -88,6 +91,7 @@ import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.parseAlbum
 
 // Accent color — now uses MaterialTheme.colorScheme.primary for dynamic theming
 
@@ -95,6 +99,7 @@ private val MPlusRoundedBold = FontFamily(
     Font(R.font.m_plus_rounded_1c_bold, FontWeight.Bold)
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun HomeScreen(
@@ -202,6 +207,29 @@ fun HomeScreen(
     // Pre-calculate chunks for Recently Added grid
     val recentChunks = remember(effectiveTracks) {
         effectiveTracks.take(20).chunked(4)
+    }
+
+    // Follow desktop home logic: prioritize listening history-derived ordering first.
+    val prioritizedAlbums = remember(effectiveAlbums, statsSummary) {
+        val normalizedAlbums = effectiveAlbums.associateBy { parseAlbum(it.name, null).baseName.lowercase() }
+        val summaryAlbumOrder = statsSummary?.topAlbums.orEmpty()
+            .mapNotNull { summaryAlbum ->
+                normalizedAlbums[parseAlbum(summaryAlbum.album, null).baseName.lowercase()]
+            }
+
+        (summaryAlbumOrder + effectiveAlbums)
+            .distinctBy { parseAlbum(it.name, null).baseName.lowercase() }
+            .take(10)
+    }
+
+    val prioritizedArtists = remember(effectiveArtists, statsSummary) {
+        val artistsByName = effectiveArtists.associateBy { it.name.lowercase() }
+        val summaryArtistOrder = statsSummary?.topArtists.orEmpty()
+            .mapNotNull { summaryArtist -> artistsByName[summaryArtist.artist.lowercase()] }
+
+        (summaryArtistOrder + effectiveArtists)
+            .distinctBy { it.name.lowercase() }
+            .take(10)
     }
 
     val isLoading = effectiveTracks.isEmpty() && connectionState == ConnectionState.CONNECTED
@@ -493,30 +521,9 @@ fun HomeScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // Spacer only when hero is genuinely unavailable.
-            // Do not add it during refresh/loading, otherwise the carousel appears permanently below the status area.
-            if (effectiveFeatured.isEmpty()) {
-                item(key = "top_spacer") {
-                    Spacer(modifier = Modifier.statusBarsPadding().height(72.dp))
-                }
+            item(key = "top_spacer") {
+                Spacer(modifier = Modifier.statusBarsPadding().height(72.dp))
             }
-
-            // Section: Featured Carousel (TOP)
-            item(key = "section_featured_carousel") {
-                if (effectiveFeatured.isNotEmpty() && !isLoading) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        HeroHeader(
-                            albums = effectiveFeatured,
-                            onPlayClick = { album -> onAlbumSelected(album.name) },
-                            displayLanguage = displayLanguage,
-                            pullProgress = heroPullProgress,
-                            scrollOffsetPx = heroScrollOffsetPx
-                        )
-                    }
-                }
-            }
-
-            // Transitions are now handled inside HeroHeader for smoother flow
 
             // Section: Albums
             item(key = "section_albums") {
@@ -527,27 +534,17 @@ fun HomeScreen(
                             .padding(bottom = 24.dp)
                     ) {
                         SectionHeader(
-                            "Albums", 
+                            "Jump Back In", 
                             onSeeAllClick = onViewAllAlbums,
                             modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
-                        FadeEdgeLazyRow(
-                            contentPadding = PaddingValues(horizontal = 0.dp),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                        ) {
-                            items(
-                                items = effectiveAlbums.take(5),
-                                key = { "home_album_${it.name}" }
-                            ) { album ->
-                                AlbumCard(
-                                    albumName = album.getDisplayName(displayLanguage),
-                                    coverUrl = album.coverUrl,
-                                    onClick = { onAlbumSelected(album.name) },
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
-                        }
+                        HomeSquishyAlbumCarousel(
+                            albums = prioritizedAlbums,
+                            displayLanguage = displayLanguage,
+                            onAlbumSelected = onAlbumSelected,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
                     }
                 }
                 if (isLoading) {
@@ -578,27 +575,17 @@ fun HomeScreen(
                             .padding(bottom = 24.dp)
                     ) {
                         SectionHeader(
-                            "Top Artists", 
+                            "Your Top Artists", 
                             onSeeAllClick = onViewAllArtists,
                             modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
-                        FadeEdgeLazyRow(
-                            contentPadding = PaddingValues(horizontal = 0.dp),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                        ) {
-                            items(
-                                items = effectiveArtists.take(5),
-                                key = { "artist_${it.name}" }
-                            ) { artist ->
-                                ArtistPill(
-                                    artistName = artist.getDisplayName(displayLanguage),
-                                    photoUrl = artist.photoUrl,
-                                    onClick = { onArtistSelected(artist.name) },
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
-                        }
+                        HomeSquishyArtistCarousel(
+                            artists = prioritizedArtists,
+                            displayLanguage = displayLanguage,
+                            onArtistSelected = onArtistSelected,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
                     }
                 }
                 if (isLoading) {
@@ -1153,6 +1140,146 @@ fun HomeLoadingRefreshIndicator(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+@Composable
+private fun HomeSquishyAlbumCarousel(
+    albums: List<AlbumInfo>,
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage,
+    onAlbumSelected: (String) -> Unit,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?
+) {
+    if (albums.isEmpty()) return
+
+    val carouselState = rememberCarouselState { albums.size }
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val cardWidth = maxWidth * 0.75f
+        val edgePeek = ((maxWidth - cardWidth) / 2f).coerceAtLeast(0.dp)
+
+        HorizontalMultiBrowseCarousel(
+            state = carouselState,
+            preferredItemWidth = cardWidth,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(cardWidth + 42.dp),
+            itemSpacing = Dimens.ItemSpacing,
+            contentPadding = PaddingValues(horizontal = edgePeek)
+        ) { index ->
+            val album = albums[index]
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                AlbumCard(
+                    albumName = album.getDisplayName(displayLanguage),
+                    coverUrl = album.coverUrl,
+                    onClick = { onAlbumSelected(album.name) },
+                    cardSize = cardWidth,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+@Composable
+private fun HomeSquishyArtistCarousel(
+    artists: List<ArtistItemData>,
+    displayLanguage: moe.memesta.vibeon.data.local.DisplayLanguage,
+    onArtistSelected: (String) -> Unit,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?
+) {
+    if (artists.isEmpty()) return
+
+    val carouselState = rememberCarouselState { artists.size }
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val cardWidth = maxWidth * 0.75f
+        val edgePeek = ((maxWidth - cardWidth) / 2f).coerceAtLeast(0.dp)
+
+        HorizontalMultiBrowseCarousel(
+            state = carouselState,
+            preferredItemWidth = cardWidth,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(cardWidth + 50.dp),
+            itemSpacing = Dimens.ItemSpacing,
+            contentPadding = PaddingValues(horizontal = edgePeek)
+        ) { index ->
+            val artist = artists[index]
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .bouncyClickable(scaleDown = 0.96f, indication = null) { onArtistSelected(artist.name) },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(cardWidth)
+                        .then(
+                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                        sharedContentState = rememberSharedContentState(key = "artist-${artist.name}-grid"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                            } else Modifier
+                        )
+                        .clip(ArtistsShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                ) {
+                    if (artist.photoUrl != null) {
+                        val context = LocalContext.current
+                        val request = remember(artist.photoUrl) {
+                            ImageRequest.Builder(context)
+                                .data(artist.photoUrl)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .crossfade(true)
+                                .build()
+                        }
+                        AsyncImage(
+                            model = request,
+                            contentDescription = artist.getDisplayName(displayLanguage),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = artist.getDisplayName(displayLanguage).take(1).uppercase(),
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = artist.getDisplayName(displayLanguage),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
             }
         }
     }

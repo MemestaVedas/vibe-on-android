@@ -37,6 +37,7 @@ import coil.request.ImageRequest
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import moe.memesta.vibeon.data.TrackInfo
@@ -121,13 +122,6 @@ fun ArtistDetailScreen(
         albumYearLanes.asReversed().flatMap { it.albums }
     }
 
-    val latestAlbum = remember(artistAlbums) {
-        artistAlbums.maxWithOrNull(
-            compareBy<ArtistAlbumGroup> { it.year ?: Int.MIN_VALUE }
-                .thenBy { it.displayAlbum }
-        )
-    }
-
     val scrollState = rememberLazyListState()
     val splitIndex = 1 + albumYearLanes.size
     var hasInitializedStartPosition by remember(decodedArtistName) { mutableStateOf(false) }
@@ -207,31 +201,11 @@ fun ArtistDetailScreen(
             modifier = Modifier
                 .fillMaxSize(),
             contentPadding = PaddingValues(
-                top = 0.dp,
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp,
                 bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
             )
         ) {
             item {
-                FeaturedLatestAlbumBanner(
-                    artistName = displayArtistName,
-                    latestAlbumName = latestAlbum?.displayAlbum,
-                    albumsCount = artistAlbums.size,
-                    songsCount = artistTracks.size,
-                    coverUrl = latestAlbum?.coverUrl,
-                    onPlayLatest = {
-                        val latestTracks = latestAlbum?.tracks.orEmpty()
-                        if (latestTracks.isNotEmpty()) {
-                            val firstTrack = latestTracks.first()
-                            viewModel.playTrack(firstTrack, latestTracks)
-                            onTrackSelected(firstTrack)
-                        } else if (artistTracks.isNotEmpty()) {
-                            val firstTrack = artistTracks.first()
-                            viewModel.playTrack(firstTrack, artistTracks)
-                            onTrackSelected(firstTrack)
-                        }
-                    }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "Albums",
                     style = MaterialTheme.typography.headlineSmall,
@@ -332,24 +306,20 @@ fun ArtistDetailScreen(
         }
 
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding(),
-            color = Color.Transparent
+            modifier = Modifier.fillMaxWidth(),
+            color = if (showTitle) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
+            } else {
+                MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
+            }
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
-                    .then(
-                        if (showTitle) Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-                        else Modifier
-                    ),
-                contentAlignment = Alignment.CenterStart
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+
                 Row(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .height(64.dp)
                         .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -397,26 +367,30 @@ private fun YearAlbumLane(
 
     val carouselState = rememberCarouselState { lane.albums.size }
 
-    HorizontalMultiBrowseCarousel(
-        state = carouselState,
-        preferredItemWidth = Dimens.StandardCardWidth + 24.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(Dimens.StandardCardWidth + 24.dp),
-        itemSpacing = Dimens.ItemSpacing,
-        contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding)
-    ) { index ->
-        val album = lane.albums[index]
-        Box(
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val preferredItemWidth: Dp = maxWidth * 0.75f
+        val edgePeek = ((maxWidth - preferredItemWidth) / 2f).coerceAtLeast(0.dp)
+
+        HorizontalMultiBrowseCarousel(
+            state = carouselState,
+            preferredItemWidth = preferredItemWidth,
             modifier = Modifier
-                .maskClip(MaterialTheme.shapes.extraLarge)
-                .fillMaxSize()
-                .bouncyClickable(scaleDown = 0.96f, indication = null) {
-                    navController.navigate("album/${java.net.URLEncoder.encode(album.albumId, "UTF-8")}")
-                }
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
-            contentAlignment = Alignment.Center
-        ) {
+                .fillMaxWidth()
+                .height(preferredItemWidth),
+            itemSpacing = Dimens.ItemSpacing,
+            contentPadding = PaddingValues(horizontal = edgePeek)
+        ) { index ->
+            val album = lane.albums[index]
+            Box(
+                modifier = Modifier
+                    .maskClip(MaterialTheme.shapes.extraLarge)
+                    .fillMaxSize()
+                    .bouncyClickable(scaleDown = 0.96f, indication = null) {
+                        navController.navigate("album/${java.net.URLEncoder.encode(album.albumId, "UTF-8")}")
+                    }
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
+            ) {
             if (album.coverUrl != null) {
                 val context = LocalContext.current
                 val request = remember(album.coverUrl) {
@@ -479,107 +453,9 @@ private fun YearAlbumLane(
                     .padding(12.dp)
             )
         }
-    }
-}
-
-@Composable
-private fun FeaturedLatestAlbumBanner(
-    artistName: String,
-    latestAlbumName: String?,
-    albumsCount: Int,
-    songsCount: Int,
-    coverUrl: String?,
-    onPlayLatest: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(410.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .padding(horizontal = Dimens.ScreenPadding)
-                .height(290.dp)
-                .clip(RoundedCornerShape(bottomStart = 48.dp, bottomEnd = 48.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
-        ) {
-            if (coverUrl != null) {
-                AsyncImage(
-                    model = coverUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.82f)
-                                )
-                            )
-                        )
-                )
-            }
-
-            Text(
-                text = "$albumsCount albums",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.92f),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .rotate(90f)
-                    .padding(end = 20.dp)
-            )
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(24.dp)
-            ) {
-                Text(
-                    text = latestAlbumName ?: artistName,
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Text(
-                    text = artistName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                )
-            }
-        }
-        
-        Text(
-            text = "$songsCount songs",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = Dimens.ScreenPadding, bottom = 6.dp)
-        )
-        
-        FloatingActionButton(
-            onClick = onPlayLatest,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = Dimens.ScreenPadding + 6.dp, bottom = 6.dp),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Icon(Icons.Rounded.PlayArrow, contentDescription = "Play latest album")
         }
     }
 }
-
-
 
 private data class ArtistAlbumGroup(
     val albumId: String,
