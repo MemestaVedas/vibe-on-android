@@ -20,6 +20,7 @@ enum class ConnectionState {
     IDLE,
     CONNECTING,
     CONNECTED,
+    RECONNECTING,
     FAILED
 }
 
@@ -100,9 +101,12 @@ class ConnectionViewModel(
                     when (_connectionState.value) {
                         ConnectionState.CONNECTING -> _connectionState.value = ConnectionState.FAILED
                         ConnectionState.CONNECTED -> {
-                            // Server dropped while we were connected — allow reconnect
-                            _connectionState.value = ConnectionState.IDLE
+                            // Server dropped while connected — show reconnecting state.
+                            _connectionState.value = ConnectionState.RECONNECTING
                             hasAutoConnected = false
+                        }
+                        ConnectionState.RECONNECTING -> {
+                            // Keep showing reconnecting until reconnect succeeds or user disconnects.
                         }
                         else -> { /* already IDLE or FAILED */ }
                     }
