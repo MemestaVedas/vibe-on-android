@@ -42,7 +42,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,11 +56,10 @@ import moe.memesta.vibeon.ui.ConnectionState
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.components.AlbumPalette
 import moe.memesta.vibeon.ui.components.extractAlbumPalette
+import moe.memesta.vibeon.ui.theme.MPlusRoundedFont
 import moe.memesta.vibeon.ui.utils.ContrastGuard
 
-val NorlineFontFamily = FontFamily(
-    Font(R.font.norline_rounded, FontWeight.Normal)
-)
+val NorlineFontFamily = MPlusRoundedFont
 
 @Composable
 fun ExpressiveStar(modifier: Modifier = Modifier, color: Color) {
@@ -456,7 +454,7 @@ fun PairingScreen(
                         },
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 16.sp,
-                            fontFamily = FontFamily.SansSerif,
+                            fontFamily = MPlusRoundedFont,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center
                         ),

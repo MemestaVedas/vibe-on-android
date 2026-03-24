@@ -18,12 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
+import moe.memesta.vibeon.ui.theme.MPlusRoundedFont
 
 /**
  * One-time walkthrough overlay that explains the home screen layout.
@@ -209,7 +209,7 @@ private fun WalkthroughStep(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 16.sp,
-                    fontFamily = FontFamily.SansSerif,
+                    fontFamily = MPlusRoundedFont,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                     lineHeight = 24.sp
