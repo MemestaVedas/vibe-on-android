@@ -3,6 +3,7 @@ package moe.memesta.vibeon.widget
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -93,7 +94,10 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                 bitmap?.let { AlbumArtBitmapCache.putBitmap(cacheKey, it) }
             }
             bitmap
-        } catch (_: Exception) { null }
+        } catch (e: Exception) {
+            Log.w("LikedWidget", "Failed to decode cached album art", e)
+            null
+        }
     }
     val colorPrimary              = Color(state.colorPrimary)
     val colorOnPrimary            = Color(state.colorOnPrimary)

@@ -3,6 +3,7 @@
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -104,7 +105,8 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 bitmap?.let { AlbumArtCache.put(cacheKey, it) }
             }
             bitmap
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("VibeonWidget", "Failed to decode album art for main widget", e)
             null
         }
     }
@@ -370,7 +372,8 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                 bitmap?.let { AlbumArtCache.put(cacheKey, it) }
             }
             bitmap
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("VibeonWidget", "Failed to decode album art for detail widget", e)
             null
         }
     }

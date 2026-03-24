@@ -1,5 +1,6 @@
 package moe.memesta.vibeon.ui
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
@@ -780,7 +781,9 @@ fun HeroHeader(
                     }
                 } catch (_: CancellationException) {
                     break
-                } catch (_: Exception) { }
+                } catch (e: Exception) {
+                    Log.w("HomeScreen", "Hero auto-scroll failed", e)
+                }
             }
         }
     }

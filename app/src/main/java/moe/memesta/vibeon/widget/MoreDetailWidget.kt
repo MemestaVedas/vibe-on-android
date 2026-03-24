@@ -3,6 +3,7 @@ package moe.memesta.vibeon.widget
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -95,7 +96,10 @@ private fun MoreDetailWidgetContent(state: WidgetPlaybackState) {
                 bitmap?.let { MoreDetailAlbumArtCache.putBitmap(cacheKey, it) }
             }
             bitmap
-        } catch (_: Exception) { null }
+        } catch (e: Exception) {
+            Log.w("MoreDetailWidget", "Failed to decode cached album art", e)
+            null
+        }
     }
 
     // Material 3 colors from palette

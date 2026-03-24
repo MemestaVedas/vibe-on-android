@@ -1,6 +1,7 @@
 package moe.memesta.vibeon.ui
 
 import android.graphics.drawable.BitmapDrawable
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -338,7 +339,8 @@ private fun AlbumSpotlightCard(
                         }
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("AlbumsGridScreen", "Failed to extract dominant color for album card", e)
             }
         }
     }

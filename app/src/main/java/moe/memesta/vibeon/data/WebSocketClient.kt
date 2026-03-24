@@ -415,7 +415,10 @@ class WebSocketClient {
             ).toString().also {
                 Log.w(TAG, "Stream URL mismatch fixed: $raw -> $it")
             }
-        } catch (_: Exception) { raw }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to normalize stream URL '$raw'", e)
+            raw
+        }
     }
 
     // ═════════════════════════════════════════════════════════════════════
