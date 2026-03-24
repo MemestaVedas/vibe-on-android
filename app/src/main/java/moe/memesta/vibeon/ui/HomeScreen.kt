@@ -522,8 +522,26 @@ fun HomeScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            item(key = "top_spacer") {
-                Spacer(modifier = Modifier.statusBarsPadding().height(72.dp))
+            // Keep top spacing only when hero is unavailable.
+            if (effectiveFeatured.isEmpty()) {
+                item(key = "top_spacer") {
+                    Spacer(modifier = Modifier.statusBarsPadding().height(72.dp))
+                }
+            }
+
+            // Restore hero carousel at the top (blend with collapsed sections below).
+            item(key = "section_featured_carousel") {
+                if (effectiveFeatured.isNotEmpty() && !isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        HeroHeader(
+                            albums = effectiveFeatured,
+                            onPlayClick = { album -> onAlbumSelected(album.name) },
+                            displayLanguage = displayLanguage,
+                            pullProgress = heroPullProgress,
+                            scrollOffsetPx = heroScrollOffsetPx
+                        )
+                    }
+                }
             }
 
             // Section: Albums
@@ -535,7 +553,7 @@ fun HomeScreen(
                             .padding(bottom = 24.dp)
                     ) {
                         SectionHeader(
-                            "Jump Back In", 
+                            "Albums", 
                             onSeeAllClick = onViewAllAlbums,
                             modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
@@ -1159,7 +1177,7 @@ private fun HomeSquishyAlbumCarousel(
 
     val carouselState = rememberCarouselState { albums.size }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val cardWidth = maxWidth * 0.75f
+        val cardWidth = (maxWidth * 0.58f).coerceIn(168.dp, 220.dp)
         val edgePeek = ((maxWidth - cardWidth) / 2f).coerceAtLeast(0.dp)
 
         HorizontalMultiBrowseCarousel(
@@ -1167,7 +1185,7 @@ private fun HomeSquishyAlbumCarousel(
             preferredItemWidth = cardWidth,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(cardWidth + 42.dp),
+                .height(cardWidth + 34.dp),
             itemSpacing = Dimens.ItemSpacing,
             contentPadding = PaddingValues(horizontal = edgePeek)
         ) { index ->
@@ -1202,84 +1220,32 @@ private fun HomeSquishyArtistCarousel(
 
     val carouselState = rememberCarouselState { artists.size }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val cardWidth = maxWidth * 0.75f
-        val edgePeek = ((maxWidth - cardWidth) / 2f).coerceAtLeast(0.dp)
+        val pillWidth = (maxWidth * 0.72f).coerceIn(220.dp, 320.dp)
+        val edgePeek = ((maxWidth - pillWidth) / 2f).coerceAtLeast(0.dp)
 
         HorizontalMultiBrowseCarousel(
             state = carouselState,
-            preferredItemWidth = cardWidth,
+            preferredItemWidth = pillWidth,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(cardWidth + 50.dp),
+                .height(94.dp),
             itemSpacing = Dimens.ItemSpacing,
             contentPadding = PaddingValues(horizontal = edgePeek)
         ) { index ->
             val artist = artists[index]
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .bouncyClickable(scaleDown = 0.96f, indication = null) { onArtistSelected(artist.name) },
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(vertical = 6.dp, horizontal = 2.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(cardWidth)
-                        .then(
-                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                                with(sharedTransitionScope) {
-                                    Modifier.sharedElement(
-                                        sharedContentState = rememberSharedContentState(key = "artist-${artist.name}-grid"),
-                                        animatedVisibilityScope = animatedVisibilityScope
-                                    )
-                                }
-                            } else Modifier
-                        )
-                        .clip(ArtistsShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                ) {
-                    if (artist.photoUrl != null) {
-                        val context = LocalContext.current
-                        val request = remember(artist.photoUrl) {
-                            ImageRequest.Builder(context)
-                                .data(artist.photoUrl)
-                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                .diskCachePolicy(CachePolicy.ENABLED)
-                                .crossfade(true)
-                                .build()
-                        }
-                        AsyncImage(
-                            model = request,
-                            contentDescription = artist.getDisplayName(displayLanguage),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = artist.getDisplayName(displayLanguage).take(1).uppercase(),
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = artist.getDisplayName(displayLanguage),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                ArtistPill(
+                    artistName = artist.getDisplayName(displayLanguage),
+                    photoUrl = artist.photoUrl,
+                    onClick = { onArtistSelected(artist.name) },
+                    modifier = Modifier.fillMaxWidth(),
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }
