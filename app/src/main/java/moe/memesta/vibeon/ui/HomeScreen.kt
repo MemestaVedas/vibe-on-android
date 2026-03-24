@@ -1178,7 +1178,6 @@ private fun HomeSquishyAlbumCarousel(
     val carouselState = rememberCarouselState { albums.size }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val cardWidth = (maxWidth * 0.58f).coerceIn(168.dp, 220.dp)
-        val edgePeek = ((maxWidth - cardWidth) / 2f).coerceAtLeast(0.dp)
 
         HorizontalMultiBrowseCarousel(
             state = carouselState,
@@ -1187,7 +1186,7 @@ private fun HomeSquishyAlbumCarousel(
                 .fillMaxWidth()
                 .height(cardWidth + 34.dp),
             itemSpacing = Dimens.ItemSpacing,
-            contentPadding = PaddingValues(horizontal = edgePeek)
+            contentPadding = PaddingValues(start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
         ) { index ->
             val album = albums[index]
             Box(
@@ -1220,32 +1219,83 @@ private fun HomeSquishyArtistCarousel(
 
     val carouselState = rememberCarouselState { artists.size }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val pillWidth = (maxWidth * 0.72f).coerceIn(220.dp, 320.dp)
-        val edgePeek = ((maxWidth - pillWidth) / 2f).coerceAtLeast(0.dp)
+        val cardWidth = (maxWidth * 0.5f).coerceIn(150.dp, 190.dp)
 
         HorizontalMultiBrowseCarousel(
             state = carouselState,
-            preferredItemWidth = pillWidth,
+            preferredItemWidth = cardWidth,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(94.dp),
+                .height(cardWidth + 44.dp),
             itemSpacing = Dimens.ItemSpacing,
-            contentPadding = PaddingValues(horizontal = edgePeek)
+            contentPadding = PaddingValues(start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
         ) { index ->
             val artist = artists[index]
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 6.dp, horizontal = 2.dp),
-                contentAlignment = Alignment.Center
+                    .bouncyClickable(scaleDown = 0.96f, indication = null) { onArtistSelected(artist.name) },
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                ArtistPill(
-                    artistName = artist.getDisplayName(displayLanguage),
-                    photoUrl = artist.photoUrl,
-                    onClick = { onArtistSelected(artist.name) },
-                    modifier = Modifier.fillMaxWidth(),
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
+                Box(
+                    modifier = Modifier
+                        .size(cardWidth)
+                        .then(
+                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                        sharedContentState = rememberSharedContentState(key = "artist-${artist.name}-grid"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                            } else Modifier
+                        )
+                        .clip(ArtistsShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                ) {
+                    if (artist.photoUrl != null) {
+                        val context = LocalContext.current
+                        val request = remember(artist.photoUrl) {
+                            ImageRequest.Builder(context)
+                                .data(artist.photoUrl)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .crossfade(true)
+                                .build()
+                        }
+                        AsyncImage(
+                            model = request,
+                            contentDescription = artist.getDisplayName(displayLanguage),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = artist.getDisplayName(displayLanguage).take(1).uppercase(),
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = artist.getDisplayName(displayLanguage),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 )
             }
         }

@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.request.SuccessResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -43,15 +44,20 @@ import androidx.navigation.NavController
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
 import moe.memesta.vibeon.ui.AlbumTrackRow
+import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.MotionTokens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.utils.PaletteUtils
+import moe.memesta.vibeon.ui.utils.ThemeColors
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import androidx.compose.foundation.gestures.scrollBy
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import kotlin.math.abs
 
@@ -369,7 +375,6 @@ private fun YearAlbumLane(
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val preferredItemWidth: Dp = maxWidth * 0.75f
-        val edgePeek = ((maxWidth - preferredItemWidth) / 2f).coerceAtLeast(0.dp)
 
         HorizontalMultiBrowseCarousel(
             state = carouselState,
@@ -378,12 +383,40 @@ private fun YearAlbumLane(
                 .fillMaxWidth()
                 .height(preferredItemWidth),
             itemSpacing = Dimens.ItemSpacing,
-            contentPadding = PaddingValues(horizontal = edgePeek)
+            contentPadding = PaddingValues(start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
         ) { index ->
             val album = lane.albums[index]
+            val context = LocalContext.current
+            var albumTheme by remember(album.coverUrl) { mutableStateOf(ThemeColors()) }
+            val albumOverlay = if (albumTheme.muted != Color.Transparent) {
+                albumTheme.muted
+            } else {
+                MaterialTheme.colorScheme.primaryContainer
+            }
+            val albumTextColor = if (albumTheme.vibrant != Color.Transparent) {
+                albumTheme.onVibrant
+            } else {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            }
+
+            LaunchedEffect(album.coverUrl) {
+                albumTheme = ThemeColors()
+                if (album.coverUrl != null) {
+                    val loader = AppImageLoader.get(context)
+                    val request = ImageRequest.Builder(context)
+                        .data(album.coverUrl)
+                        .allowHardware(false)
+                        .build()
+                    val result = withContext(Dispatchers.IO) { loader.execute(request) }
+                    if (result is SuccessResult) {
+                        albumTheme = PaletteUtils.extractColors(result.drawable)
+                    }
+                }
+            }
+
             Box(
                 modifier = Modifier
-                    .maskClip(MaterialTheme.shapes.extraLarge)
+                    .maskClip(RoundedCornerShape(24.dp))
                     .fillMaxSize()
                     .bouncyClickable(scaleDown = 0.96f, indication = null) {
                         navController.navigate("album/${java.net.URLEncoder.encode(album.albumId, "UTF-8")}")
@@ -392,7 +425,6 @@ private fun YearAlbumLane(
                 contentAlignment = Alignment.Center
             ) {
             if (album.coverUrl != null) {
-                val context = LocalContext.current
                 val request = remember(album.coverUrl) {
                     ImageRequest.Builder(context)
                         .data(album.coverUrl)
@@ -422,7 +454,7 @@ private fun YearAlbumLane(
                     text = album.displayAlbum.take(1).uppercase(),
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.52f)
+                    color = albumTextColor.copy(alpha = 0.52f)
                 )
             }
 
@@ -434,7 +466,7 @@ private fun YearAlbumLane(
                         androidx.compose.ui.graphics.Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+                                albumOverlay.copy(alpha = 0.9f)
                             ),
                             startY = 150f
                         )
@@ -444,7 +476,7 @@ private fun YearAlbumLane(
             Text(
                 text = album.displayAlbum,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = albumTextColor,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
