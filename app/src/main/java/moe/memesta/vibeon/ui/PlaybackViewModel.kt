@@ -1,6 +1,7 @@
 package moe.memesta.vibeon.ui
 
 import android.util.Log
+import android.os.SystemClock
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -56,8 +57,11 @@ class PlaybackViewModel(
     private var currentStreamUrl: String? = null
     private var streamingListener: Player.Listener? = null
     private var progressJob: kotlinx.coroutines.Job? = null
+    private var desktopProgressJob: kotlinx.coroutines.Job? = null
     private var autoNextArmed = true
     private var lastAutoNextAtMs = 0L
+    private var remoteAnchorPositionMs = 0L
+    private var remoteAnchorRealtimeMs = 0L
 
     // ═════════════════════════════════════════════════════════════════════
     // Player attachment
@@ -101,7 +105,12 @@ class PlaybackViewModel(
         viewModelScope.launch {
             webSocketClient.isMobilePlayback.collect { isMobile ->
                 _isMobilePlayback.value = isMobile
-                if (!isMobile) stopMobileStreaming()
+                if (!isMobile) {
+                    stopMobileStreaming()
+                    maybeStartDesktopProgressJob()
+                } else {
+                    stopDesktopProgressJob()
+                }
             }
         }
 
@@ -123,6 +132,11 @@ class PlaybackViewModel(
             webSocketClient.isPlaying.collect { isPlaying ->
                 if (!_isMobilePlayback.value) {
                     _playbackState.value = _playbackState.value.copy(isPlaying = isPlaying)
+                    if (isPlaying) {
+                        maybeStartDesktopProgressJob()
+                    } else {
+                        stopDesktopProgressJob()
+                    }
                 }
             }
         }
@@ -131,12 +145,50 @@ class PlaybackViewModel(
         viewModelScope.launch {
             webSocketClient.progress.collect { position ->
                 if (!_isMobilePlayback.value) {
+                    val positionMs = (position * 1000).toLong()
+                    updateRemoteAnchor(positionMs)
                     _playbackState.value = _playbackState.value.copy(
-                        currentPosition = (position * 1000).toLong()
+                        currentPosition = positionMs
                     )
+                    maybeStartDesktopProgressJob()
                 }
             }
         }
+    }
+
+    private fun updateRemoteAnchor(positionMs: Long) {
+        remoteAnchorPositionMs = positionMs.coerceAtLeast(0L)
+        remoteAnchorRealtimeMs = SystemClock.elapsedRealtime()
+    }
+
+    private fun predictedDesktopPositionMs(): Long {
+        val now = SystemClock.elapsedRealtime()
+        val elapsed = (now - remoteAnchorRealtimeMs).coerceAtLeast(0L)
+        val base = remoteAnchorPositionMs
+        val predicted = if (_playbackState.value.isPlaying) base + elapsed else base
+        val duration = _playbackState.value.duration.coerceAtLeast(1L)
+        return predicted.coerceIn(0L, duration)
+    }
+
+    private fun maybeStartDesktopProgressJob() {
+        if (_isMobilePlayback.value || !_playbackState.value.isPlaying) return
+        if (desktopProgressJob?.isActive == true) return
+
+        desktopProgressJob = viewModelScope.launch {
+            while (!_isMobilePlayback.value && _playbackState.value.isPlaying) {
+                val predicted = predictedDesktopPositionMs()
+                val current = _playbackState.value.currentPosition
+                if (kotlin.math.abs(predicted - current) >= 30L) {
+                    _playbackState.value = _playbackState.value.copy(currentPosition = predicted)
+                }
+                kotlinx.coroutines.delay(75)
+            }
+        }
+    }
+
+    private fun stopDesktopProgressJob() {
+        desktopProgressJob?.cancel()
+        desktopProgressJob = null
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -379,6 +431,7 @@ class PlaybackViewModel(
     override fun onCleared() {
         super.onCleared()
         progressJob?.cancel()
+        stopDesktopProgressJob()
         player?.let { p -> streamingListener?.let { p.removeListener(it) } }
     }
 }
