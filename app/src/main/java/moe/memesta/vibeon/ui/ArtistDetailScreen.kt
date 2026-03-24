@@ -458,7 +458,10 @@ private fun YearAlbumLane(
                     .fillMaxSize()
                     .background(
                         androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+                            colors = listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
+                            ),
                             startY = 150f
                         )
                     )
@@ -467,7 +470,7 @@ private fun YearAlbumLane(
             Text(
                 text = album.displayAlbum,
                 style = MaterialTheme.typography.labelLarge,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -500,7 +503,7 @@ private fun FeaturedLatestAlbumBanner(
                 .padding(horizontal = Dimens.ScreenPadding)
                 .height(290.dp)
                 .clip(RoundedCornerShape(bottomStart = 48.dp, bottomEnd = 48.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
         ) {
             if (coverUrl != null) {
                 AsyncImage(
@@ -516,7 +519,7 @@ private fun FeaturedLatestAlbumBanner(
                             androidx.compose.ui.graphics.Brush.verticalGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.6f)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.82f)
                                 )
                             )
                         )
@@ -526,7 +529,7 @@ private fun FeaturedLatestAlbumBanner(
             Text(
                 text = "$albumsCount albums",
                 style = MaterialTheme.typography.labelLarge,
-                color = Color.White.copy(alpha = 0.92f),
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.92f),
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .rotate(90f)
@@ -542,12 +545,12 @@ private fun FeaturedLatestAlbumBanner(
                     text = latestAlbumName ?: artistName,
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
                     text = artistName,
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color.White.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
             }
         }

@@ -207,8 +207,8 @@ fun AlbumDetailScreen(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
                                             Color.Transparent,
-                                            animatedVibrant.copy(alpha = 0.42f),
-                                            animatedVibrant.copy(alpha = 0.82f)
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f),
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
                                         ),
                                         startY = 100f
                                     )

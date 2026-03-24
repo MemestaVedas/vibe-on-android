@@ -101,6 +101,8 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
     val colorOnSecondaryContainer = Color(state.colorOnSecondaryContainer)
     val colorOnSecondary          = Color(state.colorOnSecondary)
     val colorErrorContainer       = Color(state.colorErrorContainer)
+    val colorPrimaryContainer     = Color(state.colorPrimaryContainer)
+    val colorOnPrimaryContainer   = Color(state.colorOnPrimaryContainer)
 
     Box(
         modifier = GlanceModifier
@@ -125,11 +127,11 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
             ) {}
         }
 
-        // ── Layer 2: Light primary tint scrim over full widget ─────────
+        // ── Layer 2: Primary dark scrim over full widget ───────────────
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(ColorProvider(colorPrimary.copy(alpha = 0.20f)))
+            .background(ColorProvider(colorPrimaryContainer.copy(alpha = 0.72f)))
         ) {}
 
         // ── Layer 3: UI ────────────────────────────────────────────────
@@ -241,7 +243,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .defaultWeight()
-                    .background(ColorProvider(colorPrimary.copy(alpha = 0.55f))),
+                    .background(ColorProvider(colorPrimaryContainer.copy(alpha = 0.88f))),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Tap Zone 4 — Title (bold) + Artist (regular), opens app
@@ -256,7 +258,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                     Text(
                         text = state.title,
                         style = TextStyle(
-                            color = ColorProvider(colorOnPrimary),
+                            color = ColorProvider(colorOnPrimaryContainer),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         ),
@@ -265,7 +267,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                     Text(
                         text = state.artist,
                         style = TextStyle(
-                            color = ColorProvider(colorOnPrimary.copy(alpha = 0.80f)),
+                            color = ColorProvider(colorOnPrimaryContainer.copy(alpha = 0.80f)),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Normal
                         ),
