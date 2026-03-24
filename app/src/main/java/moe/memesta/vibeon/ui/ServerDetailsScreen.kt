@@ -26,6 +26,11 @@ fun ServerDetailsScreen(
     onDisconnect: () -> Unit
 ) {
     val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
+    var isFavorite by remember { mutableStateOf(connectedDevice?.isFavorite == true) }
+
+    LaunchedEffect(connectedDevice?.host, connectedDevice?.port) {
+        isFavorite = connectedDevice?.isFavorite == true
+    }
     
     Box(
         modifier = Modifier
@@ -119,17 +124,19 @@ fun ServerDetailsScreen(
             ) {
                 // Favorite Button
                 OutlinedButton(
-                    onClick = { /* TODO: Toggle favorite */ },
+                    onClick = {
+                        isFavorite = !isFavorite
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimens.CornerRadiusMedium)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.FavoriteBorder,
+                        imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add to Favorites")
+                    Text(if (isFavorite) "Favorited" else "Add to Favorites")
                 }
 
                 // Disconnect Button

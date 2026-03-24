@@ -1,5 +1,6 @@
 package moe.memesta.vibeon.ui.navigation
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -56,6 +57,8 @@ fun AppNavHost(
     trackDao: moe.memesta.vibeon.data.local.TrackDao,
     onboardingManager: OnboardingManager
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     val navController = rememberNavController()
     var currentDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
     val torrentViewModel: TorrentViewModel = viewModel()
@@ -286,7 +289,7 @@ fun AppNavHost(
                         },
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToScan = {
-                            // TODO: Implement QR Scanning
+                            Toast.makeText(context, "QR pairing will be available soon", Toast.LENGTH_SHORT).show()
                         },
                         onNavigateToOffline = {
                             navController.navigate("offline_songs") { launchSingleTop = true }
@@ -357,7 +360,9 @@ fun AppNavHost(
                             connectionViewModel.connectToDevice(device)
                         },
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToScan = { /* TODO: QR pairing */ },
+                        onNavigateToScan = {
+                            Toast.makeText(context, "QR pairing will be available soon", Toast.LENGTH_SHORT).show()
+                        },
                         onNavigateToOffline = {
                             navController.navigate("offline_songs") { launchSingleTop = true }
                         }
@@ -681,7 +686,9 @@ fun AppNavHost(
                 onNavigateBack = { 
                     // Dismiss if desired, or let back handle it
                 },
-                onNavigateToScan = { },
+                onNavigateToScan = {
+                    Toast.makeText(context, "QR pairing will be available soon", Toast.LENGTH_SHORT).show()
+                },
                 onNavigateToOffline = {
                     navController.navigate("offline_songs") { launchSingleTop = true }
                 },
