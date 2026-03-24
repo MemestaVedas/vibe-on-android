@@ -90,6 +90,7 @@ class WebSocketClient {
     var port: Int = 5000; private set
     private var baseUrl: String = ""
     private var clientName: String = "Android"
+    private var controlToken: String? = null
 
     // ── Reconnection ─────────────────────────────────────────────────────
     private var reconnectJob: Job? = null
@@ -171,17 +172,23 @@ class WebSocketClient {
     // Connection lifecycle
     // ═════════════════════════════════════════════════════════════════════
 
-    fun connect(host: String, port: Int, clientName: String = "Android") {
+    fun connect(host: String, port: Int, clientName: String = "Android", controlToken: String? = null) {
         this.host = host
         this.port = port
         this.clientName = clientName
+        this.controlToken = controlToken?.trim()?.takeIf { it.isNotEmpty() }
         baseUrl = "http://$host:$port"
         reconnectAttempts = 0
 
-        val wsUrl = "ws://$host:$port/control"
+        val tokenParam = this.controlToken?.let { "?token=${java.net.URLEncoder.encode(it, Charsets.UTF_8.name())}" } ?: ""
+        val wsUrl = "ws://$host:$port/control$tokenParam"
         Log.i(TAG, "Connecting to $wsUrl")
         val request = Request.Builder().url(wsUrl).build()
         webSocket = okHttpClient.newWebSocket(request, Listener())
+    }
+
+    fun setControlToken(token: String?) {
+        controlToken = token?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     fun disconnect() {
@@ -203,7 +210,7 @@ class WebSocketClient {
         reconnectJob?.cancel()
         reconnectJob = reconnectScope.launch {
             delay(delay)
-            try { connect(host, port, clientName) }
+            try { connect(host, port, clientName, controlToken) }
             catch (e: Exception) { Log.e(TAG, "Reconnect failed: ${e.message}") }
         }
     }
