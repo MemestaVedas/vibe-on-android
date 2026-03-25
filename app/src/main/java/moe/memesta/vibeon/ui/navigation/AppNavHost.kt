@@ -87,6 +87,12 @@ fun AppNavHost(
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val albumArtUrl = currentTrack.coverUrl
     val albumArtBitmap = rememberBitmapFromUrl(albumArtUrl)
+    var cachedAlbumArtUrl by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(albumArtUrl) {
+        if (!albumArtUrl.isNullOrBlank()) {
+            cachedAlbumArtUrl = albumArtUrl
+        }
+    }
 
     val connectedHost = connectedDevice?.host
     val connectedPort = connectedDevice?.port
@@ -121,9 +127,8 @@ fun AppNavHost(
         }
     }
     
-    // Get fallback album art from first song in the library
-    val allTracks by libraryViewModel?.tracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
-    val fallbackAlbumArtUrl = allTracks.firstOrNull()?.coverUrl
+    // Keep a lightweight fallback album art cache from recent playback.
+    val fallbackAlbumArtUrl = cachedAlbumArtUrl
     
     LaunchedEffect(connectionState, connectedDevice) {
         // If connection fails, show the pairing screen again
