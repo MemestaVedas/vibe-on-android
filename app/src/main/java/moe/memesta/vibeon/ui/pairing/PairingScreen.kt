@@ -99,6 +99,7 @@ fun PairingScreen(
     connectedDevice: DiscoveredDevice? = null,
     albumArtUrl: String? = null,
     albumArtBitmap: Bitmap? = null,
+    fallbackAlbumArtUrl: String? = null,
     onConnect: (String, Int) -> Unit,
     onDeviceSelected: (DiscoveredDevice) -> Unit,
     onNavigateBack: () -> Unit,
@@ -465,7 +466,8 @@ fun PairingScreen(
 
                     Spacer(modifier = Modifier.height(60.dp))
 
-                    // Centerpiece: Logo → Album Art morph (or Desktop icon / rotating logo)
+                    // Centerpiece: Album Art from current track or first song
+                    val displayedAlbumArt = albumArtUrl ?: fallbackAlbumArtUrl
                     AnimatedContent(
                         targetState = Triple(isConnected, devices.isNotEmpty(), isFailed),
                         transitionSpec = {
@@ -473,76 +475,53 @@ fun PairingScreen(
                         },
                         label = "centerpiece_transition"
                     ) { (connected, found, failed) ->
+                        val context = LocalContext.current
                         when {
-                            connected && albumArtUrl != null -> {
-                                // Logo → Album Art morph
+                            // Connected with album art (current playing or fallback to first song)
+                            connected && displayedAlbumArt != null -> {
                                 Box(
                                     modifier = Modifier.size(220.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    // Logo layer (fades out)
-                                    Image(
-                                        painter = painterResource(id = R.drawable.ic_vibe_logo),
-                                        contentDescription = "Vibe-On",
-                                        modifier = Modifier
-                                            .size(200.dp)
-                                            .graphicsLayer {
-                                                alpha = (1f - morphProgress).coerceIn(0f, 1f)
-                                                scaleX = 1f + (1f - morphProgress) * 0.1f
-                                                scaleY = 1f + (1f - morphProgress) * 0.1f
-                                                rotationZ = (1f - morphProgress) * 10f
-                                            }
-                                    )
-                                    // Album art layer (fades in with star clip)
-                                    val context = LocalContext.current
                                     AsyncImage(
                                         model = ImageRequest.Builder(context)
-                                            .data(albumArtUrl)
+                                            .data(displayedAlbumArt)
                                             .crossfade(true)
                                             .build(),
-                                        contentDescription = "Now Playing",
+                                        contentDescription = if (albumArtUrl != null) "Now Playing" else "First Song",
                                         modifier = Modifier
                                             .size(200.dp)
                                             .clip(AlbumArtStarShape)
                                             .graphicsLayer {
-                                                alpha = morphProgress.coerceIn(0f, 1f)
-                                                scaleX = 0.85f + morphProgress * 0.15f
-                                                scaleY = 0.85f + morphProgress * 0.15f
+                                                alpha = 1f
+                                                scaleX = 0.85f + (if (albumArtUrl != null) morphProgress else 1f) * 0.15f
+                                                scaleY = 0.85f + (if (albumArtUrl != null) morphProgress else 1f) * 0.15f
                                             },
                                         contentScale = ContentScale.Crop
                                     )
                                 }
                             }
-                            connected -> {
-                                // Connected but no album art
+                            // Found servers with album art (first song)
+                            found && displayedAlbumArt != null -> {
                                 Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.size(160.dp)
+                                    modifier = Modifier.size(220.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.DesktopWindows,
-                                        contentDescription = null,
-                                        tint = topContentColor,
-                                        modifier = Modifier.size(100.dp)
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context)
+                                            .data(displayedAlbumArt)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "First Song",
+                                        modifier = Modifier
+                                            .size(200.dp)
+                                            .clip(AlbumArtStarShape),
+                                        contentScale = ContentScale.Crop
                                     )
                                 }
                             }
-                            found -> {
-                                // Found servers — desktop icon
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.size(160.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.DesktopWindows,
-                                        contentDescription = null,
-                                        tint = topContentColor,
-                                        modifier = Modifier.size(100.dp)
-                                    )
-                                }
-                            }
+                            // Error state
                             failed -> {
-                                // Error state
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier.size(160.dp)
@@ -555,15 +534,35 @@ fun PairingScreen(
                                     )
                                 }
                             }
+                            // Searching — use rotating logo or fallback album art
                             else -> {
-                                // Searching — rotating logo
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_vibe_logo),
-                                    contentDescription = "Searching",
-                                    modifier = Modifier
-                                        .size(240.dp)
-                                        .graphicsLayer { rotationZ = rotationAngle }
-                                )
+                                if (displayedAlbumArt != null) {
+                                    Box(
+                                        modifier = Modifier.size(220.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(displayedAlbumArt)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "First Song",
+                                            modifier = Modifier
+                                                .size(200.dp)
+                                                .clip(AlbumArtStarShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                } else {
+                                    // Rotating logo as fallback when no album art available
+                                    Image(
+                                        painter = painterResource(id = R.drawable.ic_vibe_logo),
+                                        contentDescription = "Searching",
+                                        modifier = Modifier
+                                            .size(240.dp)
+                                            .graphicsLayer { rotationZ = rotationAngle }
+                                    )
+                                }
                             }
                         }
                     }

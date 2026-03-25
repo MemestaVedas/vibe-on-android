@@ -121,6 +121,10 @@ fun AppNavHost(
         }
     }
     
+    // Get fallback album art from first song in the library
+    val allTracks by libraryViewModel?.tracks?.collectAsState(initial = emptyList()) ?: remember { mutableStateOf(emptyList()) }
+    val fallbackAlbumArtUrl = allTracks.firstOrNull()?.coverUrl
+    
     LaunchedEffect(connectionState, connectedDevice) {
         // If connection fails, show the pairing screen again
         if (connectionState == ConnectionState.FAILED) {
@@ -274,6 +278,7 @@ fun AppNavHost(
                         connectedDevice = connectedDevice,
                         albumArtUrl = albumArtUrl,
                         albumArtBitmap = albumArtBitmap,
+                        fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                         onConnect = { ip, port ->
                             val device = DiscoveredDevice(
                                 name = "Manual: $ip",
@@ -346,6 +351,7 @@ fun AppNavHost(
                         connectedDevice = connectedDevice,
                         albumArtUrl = albumArtUrl,
                         albumArtBitmap = albumArtBitmap,
+                        fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                         onConnect = { ip, port ->
                             connectionViewModel.connectToDevice(
                                 DiscoveredDevice(
@@ -676,6 +682,7 @@ fun AppNavHost(
                 connectedDevice = connectedDevice,
                 albumArtUrl = albumArtUrl,
                 albumArtBitmap = albumArtBitmap,
+                fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                 onConnect = { ip, port ->
                     val device = DiscoveredDevice(name = "Manual: $ip", host = ip, port = port)
                     connectionViewModel.connectToDevice(device)
