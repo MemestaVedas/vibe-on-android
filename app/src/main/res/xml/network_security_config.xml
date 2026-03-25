@@ -4,8 +4,8 @@
 
     <!-- Local development and LAN pairing hosts that still use plain ws/http -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain>localhost</domain>
-        <domain>127.0.0.1</domain>
-        <domain>10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
 </network-security-config>
