@@ -130,7 +130,8 @@ fun BottomPlayerBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth(0.82f)
-                .padding(top = 12.dp, bottom = 48.dp),
+                .navigationBarsPadding()
+                .padding(top = 12.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
