@@ -131,8 +131,7 @@ fun BottomPlayerBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth(0.82f)
-                .navigationBarsPadding()
-                .padding(top = 12.dp, bottom = 12.dp),
+                .padding(top = 12.dp, bottom = 48.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -221,6 +220,17 @@ fun BottomPlayerBar(
                     }
                         .clickable(onClick = onNavigateToPlayer)
                     ) {
+                // Background Progress Bar
+                val progressFraction = playbackState.progress
+                Box(modifier = Modifier.matchParentSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(progressFraction.coerceIn(0f, 1f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    )
+                }
+
                 Column(modifier = Modifier.fillMaxWidth()) {
                     // Player Content
                     Row(
@@ -236,14 +246,29 @@ fun BottomPlayerBar(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            with(sharedTransitionScope) {
-                                AlbumArtWithPulse(
-                                    coverUrl = currentTrack.coverUrl,
-                                    isPlaying = effectiveIsPlaying,
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    sharedKey = sharedKeyBase
-                                )
+                            val miniArtShape = RoundedCornerShape(14.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(miniArtShape)
+                                    .border(1.dp, MaterialTheme.colorScheme.primary, miniArtShape)
+                                    .background(Color.DarkGray)
+                            ) {
+                                if (currentTrack.coverUrl != null) {
+                                    val context = androidx.compose.ui.platform.LocalContext.current
+                                    val request = remember(currentTrack.coverUrl) {
+                                        coil.request.ImageRequest.Builder(context)
+                                            .data(currentTrack.coverUrl)
+                                            .crossfade(true)
+                                            .build()
+                                    }
+                                    AsyncImage(
+                                        model = request,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.width(16.dp))
@@ -262,49 +287,6 @@ fun BottomPlayerBar(
                                 label = "trackInfoTransition"
                             ) { _ ->
                                 Column(modifier = Modifier.weight(1f)) {
-                                    // Animated waveform indicator shown only while playing
-                                    if (effectiveIsPlaying) {
-                                        val waveInfinite = rememberInfiniteTransition(label = "waveform")
-                                        val bar1 by waveInfinite.animateFloat(
-                                            initialValue = 0.3f, targetValue = 1f,
-                                            animationSpec = infiniteRepeatable(
-                                                tween(400, easing = androidx.compose.animation.core.EaseInOutSine),
-                                                RepeatMode.Reverse
-                                            ), label = "bar1"
-                                        )
-                                        val bar2 by waveInfinite.animateFloat(
-                                            initialValue = 1f, targetValue = 0.3f,
-                                            animationSpec = infiniteRepeatable(
-                                                tween(600, easing = androidx.compose.animation.core.EaseInOutSine),
-                                                RepeatMode.Reverse
-                                            ), label = "bar2"
-                                        )
-                                        val bar3 by waveInfinite.animateFloat(
-                                            initialValue = 0.5f, targetValue = 1f,
-                                            animationSpec = infiniteRepeatable(
-                                                tween(500, easing = androidx.compose.animation.core.EaseInOutSine),
-                                                RepeatMode.Reverse
-                                            ), label = "bar3"
-                                        )
-                                        val barColor = MaterialTheme.colorScheme.primary
-                                        Canvas(modifier = Modifier.size(width = 16.dp, height = 14.dp).padding(bottom = 2.dp)) {
-                                            val barW = size.width / 5f
-                                            val maxH = size.height
-                                            listOf(bar1, bar2, bar3).forEachIndexed { i, frac ->
-                                                val h = maxH * frac
-                                                drawRoundRect(
-                                                    color = barColor,
-                                                    topLeft = androidx.compose.ui.geometry.Offset(
-                                                        x = i * (barW + barW * 0.5f),
-                                                        y = maxH - h
-                                                    ),
-                                                    size = androidx.compose.ui.geometry.Size(barW, h),
-                                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barW / 2)
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                    }
                                     Text(
                                         text = title,
                                         style = MaterialTheme.typography.bodyLarge,
@@ -332,9 +314,7 @@ fun BottomPlayerBar(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         // Play/Pause Button
-                        // Play/Pause — OrbitPlayButton with orbit arc while playing
-                        OrbitPlayButton(
-                            isPlaying = effectiveIsPlaying,
+                        IconButton(
                             onClick = {
                                 if (isMobilePlayback) {
                                     val nextPlayState = !effectiveIsPlaying
@@ -344,10 +324,17 @@ fun BottomPlayerBar(
                                     if (effectiveIsPlaying) connectionViewModel.pause() else connectionViewModel.play()
                                 }
                             },
-                            playIcon = Icons.Rounded.PlayArrow,
-                            pauseIcon = Icons.Rounded.Pause,
-                            size = 44.dp
-                        )
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (effectiveIsPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = if (effectiveIsPlaying) "Pause" else "Play",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }

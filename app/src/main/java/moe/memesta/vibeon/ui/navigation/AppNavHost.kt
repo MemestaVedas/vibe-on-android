@@ -140,7 +140,7 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-        val showBottomBar = currentRoute in listOf("main", "all_songs", "offline_songs", "library", "albums", "search", "artists", "settings", "stats", "torrents", "server_details")
+    val showBottomBar = currentRoute != null && currentRoute != "now_playing" && currentRoute != "pairing"
 
     val isLandscape = rememberIsLandscape()
 
