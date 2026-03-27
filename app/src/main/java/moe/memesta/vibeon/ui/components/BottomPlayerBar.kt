@@ -8,6 +8,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -261,6 +262,49 @@ fun BottomPlayerBar(
                                 label = "trackInfoTransition"
                             ) { _ ->
                                 Column(modifier = Modifier.weight(1f)) {
+                                    // Animated waveform indicator shown only while playing
+                                    if (effectiveIsPlaying) {
+                                        val waveInfinite = rememberInfiniteTransition(label = "waveform")
+                                        val bar1 by waveInfinite.animateFloat(
+                                            initialValue = 0.3f, targetValue = 1f,
+                                            animationSpec = infiniteRepeatable(
+                                                tween(400, easing = androidx.compose.animation.core.EaseInOutSine),
+                                                RepeatMode.Reverse
+                                            ), label = "bar1"
+                                        )
+                                        val bar2 by waveInfinite.animateFloat(
+                                            initialValue = 1f, targetValue = 0.3f,
+                                            animationSpec = infiniteRepeatable(
+                                                tween(600, easing = androidx.compose.animation.core.EaseInOutSine),
+                                                RepeatMode.Reverse
+                                            ), label = "bar2"
+                                        )
+                                        val bar3 by waveInfinite.animateFloat(
+                                            initialValue = 0.5f, targetValue = 1f,
+                                            animationSpec = infiniteRepeatable(
+                                                tween(500, easing = androidx.compose.animation.core.EaseInOutSine),
+                                                RepeatMode.Reverse
+                                            ), label = "bar3"
+                                        )
+                                        val barColor = MaterialTheme.colorScheme.primary
+                                        Canvas(modifier = Modifier.size(width = 16.dp, height = 14.dp).padding(bottom = 2.dp)) {
+                                            val barW = size.width / 5f
+                                            val maxH = size.height
+                                            listOf(bar1, bar2, bar3).forEachIndexed { i, frac ->
+                                                val h = maxH * frac
+                                                drawRoundRect(
+                                                    color = barColor,
+                                                    topLeft = androidx.compose.ui.geometry.Offset(
+                                                        x = i * (barW + barW * 0.5f),
+                                                        y = maxH - h
+                                                    ),
+                                                    size = androidx.compose.ui.geometry.Size(barW, h),
+                                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barW / 2)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                    }
                                     Text(
                                         text = title,
                                         style = MaterialTheme.typography.bodyLarge,
