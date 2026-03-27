@@ -448,7 +448,8 @@ fun AppNavHost(
                 composable("offline_songs") {
                     OfflineSongsScreen(
                         contentPadding = innerPadding,
-                        playbackViewModel = playbackViewModel
+                        playbackViewModel = playbackViewModel,
+                        connectionViewModel = connectionViewModel
                     )
                 }
 

@@ -639,28 +639,39 @@ fun NowPlayingContent(
                     val ghost1 = pagerItems.getOrNull((currentIndex + 1).coerceAtMost((pagerItems.size - 1).coerceAtLeast(0)))
                     val ghost2 = pagerItems.getOrNull((currentIndex + 2).coerceAtMost((pagerItems.size - 1).coerceAtLeast(0)))
 
+                    // Pager parallax: fraction in [-1, 1]; 0 = settled on a page
+                    val swipeFrac = abs(pagerState.currentPageOffsetFraction)
+
                     if (ghost2 != null && ghost2.stableKey != pagerItems.getOrNull(currentIndex)?.stableKey) {
+                        // Card 2 spreads further apart and fades more aggressively on swipe
+                        val g2OffsetX = lerp(6f, 14f, swipeFrac).dp
+                        val g2OffsetY = lerp(6f, 14f, swipeFrac).dp
+                        val g2Alpha = lerp(0.3f, 0.05f, swipeFrac)
                         AsyncImage(
                             model = ghost2.coverUrl,
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .offset(x = 6.dp, y = 6.dp)
+                                .offset(x = g2OffsetX, y = g2OffsetY)
                                 .scale(0.95f)
-                                .alpha(0.3f)
+                                .alpha(g2Alpha)
                                 .clip(albumCardShape),
                             contentScale = ContentScale.Crop
                         )
                     }
                     if (ghost1 != null && ghost1.stableKey != pagerItems.getOrNull(currentIndex)?.stableKey) {
+                        // Card 1 spreads slightly and fades on swipe
+                        val g1OffsetX = lerp(3f, 8f, swipeFrac).dp
+                        val g1OffsetY = lerp(3f, 8f, swipeFrac).dp
+                        val g1Alpha = lerp(0.6f, 0.15f, swipeFrac)
                         AsyncImage(
                             model = ghost1.coverUrl,
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .offset(x = 3.dp, y = 3.dp)
+                                .offset(x = g1OffsetX, y = g1OffsetY)
                                 .scale(0.975f)
-                                .alpha(0.6f)
+                                .alpha(g1Alpha)
                                 .clip(albumCardShape),
                             contentScale = ContentScale.Crop
                         )

@@ -12,6 +12,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.data.model.UnifiedSong
+import moe.memesta.vibeon.data.model.normalizeTrackString
 
 data class OfflineSong(
     val id: Long,
@@ -33,6 +36,14 @@ class OfflineSongsViewModel(application: Application) : AndroidViewModel(applica
     
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying
+
+    /** Unified view merging offline songs + server library. Updated by [mergeWithServerLibrary]. */
+    private val _unifiedSongs = MutableStateFlow<List<UnifiedSong>>(emptyList())
+    val unifiedSongs: StateFlow<List<UnifiedSong>> = _unifiedSongs
+
+    /** Currently playing unified song (for the mini player). */
+    private val _currentUnified = MutableStateFlow<UnifiedSong?>(null)
+    val currentUnified: StateFlow<UnifiedSong?> = _currentUnified
 
     init {
         loadSongs()
@@ -90,6 +101,52 @@ class OfflineSongsViewModel(application: Application) : AndroidViewModel(applica
                 songsList
             }
             _songs.value = loadedSongs
+            // Build initial unified list (offline-only, no server tracks yet)
+            _unifiedSongs.value = buildUnifiedList(loadedSongs, emptyList())
+        }
+    }
+
+    /**
+     * Call this whenever the server library updates. Merges offline + online tracks,
+     * deduplicating by normalized (title + artist). Safe to call frequently
+     * (runs on IO dispatcher, result pushed via StateFlow).
+     */
+    fun mergeWithServerLibrary(serverTracks: List<TrackInfo>) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val merged = buildUnifiedList(_songs.value, serverTracks)
+            _unifiedSongs.value = merged
+        }
+    }
+
+    /**
+     * Produce a deduplicated list of [UnifiedSong]:
+     * - Offline songs matched to a server track → isOfflineAvailable = true, serverPath set
+     * - Offline songs with no server match → offline only
+     * Server-only tracks are intentionally excluded (they live in the main Library screen).
+     */
+    private fun buildUnifiedList(
+        offline: List<OfflineSong>,
+        server: List<TrackInfo>
+    ): List<UnifiedSong> {
+        // Build a lookup map: (normalizedTitle, normalizedArtist) → TrackInfo
+        val serverIndex = server.associateBy { track ->
+            normalizeTrackString(track.title) to normalizeTrackString(track.artist)
+        }
+
+        return offline.map { song ->
+            val key = normalizeTrackString(song.title) to normalizeTrackString(song.artist)
+            val matched = serverIndex[key]
+            UnifiedSong(
+                id = song.id,
+                title = song.title,
+                artist = song.artist,
+                albumId = song.albumId,
+                duration = song.duration,
+                localUri = song.uri,
+                serverPath = matched?.path,
+                coverUrl = matched?.coverUrl,
+                isOfflineAvailable = true
+            )
         }
     }
 
@@ -99,6 +156,26 @@ class OfflineSongsViewModel(application: Application) : AndroidViewModel(applica
         player.setMediaItem(mediaItem)
         player.prepare()
         player.play()
+    }
+
+    /** Play a unified song — prefers server path if available, falls back to local URI. */
+    fun playUnified(song: UnifiedSong, connectionViewModel: ConnectionViewModel? = null) {
+        _currentUnified.value = song
+        if (song.serverPath != null && connectionViewModel != null) {
+            // Delegate to the server (desktop playback)
+            connectionViewModel.playTrack(song.serverPath)
+        } else if (song.localUri != null) {
+            // Offline-only: use ExoPlayer
+            val offline = OfflineSong(
+                id = song.id,
+                title = song.title,
+                artist = song.artist,
+                albumId = song.albumId,
+                uri = song.localUri,
+                duration = song.duration
+            )
+            playSong(offline)
+        }
     }
 
     fun togglePlayPause() {
