@@ -421,9 +421,10 @@ private fun AlbumArtWithPulse(
             Box(
                 modifier = Modifier
                     .size(52.dp)
-                    .sharedElement(
+                    .sharedBounds(
                         sharedContentState = rememberSharedContentState(key = "album-$sharedKey"),
-                        animatedVisibilityScope = animatedVisibilityScope
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        clipInOverlayDuringTransition = OverlayClip(miniArtShape)
                     )
                     .clip(miniArtShape)
                     .border(1.dp, MaterialTheme.colorScheme.primary, miniArtShape)

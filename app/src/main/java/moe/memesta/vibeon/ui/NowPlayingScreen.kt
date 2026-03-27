@@ -727,12 +727,12 @@ fun NowPlayingContent(
                     with(sharedTransitionScope) {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .clip(albumCardShape)
-                                .sharedElement(
+                                .sharedBounds(
                                     sharedContentState = rememberSharedContentState(key = "album-${item.stableKey}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                ),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    clipInOverlayDuringTransition = OverlayClip(albumCardShape)
+                                )
+                                .clip(albumCardShape),
                             contentAlignment = Alignment.Center
                         ) {
                             if (!displayCover.isNullOrEmpty()) {

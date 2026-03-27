@@ -9,6 +9,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
 /**
  * Centralized animation configuration for organic, polished UI feel.
@@ -110,13 +112,14 @@ object VibeAnimations {
  */
 fun Modifier.bouncyClickable(
     enabled: Boolean = true,
-    scaleDown: Float = 0.95f,
+    scaleDown: Float = 0.92f,
     // Use a sentinel object to distinguish "not provided" from explicit null
     indication: Any? = IndicationSentinel,
     onClick: () -> Unit
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
     var isPressed by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
     
     // Resolve indication: if it's our sentinel, use LocalIndication.current
     val resolvedIndication = if (indication === IndicationSentinel) {
@@ -128,7 +131,11 @@ fun Modifier.bouncyClickable(
     LaunchedEffect(interactionSource) {
         interactionSource.interactions.collect { interaction ->
             when (interaction) {
-                is PressInteraction.Press -> isPressed = true
+                is PressInteraction.Press -> {
+                    isPressed = true
+                    // Subtle haptic like PixelPlayer bounds
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
                 is PressInteraction.Release, is PressInteraction.Cancel -> isPressed = false
             }
         }
@@ -142,8 +149,8 @@ fun Modifier.bouncyClickable(
             snap()
         } else {
             spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
+                dampingRatio = 0.65f, // Snappier and more bouncy
+                stiffness = 400f      // Medium stiffness
             )
         },
         label = "bouncyScale"
