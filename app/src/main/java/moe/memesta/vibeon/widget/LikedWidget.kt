@@ -156,10 +156,9 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                     contentAlignment = Alignment.TopStart
                 ) {
                     Image(
-                        provider = ImageProvider(R.drawable.finalmono),
+                        provider = ImageProvider(R.drawable.ic_widget_logo_badge),
                         contentDescription = "Vibe-on",
-                        colorFilter = ColorFilter.tint(ColorProvider(colorOnPrimaryContainer)),
-                        modifier = GlanceModifier.size(38.dp)
+                        modifier = GlanceModifier.size(40.dp)
                     )
                 }
 
@@ -186,9 +185,9 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                 ) {
                     Box(
                         modifier = GlanceModifier
-                            .size(38.dp)
+                            .size(42.dp)
                             .cornerRadius(19.dp)
-                            .background(ColorProvider(colorSecondaryContainer)),
+                            .background(ColorProvider(colorOnPrimary.copy(alpha = 0.76f))),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
@@ -197,8 +196,8 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                             else
                                 ImageProvider(R.drawable.ic_widget_computer),
                             contentDescription = if (state.isMobilePlayback) "Mobile" else "PC",
-                            colorFilter = ColorFilter.tint(ColorProvider(colorOnSecondaryContainer)),
-                            modifier = GlanceModifier.size(20.dp)
+                            colorFilter = ColorFilter.tint(ColorProvider(colorPrimary.copy(alpha = 0.86f))),
+                            modifier = GlanceModifier.size(21.dp)
                         )
                     }
                 }
@@ -285,9 +284,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                     modifier = GlanceModifier
                         .fillMaxHeight()
                         .padding(12.dp)
-                        .size(38.dp)
-                        .cornerRadius(19.dp)
-                        .background(ColorProvider(if (state.isLiked) colorErrorContainer else colorSecondaryContainer))
+                        .size(36.dp)
                         .clickable(
                             actionRunCallback<LikedWidgetActionCallback>(
                                 actionParametersOf(keyAction to ACT_LIKE)
@@ -303,10 +300,10 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                         contentDescription = if (state.isLiked) "Unlike" else "Like",
                         colorFilter = ColorFilter.tint(
                             ColorProvider(
-                                if (state.isLiked) colorOnErrorContainer else colorOnSecondaryContainer
+                                if (state.isLiked) colorErrorContainer else colorOnPrimaryContainer
                             )
                         ),
-                        modifier = GlanceModifier.size(20.dp)
+                        modifier = GlanceModifier.size(28.dp)
                     )
                 }
             }
