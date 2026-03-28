@@ -167,10 +167,9 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                     contentAlignment = Alignment.TopStart
                 ) {
                     Image(
-                        provider = ImageProvider(R.drawable.finalmono),
+                        provider = ImageProvider(R.drawable.ic_widget_logo_badge),
                         contentDescription = "Vibe-on Logo",
-                        colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)),
-                        modifier = GlanceModifier.size(36.dp)
+                        modifier = GlanceModifier.size(42.dp)
                     )
                 }
                 
@@ -193,11 +192,11 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 ) {
                     Box(
                         modifier = GlanceModifier
-                            .size(36.dp)
-                            .cornerRadius(18.dp)
+                            .size(48.dp)
+                            .cornerRadius(24.dp)
                             .background(
                                 ColorProvider(
-                                    if (playerInfo.isMobilePlayback) onSecondaryContainer else secondaryContainer
+                                    onPrimaryColor.copy(alpha = 0.76f)
                                 )
                             )
                             .clickable(
@@ -213,10 +212,10 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             else
                                 ImageProvider(R.drawable.ic_widget_computer),
                             contentDescription = if (playerInfo.isMobilePlayback) "Mobile" else "PC",
-                            modifier = GlanceModifier.size(20.dp),
+                            modifier = GlanceModifier.size(22.dp),
                             colorFilter = ColorFilter.tint(
                                 ColorProvider(
-                                    if (playerInfo.isMobilePlayback) secondaryContainer else onSecondaryContainer
+                                    primaryColor.copy(alpha = 0.86f)
                                 )
                             )
                         )
@@ -304,40 +303,29 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                     // Like Button
                     Box(
                         modifier = GlanceModifier
-                            .fillMaxHeight()
-                            .padding(16.dp),
+                            .fillMaxHeight(),
                         contentAlignment = Alignment.BottomEnd
                     ) {
-                        Box(
+                        Image(
+                            provider = if (playerInfo.isLiked)
+                                ImageProvider(R.drawable.ic_widget_heart_filled)
+                            else
+                                ImageProvider(R.drawable.ic_widget_heart_outline),
+                            contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
                             modifier = GlanceModifier
-                                .size(36.dp)
-                                .cornerRadius(18.dp)
-                                .background(
-                                    ColorProvider(
-                                        if (playerInfo.isLiked) errorContainer else secondaryContainer
-                                    )
-                                )
+                                .padding(end = 16.dp, bottom = 16.dp)
+                                .size(30.dp)
                                 .clickable(
                                     actionRunCallback<WidgetActionCallback>(
                                         actionParametersOf(keyAction to ACT_LIKE)
                                     )
                                 ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                provider = if (playerInfo.isLiked)
-                                    ImageProvider(R.drawable.ic_widget_heart_filled)
-                                else
-                                    ImageProvider(R.drawable.ic_widget_heart_outline),
-                                contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
-                                modifier = GlanceModifier.size(20.dp),
-                                colorFilter = ColorFilter.tint(
-                                    ColorProvider(
-                                        if (playerInfo.isLiked) onErrorContainer else onSecondaryContainer
-                                    )
+                            colorFilter = ColorFilter.tint(
+                                ColorProvider(
+                                    if (playerInfo.isLiked) errorContainer else onPrimaryColor
                                 )
                             )
-                        }
+                        )
                     }
                 }
 
@@ -405,12 +393,12 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
             // ROW 1: Top (Logo | Open App | Phone/PC) same as main view
             Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 0.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.TopStart) {
-                    Image(provider = ImageProvider(R.drawable.finalmono), contentDescription = "Vibe-on Logo", colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)), modifier = GlanceModifier.size(36.dp))
+                    Image(provider = ImageProvider(R.drawable.ic_widget_logo_badge), contentDescription = "Vibe-on Logo", modifier = GlanceModifier.size(42.dp))
                 }
                 
                 Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.TopEnd) {
-                    Box(modifier = GlanceModifier.size(36.dp).cornerRadius(18.dp).background(ColorProvider(if (playerInfo.isMobilePlayback) onSecondaryContainer else secondaryContainer)).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_TOGGLE_OUT))), contentAlignment = Alignment.Center) {
-                        Image(provider = if (playerInfo.isMobilePlayback) ImageProvider(R.drawable.ic_widget_phone) else ImageProvider(R.drawable.ic_widget_computer), contentDescription = "Toggle output", modifier = GlanceModifier.size(20.dp), colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isMobilePlayback) secondaryContainer else onSecondaryContainer)))
+                    Box(modifier = GlanceModifier.size(48.dp).cornerRadius(24.dp).background(ColorProvider(onPrimaryColor.copy(alpha = 0.76f))).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_TOGGLE_OUT))), contentAlignment = Alignment.Center) {
+                        Image(provider = if (playerInfo.isMobilePlayback) ImageProvider(R.drawable.ic_widget_phone) else ImageProvider(R.drawable.ic_widget_computer), contentDescription = "Toggle output", modifier = GlanceModifier.size(22.dp), colorFilter = ColorFilter.tint(ColorProvider(primaryColor.copy(alpha = 0.86f))))
                     }
                 }
             }
@@ -421,17 +409,23 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                     text = playerInfo.title.ifEmpty { "No Track Playing" },
                     style = TextStyle(
                         color = ColorProvider(onPrimaryColor),
-                        fontSize = 24.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily("m_plus_rounded_1c_bold")
                     ),
                     maxLines = 1
                 )
                 Text(
-                    text = playerInfo.artist.ifEmpty { "Unknown Artist" },
+                    text = buildString {
+                        append(playerInfo.artist.ifEmpty { "Unknown Artist" })
+                        if (playerInfo.album.isNotEmpty()) {
+                            append(" ")
+                            append(playerInfo.album)
+                        }
+                    },
                     style = TextStyle(
                         color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
-                        fontSize = 16.sp,
+                        fontSize = 14.sp,
                         fontFamily = FontFamily("m_plus_rounded_1c_regular")
                     ),
                     maxLines = 1,
@@ -441,16 +435,44 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
 
             Spacer(modifier = GlanceModifier.defaultWeight())
 
-            // ROW 2: Middle - Cookie Shapes
-            Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 8.dp, top = 0.dp, end = 8.dp, bottom = 0.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            // ROW 2: Middle - album tiles
+            Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 12.dp, top = 0.dp, end = 12.dp, bottom = 0.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 for (i in 0..2) {
-                    Box(modifier = GlanceModifier.defaultWeight().padding(8.dp), contentAlignment = Alignment.Center) {
-                        Image(
-                            provider = ImageProvider(R.drawable.ic_cookie_shape),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(ColorProvider(tertiaryColor)),
-                            modifier = GlanceModifier.fillMaxWidth().height(80.dp)
-                        )
+                    val isCenter = i == 1
+                    val tileSize = if (isCenter) 112.dp else 88.dp
+                    val frameColor = if (isCenter) onSecondaryColor else onPrimaryColor.copy(alpha = 0.45f)
+
+                    Box(
+                        modifier = GlanceModifier
+                            .defaultWeight()
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = GlanceModifier
+                                .size(tileSize)
+                                .cornerRadius(if (isCenter) 30.dp else 26.dp)
+                                .background(ColorProvider(frameColor.copy(alpha = if (isCenter) 0.95f else 0.5f)))
+                        ) {
+                            if (albumBitmap != null) {
+                                Image(
+                                    provider = ImageProvider(albumBitmap),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = GlanceModifier
+                                        .fillMaxSize()
+                                        .padding(if (isCenter) 4.dp else 3.dp)
+                                        .cornerRadius(if (isCenter) 26.dp else 22.dp)
+                                )
+                            } else {
+                                Image(
+                                    provider = ImageProvider(R.drawable.ic_cookie_shape),
+                                    contentDescription = null,
+                                    colorFilter = ColorFilter.tint(ColorProvider(tertiaryColor)),
+                                    modifier = GlanceModifier.fillMaxSize().padding(8.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -461,8 +483,9 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
             Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 // Shuffle
                 val isShuffle = playerInfo.isShuffled
-                Box(modifier = GlanceModifier.size(48.dp).cornerRadius(24.dp).background(ColorProvider(if (isShuffle) onSecondaryContainer else secondaryContainer)).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_SHUFFLE))), contentAlignment = Alignment.Center) {
-                    Image(provider = ImageProvider(R.drawable.ic_widget_shuffle), contentDescription = "Shuffle", colorFilter = ColorFilter.tint(ColorProvider(if (isShuffle) secondaryContainer else onSecondaryContainer)), modifier = GlanceModifier.size(24.dp))
+                Box(modifier = GlanceModifier.size(54.dp).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_SHUFFLE))), contentAlignment = Alignment.Center) {
+                    Image(provider = ImageProvider(R.drawable.ic_star_badge), contentDescription = null, colorFilter = ColorFilter.tint(ColorProvider(if (isShuffle) onSecondaryColor else tertiaryColor)), modifier = GlanceModifier.size(52.dp))
+                    Image(provider = ImageProvider(R.drawable.ic_widget_shuffle), contentDescription = "Shuffle", colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)), modifier = GlanceModifier.size(22.dp))
                 }
 
                 Spacer(modifier = GlanceModifier.width(16.dp))
@@ -470,8 +493,8 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                 // Repeat
                 val isRepeat = playerInfo.repeatMode != "off"
                 val repeatIcon = if (playerInfo.repeatMode == "one") R.drawable.ic_widget_repeat_one else R.drawable.ic_widget_repeat
-                Box(modifier = GlanceModifier.size(48.dp).cornerRadius(24.dp).background(ColorProvider(if (isRepeat) onSecondaryContainer else secondaryContainer)).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_REPEAT))), contentAlignment = Alignment.Center) {
-                    Image(provider = ImageProvider(repeatIcon), contentDescription = "Repeat", colorFilter = ColorFilter.tint(ColorProvider(if (isRepeat) secondaryContainer else onSecondaryContainer)), modifier = GlanceModifier.size(24.dp))
+                Box(modifier = GlanceModifier.size(54.dp).cornerRadius(18.dp).background(ColorProvider(if (isRepeat) onSecondaryContainer else secondaryContainer)).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_REPEAT))), contentAlignment = Alignment.Center) {
+                    Image(provider = ImageProvider(repeatIcon), contentDescription = "Repeat", colorFilter = ColorFilter.tint(ColorProvider(if (isRepeat) secondaryContainer else onSecondaryContainer)), modifier = GlanceModifier.size(25.dp))
                 }
 
                 Spacer(modifier = GlanceModifier.width(16.dp))
@@ -482,8 +505,12 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                     1 -> R.drawable.ic_widget_volume_mid
                     else -> R.drawable.ic_widget_volume_high
                 }
-                Box(modifier = GlanceModifier.size(48.dp).cornerRadius(24.dp).background(ColorProvider(secondaryContainer)).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_VOLUME))), contentAlignment = Alignment.Center) {
-                    Image(provider = ImageProvider(volIcon), contentDescription = "Volume", colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.volumeLevel == 0) errorContainer else onSecondaryContainer)), modifier = GlanceModifier.size(24.dp))
+                Box(modifier = GlanceModifier.size(54.dp).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_VOLUME))), contentAlignment = Alignment.Center) {
+                    if (playerInfo.volumeLevel == 0) {
+                        Image(provider = ImageProvider(R.drawable.ic_widget_volume_badge), contentDescription = "Volume muted", modifier = GlanceModifier.size(50.dp))
+                    } else {
+                        Image(provider = ImageProvider(volIcon), contentDescription = "Volume", colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)), modifier = GlanceModifier.size(25.dp))
+                    }
                 }
 
                 Spacer(modifier = GlanceModifier.defaultWeight())
@@ -492,16 +519,14 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                 Box(
                     modifier = GlanceModifier
                         .size(48.dp)
-                        .cornerRadius(24.dp)
-                        .background(ColorProvider(if (playerInfo.isLiked) errorContainer else secondaryContainer))
                         .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_LIKE))),
                     contentAlignment = Alignment.Center
                 ) {
                      Image(
                             provider = if (playerInfo.isLiked) ImageProvider(R.drawable.ic_widget_heart_filled) else ImageProvider(R.drawable.ic_widget_heart_outline),
                             contentDescription = "Like",
-                            modifier = GlanceModifier.size(24.dp),
-                            colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) onErrorContainer else onSecondaryContainer))
+                            modifier = GlanceModifier.size(30.dp),
+                            colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) errorContainer else onPrimaryColor))
                      )
                 }
             }
