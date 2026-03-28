@@ -76,7 +76,7 @@ class WebSocketClient {
         private const val TAG = "WebSocket"
         private const val MAX_RECONNECT_ATTEMPTS = 10
         private const val BASE_RECONNECT_DELAY_MS = 1000L
-        private const val SKIP_DEBOUNCE_MS = 700L
+        private const val SKIP_DEBOUNCE_MS = 400L  // Reduced to allow faster skips, account for network latency
     }
 
     // ── OkHttp ───────────────────────────────────────────────────────────
@@ -104,6 +104,7 @@ class WebSocketClient {
     // ── Skip-command debounce ────────────────────────────────────────────
     private var lastSkipCommandAtMs: Long = 0L
     private var lastSkipDirection: String = ""
+    private var lastSkipFromTrackId: String = ""  // Track which song we skipped FROM
 
     // ── Observable state ─────────────────────────────────────────────────
     private val _isConnected = MutableStateFlow(false)
@@ -395,12 +396,23 @@ class WebSocketClient {
 
     private fun allowSkip(direction: String): Boolean {
         val now = System.currentTimeMillis()
-        if (now - lastSkipCommandAtMs < SKIP_DEBOUNCE_MS) {
-            Log.w(TAG, "Dropping rapid '$direction' (${now - lastSkipCommandAtMs}ms since '$lastSkipDirection')")
+        val currentTrackId = _currentTrack.value.path
+        
+        // Allow skip if:
+        // 1. Enough time passed since last skip command, OR
+        // 2. Track changed (PC responded to our skip), so allow next skip immediately
+        val enoughTimePassed = now - lastSkipCommandAtMs >= SKIP_DEBOUNCE_MS
+        val trackChanged = currentTrackId.isNotEmpty() && currentTrackId != lastSkipFromTrackId
+        
+        if (!enoughTimePassed && !trackChanged) {
+            Log.w(TAG, "Dropping rapid '$direction' (${now - lastSkipCommandAtMs}ms since '$lastSkipDirection', still on track: $currentTrackId)")
             return false
         }
+        
         lastSkipCommandAtMs = now
         lastSkipDirection = direction
+        lastSkipFromTrackId = currentTrackId
+        Log.d(TAG, "Skip allowed: '$direction' (time: ${if (enoughTimePassed) "elapsed" else "track changed"})")
         return true
     }
 

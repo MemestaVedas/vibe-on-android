@@ -198,6 +198,8 @@ class LibraryRepository(
                 duration = track.duration,
                 albumArtUrl = relativeCoverUrl,
                 year = track.year ?: inferYearFromPath(track.path, track.album),
+                source = "pc",  // Mark as coming from PC
+                canonicalId = TrackEntity.generateCanonicalId(track.title, track.artist, track.album),
                 genre = null,
                 trackNumber = track.trackNumber,
                 discNumber = track.discNumber,

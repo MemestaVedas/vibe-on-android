@@ -40,4 +40,87 @@ interface TrackDao {
 
     @Query("SELECT * FROM tracks ORDER BY artist, album, trackNumber LIMIT :limit OFFSET :offset")
     suspend fun getTracksPage(limit: Int, offset: Int): List<TrackEntity>
+
+    // ═══════════════════════════════════════════════════════════════
+    // Deduplication queries
+    // ═══════════════════════════════════════════════════════════════
+    
+    /**
+     * Get all tracks grouped by canonicalId (dedup view).
+     * Returns one entry per unique track (by title+artist+album).
+     */
+    @Query("""
+        SELECT t.*
+        FROM tracks t
+        WHERE t.id = (
+            SELECT t2.id
+            FROM tracks t2
+            WHERE t2.canonicalId = t.canonicalId
+            ORDER BY
+                CASE WHEN t2.source = 'pc' THEN 0 ELSE 1 END,
+                t2.lastUpdated DESC,
+                t2.id ASC
+            LIMIT 1
+        )
+        ORDER BY t.artist, t.album, t.trackNumber
+    """)
+    fun getTracksDeduped(): Flow<List<TrackEntity>>
+    
+    /**
+     * Get all sources for a track (by canonicalId).
+     * Returns all versions: PC + mobile downloads, etc.
+     */
+    @Query("SELECT * FROM tracks WHERE canonicalId = :canonicalId ORDER BY source DESC, lastUpdated DESC")
+    suspend fun getTrackSources(canonicalId: String): List<TrackEntity>
+    
+    /**
+     * Get duplicates (same canonicalId from different sources).
+     */
+    @Query("""
+        SELECT canonicalId, COUNT(*) as count FROM tracks 
+        GROUP BY canonicalId 
+        HAVING count > 1
+        ORDER BY count DESC
+    """)
+    suspend fun getDuplicateGroupIds(): List<DuplicateGroup>
+    
+    /**
+     * Get all tracks with local paths (downloaded/cached).
+     */
+    @Query("SELECT * FROM tracks WHERE localPath IS NOT NULL ORDER BY artist, album, trackNumber")
+    fun getOfflineTracks(): Flow<List<TrackEntity>>
+    
+    /**
+     * Get tracks by source (pc or mobile).
+     */
+    @Query("SELECT * FROM tracks WHERE source = :source ORDER BY artist, album, trackNumber")
+    fun getTracksBySource(source: String): Flow<List<TrackEntity>>
+    
+    /**
+     * Merge tracks during sync: update canonical IDs and prefer PC metadata.
+     */
+    suspend fun mergeTracksByMetadata(newTracks: List<TrackEntity>) {
+        newTracks.forEach { newTrack ->
+            // Find if track with same metadata exists
+            val existingTracks = getTrackSources(newTrack.canonicalId)
+            if (existingTracks.isNotEmpty()) {
+                // Prefer PC version for metadata
+                val preferredTrack = existingTracks.find { it.source == "pc" } ?: existingTracks.first()
+                // Keep localPath if mobile has it
+                val mergedTrack = preferredTrack.copy(
+                    id = preferredTrack.id,  // Keep original ID
+                    localPath = newTrack.localPath ?: preferredTrack.localPath,
+                    canonicalId = preferredTrack.canonicalId
+                )
+                insertTrack(mergedTrack)
+            } else {
+                insertTrack(newTrack)
+            }
+        }
+    }
 }
+
+data class DuplicateGroup(
+    @androidx.room.ColumnInfo(name = "canonicalId") val canonicalId: String,
+    @androidx.room.ColumnInfo(name = "count") val count: Int
+)
