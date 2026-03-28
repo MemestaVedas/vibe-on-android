@@ -165,13 +165,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 Box(
                     modifier = GlanceModifier.defaultWeight().fillMaxHeight().padding(16.dp),
                     contentAlignment = Alignment.TopStart
-                ) {
-                    Image(
-                        provider = ImageProvider(R.drawable.ic_widget_logo_badge),
-                        contentDescription = "Vibe-on Logo",
-                        modifier = GlanceModifier.size(42.dp)
-                    )
-                }
+                ) {}
                 
                 // Top Middle: Tap Zone 3 - Open App
                 Box(
@@ -192,8 +186,8 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 ) {
                     Box(
                         modifier = GlanceModifier
-                            .size(48.dp)
-                            .cornerRadius(24.dp)
+                            .size(42.dp)
+                            .cornerRadius(21.dp)
                             .background(
                                 ColorProvider(
                                     onPrimaryColor.copy(alpha = 0.76f)
@@ -212,7 +206,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             else
                                 ImageProvider(R.drawable.ic_widget_computer),
                             contentDescription = if (playerInfo.isMobilePlayback) "Mobile" else "PC",
-                            modifier = GlanceModifier.size(22.dp),
+                            modifier = GlanceModifier.size(19.dp),
                             colorFilter = ColorFilter.tint(
                                 ColorProvider(
                                     primaryColor.copy(alpha = 0.86f)
@@ -314,7 +308,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
                             modifier = GlanceModifier
                                 .padding(end = 16.dp, bottom = 16.dp)
-                                .size(30.dp)
+                                .size(34.dp)
                                 .clickable(
                                     actionRunCallback<WidgetActionCallback>(
                                         actionParametersOf(keyAction to ACT_LIKE)
@@ -392,13 +386,11 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
         Column(modifier = GlanceModifier.fillMaxSize()) {
             // ROW 1: Top (Logo | Open App | Phone/PC) same as main view
             Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 0.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.TopStart) {
-                    Image(provider = ImageProvider(R.drawable.ic_widget_logo_badge), contentDescription = "Vibe-on Logo", modifier = GlanceModifier.size(42.dp))
-                }
+                Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.TopStart) {}
                 
                 Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.TopEnd) {
-                    Box(modifier = GlanceModifier.size(48.dp).cornerRadius(24.dp).background(ColorProvider(onPrimaryColor.copy(alpha = 0.76f))).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_TOGGLE_OUT))), contentAlignment = Alignment.Center) {
-                        Image(provider = if (playerInfo.isMobilePlayback) ImageProvider(R.drawable.ic_widget_phone) else ImageProvider(R.drawable.ic_widget_computer), contentDescription = "Toggle output", modifier = GlanceModifier.size(22.dp), colorFilter = ColorFilter.tint(ColorProvider(primaryColor.copy(alpha = 0.86f))))
+                    Box(modifier = GlanceModifier.size(42.dp).cornerRadius(21.dp).background(ColorProvider(onPrimaryColor.copy(alpha = 0.76f))).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_TOGGLE_OUT))), contentAlignment = Alignment.Center) {
+                        Image(provider = if (playerInfo.isMobilePlayback) ImageProvider(R.drawable.ic_widget_phone) else ImageProvider(R.drawable.ic_widget_computer), contentDescription = "Toggle output", modifier = GlanceModifier.size(19.dp), colorFilter = ColorFilter.tint(ColorProvider(primaryColor.copy(alpha = 0.86f))))
                     }
                 }
             }
@@ -525,7 +517,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                      Image(
                             provider = if (playerInfo.isLiked) ImageProvider(R.drawable.ic_widget_heart_filled) else ImageProvider(R.drawable.ic_widget_heart_outline),
                             contentDescription = "Like",
-                            modifier = GlanceModifier.size(30.dp),
+                        modifier = GlanceModifier.size(34.dp),
                             colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) errorContainer else onPrimaryColor))
                      )
                 }

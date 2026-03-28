@@ -154,13 +154,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                         .clickable(actionStartActivity<MainActivity>())
                         .padding(10.dp),
                     contentAlignment = Alignment.TopStart
-                ) {
-                    Image(
-                        provider = ImageProvider(R.drawable.ic_widget_logo_badge),
-                        contentDescription = "Vibe-on",
-                        modifier = GlanceModifier.size(40.dp)
-                    )
-                }
+                ) {}
 
                 // Tap Zone 3 — open app, intentionally EMPTY (no icon)
                 Box(
@@ -185,8 +179,8 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                 ) {
                     Box(
                         modifier = GlanceModifier
-                            .size(42.dp)
-                            .cornerRadius(19.dp)
+                            .size(36.dp)
+                            .cornerRadius(18.dp)
                             .background(ColorProvider(colorOnPrimary.copy(alpha = 0.76f))),
                         contentAlignment = Alignment.Center
                     ) {
@@ -197,7 +191,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                                 ImageProvider(R.drawable.ic_widget_computer),
                             contentDescription = if (state.isMobilePlayback) "Mobile" else "PC",
                             colorFilter = ColorFilter.tint(ColorProvider(colorPrimary.copy(alpha = 0.86f))),
-                            modifier = GlanceModifier.size(21.dp)
+                            modifier = GlanceModifier.size(18.dp)
                         )
                     }
                 }
@@ -303,7 +297,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                                 if (state.isLiked) colorErrorContainer else colorOnPrimaryContainer
                             )
                         ),
-                        modifier = GlanceModifier.size(28.dp)
+                        modifier = GlanceModifier.size(32.dp)
                     )
                 }
             }
