@@ -10,6 +10,10 @@ This document describes the WebSocket protocol from the **Android client's persp
 
 The client connects to `ws://<pc-ip>:5000/control` using OkHttp with a 15-second ping interval.
 
+Reconnect policy:
+- Exponential backoff with bounded delay and jitter to avoid reconnect storms on unstable networks.
+- Automatic reconnect is skipped for `401 Unauthorized` responses (invalid control token) so pairing/auth issues are surfaced instead of retried forever.
+
 ### Discovery
 
 The server is discovered via mDNS: `_vibe-on._tcp.local.` on the local network. The resolved IP + port 5000 is used.

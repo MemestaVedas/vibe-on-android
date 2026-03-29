@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.*
 import org.json.JSONObject
+import kotlin.random.Random
 import java.net.URI
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -77,6 +78,7 @@ class WebSocketClient {
         private const val WS_PROTOCOL_VERSION = "1.1"
         private const val MAX_RECONNECT_ATTEMPTS = 10
         private const val BASE_RECONNECT_DELAY_MS = 1000L
+        private const val MAX_RECONNECT_DELAY_MS = 30_000L
         private const val SKIP_DEBOUNCE_MS = 400L  // Reduced to allow faster skips, account for network latency
         private val CLIENT_CAPABILITIES = listOf(
             "lyrics.romaji",
@@ -223,9 +225,16 @@ class WebSocketClient {
             Log.w(TAG, "Max reconnect attempts reached, giving up")
             return
         }
-        val delay = BASE_RECONNECT_DELAY_MS * (1L shl reconnectAttempts.coerceAtMost(5))
+        val expDelay = BASE_RECONNECT_DELAY_MS * (1L shl reconnectAttempts.coerceAtMost(5))
+        val boundedDelay = expDelay.coerceAtMost(MAX_RECONNECT_DELAY_MS)
+        val jitterRange = (boundedDelay * 0.2).toLong()
+        val jitter = if (jitterRange > 0) Random.nextLong(-jitterRange, jitterRange + 1) else 0L
+        val delay = (boundedDelay + jitter).coerceAtLeast(BASE_RECONNECT_DELAY_MS)
         reconnectAttempts++
-        Log.i(TAG, "Reconnecting in ${delay}ms (attempt $reconnectAttempts/$MAX_RECONNECT_ATTEMPTS)")
+        Log.i(
+            TAG,
+            "Reconnecting in ${delay}ms (attempt $reconnectAttempts/$MAX_RECONNECT_ATTEMPTS, base=${boundedDelay}ms)"
+        )
         reconnectJob?.cancel()
         reconnectJob = reconnectScope.launch {
             delay(delay)
@@ -514,6 +523,10 @@ class WebSocketClient {
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
             Log.e(TAG, "Connection error: ${t.message}")
             _isConnected.value = false
+            if (response?.code == 401) {
+                Log.e(TAG, "Unauthorized websocket control token. Not reconnecting automatically.")
+                return
+            }
             scheduleReconnect()
         }
 
