@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.DiscoveredDevice
 import moe.memesta.vibeon.MediaNotificationManager
+import moe.memesta.vibeon.data.MusicStreamClient
 import moe.memesta.vibeon.data.WebSocketClient
 import moe.memesta.vibeon.data.stats.LocalPlaybackStatsRepository
 import moe.memesta.vibeon.data.stats.LocalStatsTracker
@@ -29,6 +30,10 @@ class ConnectionViewModel(
     val localStatsRepository: LocalPlaybackStatsRepository,
     val wsClient: WebSocketClient
 ) : ViewModel() {
+    companion object {
+        private const val SUPPORTED_PROTOCOL_MAJOR = 1
+    }
+
     private val statsTracker by lazy {
         LocalStatsTracker(
             statsRepository = localStatsRepository,
@@ -63,6 +68,9 @@ class ConnectionViewModel(
     
     private val _connectedDevice = MutableStateFlow<DiscoveredDevice?>(null)
     val connectedDevice: StateFlow<DiscoveredDevice?> = _connectedDevice.asStateFlow()
+
+    private val _protocolWarning = MutableStateFlow<String?>(null)
+    val protocolWarning: StateFlow<String?> = _protocolWarning.asStateFlow()
     
     private var hasAutoConnected = false
     private var localSyncJob: Job? = null
@@ -126,8 +134,25 @@ class ConnectionViewModel(
     fun connectToDevice(device: DiscoveredDevice) {
         _connectionState.value = ConnectionState.CONNECTING
         _connectedDevice.value = device
+        _protocolWarning.value = null
         repository.stopDiscovery()
         wsClient.connect(device.host, device.port, "VIBE-ON Mobile")
+
+        viewModelScope.launch {
+            val info = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                MusicStreamClient(device.host, device.port).getServerInfo()
+            }
+            val major = info?.protocolVersion
+                ?.split('.')
+                ?.firstOrNull()
+                ?.toIntOrNull()
+
+            if (major != null && major != SUPPORTED_PROTOCOL_MAJOR) {
+                val warning = "Server protocol ${info.protocolVersion} may be incompatible with mobile protocol major $SUPPORTED_PROTOCOL_MAJOR."
+                _protocolWarning.value = warning
+                Log.w("ConnectionViewModel", warning)
+            }
+        }
     }
     
     fun disconnect() {

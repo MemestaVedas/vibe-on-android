@@ -49,6 +49,8 @@ data class LibraryResponse(
 data class ServerInfo(
     val name: String,
     val version: String,
+    val protocolVersion: String = "1.0",
+    val serverCapabilities: List<String> = emptyList(),
     val librarySize: Int,
     val localIp: String? = null
 )
@@ -99,6 +101,8 @@ class MusicStreamClient(
                 ServerInfo(
                     name = json.getString("name"),
                     version = json.getString("version"),
+                    protocolVersion = json.optString("protocolVersion", "1.0"),
+                    serverCapabilities = json.optJSONArray("serverCapabilities").toStringList(),
                     librarySize = json.getInt("librarySize"),
                     localIp = json.optString("localIp", null)
                 ).also {
@@ -342,4 +346,10 @@ class MusicStreamClient(
             null
         }
     }
+}
+
+private fun org.json.JSONArray?.toStringList(): List<String> {
+    if (this == null) return emptyList()
+    return (0 until length())
+        .mapNotNull { idx -> optString(idx, null)?.takeIf { it.isNotBlank() } }
 }

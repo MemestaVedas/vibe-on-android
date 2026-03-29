@@ -13,6 +13,7 @@ The client connects to `ws://<pc-ip>:5000/control` using OkHttp with a 15-second
 Reconnect policy:
 - Exponential backoff with bounded delay and jitter to avoid reconnect storms on unstable networks.
 - Automatic reconnect is skipped for `401 Unauthorized` responses (invalid control token) so pairing/auth issues are surfaced instead of retried forever.
+- Before and during connect, Android can read `GET /api/info` and compare `protocolVersion` with its supported protocol major version to raise compatibility diagnostics early.
 
 Verification command:
 - `powershell -ExecutionPolicy Bypass -File .\\scripts\\verify-release.ps1` runs compile + lint + unit tests as a release quality gate.
