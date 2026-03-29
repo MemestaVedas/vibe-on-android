@@ -35,7 +35,10 @@ fun JSONObject.toTrackInfo(baseUrl: String): TrackInfo {
         artistEn = optString("artistEn", null).takeIf { it != "null" },
         albumRomaji = optString("albumRomaji", null).takeIf { it != "null" },
         albumEn = optString("albumEn", null).takeIf { it != "null" },
-        playlistTrackId = optLong("playlistTrackId", -1L).takeIf { it != -1L }
+        playlistTrackId = optLong("playlistTrackId", -1L).takeIf { it != -1L },
+        sampleRateHz = optIntOrNull("sampleRateHz", "sampleRate", "sample_rate_hz", "sample_rate"),
+        bitrateKbps = optBitrateKbps(),
+        codec = optStringOrNull("codec", "format", "audioCodec", "mimeType", "mime_type")?.uppercase()
     )
 }
 
@@ -49,6 +52,30 @@ private fun extractYearFromJson(json: JSONObject): Int? {
         .ifEmpty { json.optString("originalDate", "") }
     val yearPrefix = rawDate.take(4).toIntOrNull()
     return yearPrefix?.takeIf { it in 1000..2999 }
+}
+
+private fun JSONObject.optIntOrNull(vararg keys: String): Int? {
+    for (key in keys) {
+        if (!has(key)) continue
+        val value = optInt(key, -1)
+        if (value > 0) return value
+        val fromString = optString(key, "").toIntOrNull()
+        if (fromString != null && fromString > 0) return fromString
+    }
+    return null
+}
+
+private fun JSONObject.optBitrateKbps(): Int? {
+    val raw = optIntOrNull("bitrateKbps", "bitrate_kbps", "bitrate", "bit_rate") ?: return null
+    return if (raw > 10_000) (raw / 1000) else raw
+}
+
+private fun JSONObject.optStringOrNull(vararg keys: String): String? {
+    for (key in keys) {
+        val value = optString(key, null)?.takeIf { it != "null" && it.isNotBlank() }
+        if (value != null) return value
+    }
+    return null
 }
 
 /** Parses a JSON queue item object into a [QueueItem], resolving cover URL against [baseUrl]. */

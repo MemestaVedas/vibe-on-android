@@ -29,7 +29,10 @@ data class MediaSessionData(
     val artistEn: String? = null,
     val albumRomaji: String? = null,
     val albumEn: String? = null,
-    val path: String = ""
+    val path: String = "",
+    val sampleRateHz: Int? = null,
+    val bitrateKbps: Int? = null,
+    val codec: String? = null
 )
 
 @Immutable
@@ -572,6 +575,13 @@ class WebSocketClient {
 
             val rawCover = json.optString("coverUrl", null)?.takeIf { it != "null" && it.isNotEmpty() }
             val coverUrl = resolveCoverUrl(rawCover, baseUrl)
+            val sampleRateHz = json.optIntOrNull("sampleRateHz", "sampleRate", "sample_rate_hz", "sample_rate")
+            val rawBitrate = json.optIntOrNull("bitrateKbps", "bitrate_kbps", "bitrate", "bit_rate")
+            val bitrateKbps = rawBitrate?.let { if (it > 10_000) it / 1000 else it }
+            val codec = json.optStringOrNull("codec", "format", "audioCodec", "mimeType", "mime_type")
+                ?.substringAfterLast('/')
+                ?.uppercase()
+                ?: trackId.substringAfterLast('.', "").takeIf { it.isNotBlank() }?.uppercase()
 
             // Preserve existing lyrics if this message doesn't carry new ones
             val existing = _currentTrack.value.lyrics
@@ -588,7 +598,10 @@ class WebSocketClient {
                 artistEn     = json.optStringOrNull("artistEn"),
                 albumRomaji  = json.optStringOrNull("albumRomaji"),
                 albumEn      = json.optStringOrNull("albumEn"),
-                path = trackId
+                path = trackId,
+                sampleRateHz = sampleRateHz,
+                bitrateKbps = bitrateKbps,
+                codec = codec
             )
             _isPlaying.value = playing
             _duration.value  = duration
@@ -737,6 +750,17 @@ private fun JSONObject.optBooleanFlexible(primary: String, fallback: String): Bo
         has(fallback) -> optBoolean(fallback)
         else -> false
     }
+}
+
+private fun JSONObject.optIntOrNull(vararg keys: String): Int? {
+    for (key in keys) {
+        if (!has(key)) continue
+        val value = optInt(key, -1)
+        if (value > 0) return value
+        val fromString = optString(key, "").toIntOrNull()
+        if (fromString != null && fromString > 0) return fromString
+    }
+    return null
 }
 
 private fun org.json.JSONArray?.toStringList(): List<String> {

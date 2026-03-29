@@ -113,6 +113,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.random.Random
+import java.util.Locale
 import moe.memesta.vibeon.data.MediaSessionData
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.data.local.ScrubberMode
@@ -152,6 +153,25 @@ data class TrackBrowserState(
     val currentIndex: Int,
     val onPlayTrack: (String) -> Unit,
 )
+
+private fun inferCodec(path: String, codec: String?): String? {
+    val normalized = codec?.trim()?.takeIf { it.isNotEmpty() }?.substringAfterLast('/')
+    if (normalized != null) return normalized.uppercase()
+    val ext = path.substringAfterLast('.', "").takeIf { it.isNotBlank() } ?: return null
+    return ext.uppercase()
+}
+
+private fun buildQualityLabel(track: MediaSessionData): String? {
+    val codec = inferCodec(track.path, track.codec)
+    val sample = track.sampleRateHz?.takeIf { it > 0 }?.let {
+        val khz = it / 1000.0
+        val fmt = if (it % 1000 == 0) "%.1f" else "%.2f"
+        "${String.format(Locale.US, fmt, khz)} kHz"
+    }
+    val bitrate = track.bitrateKbps?.takeIf { it > 0 }?.let { "$it kbps" }
+    val parts = listOfNotNull(sample, bitrate, codec)
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
+}
 
 @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
@@ -552,6 +572,9 @@ fun NowPlayingContent(
     val romajiSubtitle = if (showRomajiSubtitle) titleRomaji else null
     val showArtistRomajiSubtitle = !artistRomaji.isNullOrBlank() && !artistRomaji.equals(artist, ignoreCase = true) && !artistRomaji.equals(originalArtist, ignoreCase = true)
     val artistRomajiSubtitle = if (showArtistRomajiSubtitle) artistRomaji else null
+    val qualityLabel = remember(currentTrack.path, currentTrack.codec, currentTrack.sampleRateHz, currentTrack.bitrateKbps) {
+        buildQualityLabel(currentTrack)
+    }
 
     val targetTitleWeight = titleWeightForLength(title.length)
     val animatedTitleWeight by animateIntAsState(
@@ -845,20 +868,35 @@ fun NowPlayingContent(
                     },
                     label = "titleTrackChange"
                 ) { animatedTitle ->
-                    Text(
-                        text = animatedTitle,
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontFamily = MPlus1pRoundedFamily,
-                            fontWeight = FontWeight(animatedTitleWeight),
-                            letterSpacing = animatedTitleSpacing.em
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Clip,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .basicMarquee(iterations = Int.MAX_VALUE)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = animatedTitle,
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontFamily = MPlus1pRoundedFamily,
+                                fontWeight = FontWeight(animatedTitleWeight),
+                                letterSpacing = animatedTitleSpacing.em
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            modifier = Modifier
+                                .weight(1f)
+                                .basicMarquee(iterations = Int.MAX_VALUE)
+                        )
+                        if (!qualityLabel.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = qualityLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
                 
                 if (romajiSubtitle != null) {

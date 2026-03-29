@@ -36,7 +36,10 @@ data class TrackInfo(
     val artistEn: String? = null,
     val albumRomaji: String? = null,
     val albumEn: String? = null,
-    val playlistTrackId: Long? = null
+    val playlistTrackId: Long? = null,
+    val sampleRateHz: Int? = null,
+    val bitrateKbps: Int? = null,
+    val codec: String? = null
 )
 
 @Immutable

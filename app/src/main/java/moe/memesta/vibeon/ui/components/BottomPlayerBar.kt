@@ -60,6 +60,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.foundation.Canvas
 import kotlin.math.abs
 import kotlin.math.sin
+import java.util.Locale
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.ConnectionViewModel
 import moe.memesta.vibeon.ui.PlaybackViewModel
@@ -78,6 +79,25 @@ private val NavBarBg = Color(0xFF0F0F14)
 private val NavBorderColor = Color.White
 // NavAccent is now MaterialTheme.colorScheme.primary for dynamic theming
 private val NavInactive = Color(0xFF8A8A9A)
+
+private fun inferCodec(path: String, codec: String?): String? {
+    val normalized = codec?.trim()?.takeIf { it.isNotEmpty() }?.substringAfterLast('/')
+    if (normalized != null) return normalized.uppercase()
+    val ext = path.substringAfterLast('.', "").takeIf { it.isNotBlank() } ?: return null
+    return ext.uppercase()
+}
+
+private fun buildQualityLabel(track: moe.memesta.vibeon.data.MediaSessionData): String? {
+    val codec = inferCodec(track.path, track.codec)
+    val sample = track.sampleRateHz?.takeIf { it > 0 }?.let {
+        val khz = it / 1000.0
+        val fmt = if (it % 1000 == 0) "%.1f" else "%.2f"
+        "${String.format(Locale.US, fmt, khz)} kHz"
+    }
+    val bitrate = track.bitrateKbps?.takeIf { it > 0 }?.let { "$it kbps" }
+    val parts = listOfNotNull(sample, bitrate, codec)
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
+}
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -105,6 +125,9 @@ fun BottomPlayerBar(
     val displayLanguage = LocalDisplayLanguage.current
     val title = currentTrack.getDisplayName(displayLanguage)
     val artist = currentTrack.getDisplayArtist(displayLanguage)
+    val qualityLabel = remember(currentTrack.path, currentTrack.codec, currentTrack.sampleRateHz, currentTrack.bitrateKbps) {
+        buildQualityLabel(currentTrack)
+    }
 
     val progress = playbackState.progress
     val sharedKeyBase = currentTrack.path.ifEmpty { "no-track" }
@@ -287,17 +310,32 @@ fun BottomPlayerBar(
                                 label = "trackInfoTransition"
                             ) { _ ->
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = title,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .basicMarquee(iterations = Int.MAX_VALUE)
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = title,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .basicMarquee(iterations = Int.MAX_VALUE)
+                                        )
+                                        if (!qualityLabel.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = qualityLabel,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
                                     Text(
                                         text = artist,
                                         style = MaterialTheme.typography.labelMedium,
