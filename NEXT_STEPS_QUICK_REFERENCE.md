@@ -14,6 +14,11 @@ trackDao.getAllTracks()
 trackDao.getTracksDeduped()  // No more duplicates!
 ```
 
+**Status (2026-03-29)**:
+- `LibraryRepository.tracks` now uses `trackDao.getTracksDeduped()`.
+- `StatsViewModel` now loads tracks from `trackDao.getTracksDeduped()`.
+- `LibraryViewModel` and UI track lists consume the deduped repository flow without layout or visual changes.
+
 ### 2. Add Source Selector UI
 **Location**: Track card / detail view
 

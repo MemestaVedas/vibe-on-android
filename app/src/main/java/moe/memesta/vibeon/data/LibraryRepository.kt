@@ -40,9 +40,9 @@ class LibraryRepository(
     private val _syncStatus = MutableStateFlow(SyncStatus())
     val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
 
-    // Expose tracks from DB as the single source of truth
+    // Expose tracks from DB as the single source of truth (deduped by canonicalId)
     // Dynamically inject the current baseUrl for relative coverUrls
-    val tracks: Flow<List<TrackInfo>> = trackDao.getAllTracks().map { entities ->
+    val tracks: Flow<List<TrackInfo>> = trackDao.getTracksDeduped().map { entities ->
         entities.map { entity ->
             val finalCoverUrl = entity.albumArtUrl?.let { url ->
                 if (url.startsWith("/")) "$baseUrl$url" else url

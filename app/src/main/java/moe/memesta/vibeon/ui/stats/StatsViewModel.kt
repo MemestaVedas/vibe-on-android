@@ -122,7 +122,7 @@ class StatsViewModel(
 
     private suspend fun loadTracks(): List<TrackEntity> {
         cachedTracks?.let { if (it.isNotEmpty()) return it }
-        val tracks = trackDao.getAllTracks().first()
+        val tracks = trackDao.getTracksDeduped().first()
         Log.d("StatsViewModel", "📚 Loaded ${tracks.size} tracks from DB")
         cachedTracks = tracks
         return tracks
