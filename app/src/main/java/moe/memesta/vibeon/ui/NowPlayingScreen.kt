@@ -123,6 +123,8 @@ import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.theme.ensureLuminance
 import moe.memesta.vibeon.ui.theme.*
 import moe.memesta.vibeon.ui.image.AppImageLoader
+import moe.memesta.vibeon.ui.nowplaying.HeartBurstOverlay
+import moe.memesta.vibeon.ui.nowplaying.MorphDismissButton
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
@@ -1766,134 +1768,6 @@ fun WaveformScrubber(
             radius = 10.dp.toPx(),
             center = Offset(progressX.coerceIn(0f, size.width), size.height / 2f)
         )
-    }
-}
-
-@Composable
-fun HeartBurstOverlay(
-    event: HeartBurstEvent?,
-    reduceMotion: Boolean,
-    onComplete: () -> Unit
-) {
-    if (event == null) return
-
-    if (reduceMotion) {
-        var visible by remember(event.timestampMs) { mutableStateOf(true) }
-        LaunchedEffect(event.timestampMs) {
-            delay(300)
-            visible = false
-            onComplete()
-        }
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(tween(100)),
-            exit = fadeOut(tween(200)),
-            modifier = Modifier.fillMaxSize().semantics { invisibleToUser() }
-        ) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.Filled.Favorite,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(84.dp)
-                )
-            }
-        }
-        return
-    }
-
-    data class Particle(val angle: Float, val distance: Float, val size: Float, val rotation: Float, val secondary: Boolean, val delayMs: Int)
-    val particles = remember(event.timestampMs) {
-        List(10) { index ->
-            Particle(
-                angle = Random.nextFloat() * (2f * PI.toFloat()),
-                distance = Random.nextInt(80, 160).toFloat(),
-                size = Random.nextInt(16, 40).toFloat(),
-                rotation = Random.nextFloat() * 60f - 30f,
-                secondary = index >= 7,
-                delayMs = index * 40
-            )
-        }
-    }
-    val progressAnims = remember(event.timestampMs) { particles.map { Animatable(0f) } }
-    LaunchedEffect(event.timestampMs) {
-        progressAnims.forEachIndexed { index, anim ->
-            launch {
-                delay(particles[index].delayMs.toLong())
-                anim.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
-            }
-        }
-        delay(980)
-        onComplete()
-    }
-
-    Box(modifier = Modifier.fillMaxSize().semantics { invisibleToUser() }) {
-        particles.forEachIndexed { index, particle ->
-            val p = progressAnims[index].value
-            val eased = 1f - (1f - p) * (1f - p) * (1f - p)
-            val tx = particle.distance * eased * kotlin.math.cos(particle.angle)
-            val ty = particle.distance * eased * kotlin.math.sin(particle.angle)
-            val scale = when {
-                p < 0.4f -> 1.2f * (p / 0.4f)
-                p < 0.6f -> 1.2f - ((p - 0.4f) / 0.2f) * 0.2f
-                else -> 1f
-            }
-            val alpha = if (p <= 0.6f) 1f else (1f - (p - 0.6f) / 0.4f).coerceIn(0f, 1f)
-            Icon(
-                Icons.Filled.Favorite,
-                contentDescription = null,
-                tint = if (particle.secondary) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .offset { IntOffset((event.x + tx).roundToInt(), (event.y + ty).roundToInt()) }
-                    .size(particle.size.dp)
-                    .graphicsLayer {
-                        rotationZ = particle.rotation
-                        scaleX = scale
-                        scaleY = scale
-                        this.alpha = alpha
-                    }
-            )
-        }
-    }
-}
-
-@Composable
-fun MorphDismissButton(onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val progress by animateFloatAsState(
-        targetValue = if (isPressed) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
-        label = "dismissMorph"
-    )
-    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .semantics { contentDescription = "Close player" },
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.size(24.dp)) {
-            val topY = lerp(0.30f, 0.26f, progress)
-            val midY = lerp(0.58f, 0.66f, progress)
-            val path = Path().apply {
-                moveTo(size.width * 0.2f, size.height * topY)
-                lineTo(size.width * 0.5f, size.height * midY)
-                lineTo(size.width * 0.8f, size.height * topY)
-            }
-            drawPath(
-                path = path,
-                color = iconColor,
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-            )
-        }
     }
 }
 
