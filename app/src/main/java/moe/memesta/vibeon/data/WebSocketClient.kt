@@ -544,6 +544,10 @@ class WebSocketClient {
                 TAG,
                 "Identified as $clientName (id=$clientId, serverProtocol=$protocolVersion, negotiatedCaps=${negotiated.joinToString(",")})"
             )
+
+            // Force a fresh state pull after handshake to reduce stale windows during reconnect races.
+            sendGetStatus()
+            sendGetPlaylists()
         }
 
         private fun onMediaSession(json: JSONObject) {

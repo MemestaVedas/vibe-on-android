@@ -52,6 +52,8 @@ The server replies with a burst of messages:
 { "type": "queueUpdate", ... }
 ```
 
+After the `connected` message is processed, the client also sends `getStatus` and `getPlaylists` to force a fresh state pull and minimize reconnect race windows.
+
 ---
 
 ## Messages the Client Sends
