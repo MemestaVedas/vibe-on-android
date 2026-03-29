@@ -192,7 +192,7 @@ fun NowPlayingScreen(
         onToggleFavorite = { path -> connectionViewModel.toggleFavorite(path) },
         onToggleShuffle = { connectionViewModel.toggleShuffle() },
         onToggleRepeat = { connectionViewModel.toggleRepeat() },
-        onSetVolume = { newVolume -> connectionViewModel.setVolume(newVolume) },
+        onSetVolume = { newVolume -> playbackViewModel.setVolume(newVolume) },
         onLoadPlaylists = { connectionViewModel.getPlaylists() },
         onAddToPlaylist = { playlistId, trackPath ->
             connectionViewModel.addToPlaylist(playlistId, trackPath)

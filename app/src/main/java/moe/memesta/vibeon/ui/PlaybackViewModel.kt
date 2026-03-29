@@ -66,6 +66,7 @@ class PlaybackViewModel(
     private var remoteAnchorRealtimeMs = 0L
     private var handoffRecoveryJob: kotlinx.coroutines.Job? = null
     private var lastHandoffRetryAtMs = 0L
+    private var pendingLocalVolume = 0.5f
 
     // ═════════════════════════════════════════════════════════════════════
     // Player attachment
@@ -73,6 +74,7 @@ class PlaybackViewModel(
 
     fun setPlayer(player: Player) {
         this.player = player
+        player.volume = pendingLocalVolume.coerceIn(0f, 1f)
         Log.i(TAG, "Player attached")
 
         // Apply any stream URL that arrived before the player was ready
@@ -162,6 +164,17 @@ class PlaybackViewModel(
                         currentPosition = positionMs
                     )
                     maybeStartDesktopProgressJob()
+                }
+            }
+        }
+
+        // Keep local player volume in sync while mobile/offline playback is active.
+        viewModelScope.launch {
+            webSocketClient.volume.collect { volume ->
+                val clamped = volume.toFloat().coerceIn(0f, 1f)
+                pendingLocalVolume = clamped
+                if (_isMobilePlayback.value || _offlineSong.value != null) {
+                    player?.volume = clamped
                 }
             }
         }
@@ -271,6 +284,7 @@ class PlaybackViewModel(
             .build()
 
         p.setMediaItem(mediaItem)
+        p.volume = pendingLocalVolume.coerceIn(0f, 1f)
         p.prepare()
 
         // Remove the previous listener before installing a new one
@@ -397,6 +411,18 @@ class PlaybackViewModel(
         player?.playWhenReady = playWhenReady
     }
 
+    fun setVolume(volume: Double) {
+        val clamped = volume.toFloat().coerceIn(0f, 1f)
+        pendingLocalVolume = clamped
+
+        if (_isMobilePlayback.value || _offlineSong.value != null) {
+            player?.volume = clamped
+        }
+
+        // Keep server/client volume state in sync so UI reflects latest value consistently.
+        webSocketClient.sendSetVolume(clamped.toDouble())
+    }
+
     fun setScrubberMode(mode: ScrubberMode) {
         playerSettingsRepository.setScrubberMode(mode)
     }
@@ -449,6 +475,7 @@ class PlaybackViewModel(
                 .build()
 
             p.setMediaItem(mediaItem)
+            p.volume = pendingLocalVolume.coerceIn(0f, 1f)
             p.prepare()
             p.play()
 
