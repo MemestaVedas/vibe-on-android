@@ -131,6 +131,26 @@ import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.shapes.*
 
+data class PlayerControlsState(
+    val isLiked: Boolean,
+    val isShuffled: Boolean,
+    val repeatMode: String,
+    val volume: Double,
+    val playlists: List<moe.memesta.vibeon.data.PlaylistInfo>,
+    val onToggleFavorite: (String) -> Unit,
+    val onToggleShuffle: () -> Unit,
+    val onToggleRepeat: () -> Unit,
+    val onSetVolume: (Double) -> Unit,
+    val onLoadPlaylists: () -> Unit,
+    val onAddToPlaylist: (playlistId: String, trackPath: String) -> Unit,
+)
+
+data class TrackBrowserState(
+    val queue: List<moe.memesta.vibeon.data.QueueItem>,
+    val currentIndex: Int,
+    val onPlayTrack: (String) -> Unit,
+)
+
 @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingScreen(
@@ -156,8 +176,31 @@ fun NowPlayingScreen(
     val repeatMode by connectionViewModel.repeatMode.collectAsState()
     val volume by connectionViewModel.volume.collectAsState()
     val favorites by connectionViewModel.favorites.collectAsState()
+    val playlists by connectionViewModel.playlists.collectAsState()
+    val queue by connectionViewModel.queue.collectAsState()
+    val currentIndex by connectionViewModel.currentIndex.collectAsState()
 
     val isLiked = currentTrack.path.let { favorites.contains(it) }
+    val playerControlsState = PlayerControlsState(
+        isLiked = isLiked,
+        isShuffled = isShuffled,
+        repeatMode = repeatMode,
+        volume = volume,
+        playlists = playlists,
+        onToggleFavorite = { path -> connectionViewModel.toggleFavorite(path) },
+        onToggleShuffle = { connectionViewModel.toggleShuffle() },
+        onToggleRepeat = { connectionViewModel.toggleRepeat() },
+        onSetVolume = { newVolume -> connectionViewModel.setVolume(newVolume) },
+        onLoadPlaylists = { connectionViewModel.getPlaylists() },
+        onAddToPlaylist = { playlistId, trackPath ->
+            connectionViewModel.addToPlaylist(playlistId, trackPath)
+        }
+    )
+    val trackBrowserState = TrackBrowserState(
+        queue = queue,
+        currentIndex = currentIndex,
+        onPlayTrack = { path -> connectionViewModel.playTrack(path) }
+    )
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -271,11 +314,8 @@ fun NowPlayingScreen(
                             coverUrl = currentTrack.coverUrl,
                             isMobilePlayback = isMobilePlayback,
                             currentTrack = currentTrack,
-                            isLiked = isLiked,
-                            connectionViewModel = connectionViewModel,
-                            isShuffled = isShuffled,
-                            repeatMode = repeatMode,
-                            volume = volume,
+                            playerControlsState = playerControlsState,
+                            trackBrowserState = trackBrowserState,
                             onPlayPauseToggle = {
                                 if (isMobilePlayback) {
                                     playbackViewModel.setPlayerPlayWhenReady(!effectiveIsPlaying)
@@ -402,11 +442,8 @@ fun NowPlayingContent(
     coverUrl: String? = null,
     isMobilePlayback: Boolean = false,
     currentTrack: MediaSessionData,
-    isLiked: Boolean,
-    connectionViewModel: ConnectionViewModel,
-    isShuffled: Boolean,
-    repeatMode: String,
-    volume: Double,
+    playerControlsState: PlayerControlsState,
+    trackBrowserState: TrackBrowserState,
     onPlayPauseToggle: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -444,8 +481,8 @@ fun NowPlayingContent(
     // Context for gestures
     var showPlaylistDialog by remember { mutableStateOf(false) }
 
-    val queue by connectionViewModel.queue.collectAsState()
-    val currentIndex by connectionViewModel.currentIndex.collectAsState()
+    val queue = trackBrowserState.queue
+    val currentIndex = trackBrowserState.currentIndex
     val pagerItems = remember(queue, currentTrack, displayLanguage, title, artist) {
         if (queue.isNotEmpty()) {
             queue.mapIndexed { index, item ->
@@ -499,7 +536,7 @@ fun NowPlayingContent(
                 lastDispatchedPage = page
                 val selectedPath = pagerItems[page].path
                 if (selectedPath.isNotBlank()) {
-                    connectionViewModel.playTrack(selectedPath)
+                    trackBrowserState.onPlayTrack(selectedPath)
                 }
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             } else if (page == currentIndex) {
@@ -692,7 +729,7 @@ fun NowPlayingContent(
                                 indication = null,
                                 onClick = { onNavigateToAlbum() },
                                 onDoubleClick = {
-                                    connectionViewModel.toggleFavorite(currentTrack.path)
+                                    playerControlsState.onToggleFavorite(currentTrack.path)
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                     onHeartBurst(lastTapOffset.x, lastTapOffset.y)
                                 },
@@ -702,7 +739,7 @@ fun NowPlayingContent(
                                 onClick(label = "Go to album") { onNavigateToAlbum(); true }
                                 customActions = listOf(
                                     CustomAccessibilityAction("Like track") {
-                                        connectionViewModel.toggleFavorite(currentTrack.path)
+                                        playerControlsState.onToggleFavorite(currentTrack.path)
                                         true
                                     }
                                 )
@@ -971,12 +1008,12 @@ fun NowPlayingContent(
                     IconButton(
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            connectionViewModel.toggleShuffle()
+                            playerControlsState.onToggleShuffle()
                         },
                         modifier = Modifier
                             .size(52.dp)
                             .background(
-                                if (isShuffled) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                if (playerControlsState.isShuffled) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
                                 CircleShape
                             )
@@ -985,7 +1022,7 @@ fun NowPlayingContent(
                         Icon(
                             Icons.Rounded.Shuffle,
                             contentDescription = "Shuffle",
-                            tint = if (isShuffled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            tint = if (playerControlsState.isShuffled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -1049,11 +1086,11 @@ fun NowPlayingContent(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    val repeatActive = repeatMode == "all" || repeatMode == "one"
+                    val repeatActive = playerControlsState.repeatMode == "all" || playerControlsState.repeatMode == "one"
                     IconButton(
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            connectionViewModel.toggleRepeat()
+                            playerControlsState.onToggleRepeat()
                         },
                         modifier = Modifier
                             .size(52.dp)
@@ -1065,7 +1102,7 @@ fun NowPlayingContent(
                             .minimumInteractiveComponentSize()
                     ) {
                         Icon(
-                            if (repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                            if (playerControlsState.repeatMode == "one") Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                             contentDescription = "Repeat",
                             tint = if (repeatActive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface
                         )
@@ -1116,7 +1153,7 @@ fun NowPlayingContent(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    val volumeValue = volume.toFloat().coerceIn(0f, 1f)
+                    val volumeValue = playerControlsState.volume.toFloat().coerceIn(0f, 1f)
                     Icon(
                         imageVector = Icons.Rounded.VolumeDown,
                         contentDescription = "Volume down",
@@ -1125,14 +1162,14 @@ fun NowPlayingContent(
                             .minimumInteractiveComponentSize()
                             .clickable {
                                 val newVolume = (volumeValue - 0.1f).coerceIn(0f, 1f)
-                                connectionViewModel.setVolume(newVolume.toDouble())
+                                playerControlsState.onSetVolume(newVolume.toDouble())
                             },
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Slider(
                         value = volumeValue,
-                        onValueChange = { connectionViewModel.setVolume(it.coerceIn(0f, 1f).toDouble()) },
+                        onValueChange = { playerControlsState.onSetVolume(it.coerceIn(0f, 1f).toDouble()) },
                         valueRange = 0f..1f,
                         modifier = Modifier
                             .weight(1f)
@@ -1155,7 +1192,7 @@ fun NowPlayingContent(
                             .minimumInteractiveComponentSize()
                             .clickable {
                                 val newVolume = (volumeValue + 0.1f).coerceIn(0f, 1f)
-                                connectionViewModel.setVolume(newVolume.toDouble())
+                                playerControlsState.onSetVolume(newVolume.toDouble())
                             },
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1233,10 +1270,10 @@ fun NowPlayingContent(
     } // Closes the main Box (e.g., PlayerScreen content)
     
     if (showPlaylistDialog) {
-        val playlists by connectionViewModel.playlists.collectAsState()
+        val playlists = playerControlsState.playlists
         
         LaunchedEffect(Unit) {
-            connectionViewModel.getPlaylists()
+            playerControlsState.onLoadPlaylists()
         }
 
         AlertDialog(
@@ -1256,7 +1293,7 @@ fun NowPlayingContent(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    connectionViewModel.addToPlaylist(playlist.id, currentTrack.path)
+                                    playerControlsState.onAddToPlaylist(playlist.id, currentTrack.path)
                                     showPlaylistDialog = false
                                 }
                                 .padding(16.dp)
