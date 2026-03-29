@@ -18,6 +18,10 @@ Reconnect policy:
 Verification command:
 - `powershell -ExecutionPolicy Bypass -File .\\scripts\\verify-release.ps1` runs compile + lint + unit tests as a release quality gate.
 
+Structured errors:
+- `error` messages may include an optional `code` field.
+- Android logs both `message` and `code` (when present) for faster issue triage.
+
 ### Discovery
 
 The server is discovered via mDNS: `_vibe-on._tcp.local.` on the local network. The resolved IP + port 5000 is used.

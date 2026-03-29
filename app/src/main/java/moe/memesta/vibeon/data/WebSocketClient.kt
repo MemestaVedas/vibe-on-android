@@ -695,7 +695,8 @@ class WebSocketClient {
 
         private fun onError(json: JSONObject) {
             val msg = json.optString("message")
-            Log.e(TAG, "Server error: $msg")
+            val code = json.optStringOrNull("code")
+            Log.e(TAG, "Server error${code?.let { " [$it]" } ?: ""}: $msg")
 
             // Clear loading state on lyrics-related errors
             if (msg.contains("lyrics", ignoreCase = true) || msg.contains("track", ignoreCase = true)) {
