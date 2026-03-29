@@ -14,6 +14,9 @@ Reconnect policy:
 - Exponential backoff with bounded delay and jitter to avoid reconnect storms on unstable networks.
 - Automatic reconnect is skipped for `401 Unauthorized` responses (invalid control token) so pairing/auth issues are surfaced instead of retried forever.
 
+Verification command:
+- `powershell -ExecutionPolicy Bypass -File .\\scripts\\verify-release.ps1` runs compile + lint + unit tests as a release quality gate.
+
 ### Discovery
 
 The server is discovered via mDNS: `_vibe-on._tcp.local.` on the local network. The resolved IP + port 5000 is used.
