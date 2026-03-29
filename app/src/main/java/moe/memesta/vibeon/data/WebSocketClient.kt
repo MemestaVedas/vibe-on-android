@@ -74,9 +74,17 @@ class WebSocketClient {
 
     companion object {
         private const val TAG = "WebSocket"
+        private const val WS_PROTOCOL_VERSION = "1.1"
         private const val MAX_RECONNECT_ATTEMPTS = 10
         private const val BASE_RECONNECT_DELAY_MS = 1000L
         private const val SKIP_DEBOUNCE_MS = 400L  // Reduced to allow faster skips, account for network latency
+        private val CLIENT_CAPABILITIES = listOf(
+            "lyrics.romaji",
+            "library.paged",
+            "playlists.basic",
+            "queue.sync",
+            "playback.output-switch"
+        )
     }
 
     // ── OkHttp ───────────────────────────────────────────────────────────
@@ -170,6 +178,12 @@ class WebSocketClient {
     private val _statsUpdated = MutableStateFlow(0L)
     val statsUpdated: StateFlow<Long> = _statsUpdated.asStateFlow()
 
+    private val _serverProtocolVersion = MutableStateFlow("1.0")
+    val serverProtocolVersion: StateFlow<String> = _serverProtocolVersion.asStateFlow()
+
+    private val _negotiatedCapabilities = MutableStateFlow<List<String>>(emptyList())
+    val negotiatedCapabilities: StateFlow<List<String>> = _negotiatedCapabilities.asStateFlow()
+
     private var lastTrackId: String? = null
     private var lastHandoffAtMs: Long = 0L
 
@@ -242,6 +256,8 @@ class WebSocketClient {
     fun sendHello(name: String = "Android") = send(JSONObject().apply {
         put("type", "hello")
         put("clientName", name)
+        put("protocolVersion", WS_PROTOCOL_VERSION)
+        put("capabilities", org.json.JSONArray().apply { CLIENT_CAPABILITIES.forEach { put(it) } })
     })
 
     fun sendPlay()    = sendSimple("play")
@@ -504,7 +520,17 @@ class WebSocketClient {
         // ── Individual message handlers ──────────────────────────────────
 
         private fun onConnected(json: JSONObject) {
-            Log.i(TAG, "Identified as $clientName (id=${json.optString("clientId")})")
+            val clientId = json.optString("clientId")
+            val protocolVersion = json.optString("protocolVersion", "1.0")
+            val negotiated = json.optJSONArray("negotiatedCapabilities").toStringList()
+
+            _serverProtocolVersion.value = protocolVersion
+            _negotiatedCapabilities.value = negotiated
+
+            Log.i(
+                TAG,
+                "Identified as $clientName (id=$clientId, serverProtocol=$protocolVersion, negotiatedCaps=${negotiated.joinToString(",")})"
+            )
         }
 
         private fun onMediaSession(json: JSONObject) {
@@ -684,4 +710,10 @@ private fun JSONObject.optBooleanFlexible(primary: String, fallback: String): Bo
         has(fallback) -> optBoolean(fallback)
         else -> false
     }
+}
+
+private fun org.json.JSONArray?.toStringList(): List<String> {
+    if (this == null) return emptyList()
+    return (0 until length())
+        .mapNotNull { idx -> optString(idx, null)?.takeIf { it.isNotBlank() } }
 }

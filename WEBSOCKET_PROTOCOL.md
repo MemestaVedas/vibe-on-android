@@ -19,13 +19,30 @@ The server is discovered via mDNS: `_vibe-on._tcp.local.` on the local network. 
 Immediately after the WebSocket opens, the client sends:
 
 ```json
-{ "type": "hello", "clientName": "Android" }
+{
+  "type": "hello",
+  "clientName": "Android",
+  "protocolVersion": "1.1",
+  "capabilities": [
+    "lyrics.romaji",
+    "library.paged",
+    "playlists.basic",
+    "queue.sync",
+    "playback.output-switch"
+  ]
+}
 ```
 
 The server replies with a burst of messages:
 
 ```json
-{ "type": "connected", "clientId": "uuid-string" }
+{
+  "type": "connected",
+  "clientId": "uuid-string",
+  "protocolVersion": "1.1",
+  "serverCapabilities": ["lyrics.romaji", "library.paged", "playlists.basic", "queue.sync", "playback.output-switch"],
+  "negotiatedCapabilities": ["lyrics.romaji", "library.paged", "playlists.basic", "queue.sync", "playback.output-switch"]
+}
 { "type": "mediaSession", ... }
 { "type": "status", ... }
 { "type": "queueUpdate", ... }
