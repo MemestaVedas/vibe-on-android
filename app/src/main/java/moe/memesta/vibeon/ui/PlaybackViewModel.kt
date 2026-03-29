@@ -33,6 +33,8 @@ class PlaybackViewModel(
     companion object {
         private const val TAG = "PlaybackVM"
         private const val AUTO_NEXT_COOLDOWN_MS = 1500L
+        private const val HANDOFF_RECOVERY_DELAY_MS = 1200L
+        private const val HANDOFF_RETRY_MIN_GAP_MS = 2500L
     }
 
     // ── State ────────────────────────────────────────────────────────────
@@ -62,6 +64,8 @@ class PlaybackViewModel(
     private var lastAutoNextAtMs = 0L
     private var remoteAnchorPositionMs = 0L
     private var remoteAnchorRealtimeMs = 0L
+    private var handoffRecoveryJob: kotlinx.coroutines.Job? = null
+    private var lastHandoffRetryAtMs = 0L
 
     // ═════════════════════════════════════════════════════════════════════
     // Player attachment
@@ -78,6 +82,10 @@ class PlaybackViewModel(
                 webSocketClient.consumeStreamUrl()
                 pendingStreamUrl = null
             }
+        }
+
+        if (_isMobilePlayback.value) {
+            scheduleHandoffRecovery("player-attached")
         }
     }
 
@@ -106,10 +114,13 @@ class PlaybackViewModel(
             webSocketClient.isMobilePlayback.collect { isMobile ->
                 _isMobilePlayback.value = isMobile
                 if (!isMobile) {
+                    handoffRecoveryJob?.cancel()
+                    handoffRecoveryJob = null
                     stopMobileStreaming()
                     maybeStartDesktopProgressJob()
                 } else {
                     stopDesktopProgressJob()
+                    scheduleHandoffRecovery("mobile-output-true")
                 }
             }
         }
@@ -186,6 +197,36 @@ class PlaybackViewModel(
         }
     }
 
+    private fun hasActiveLocalStream(): Boolean {
+        val p = player ?: return false
+        return currentStreamUrl != null && (
+            p.isPlaying ||
+            p.playbackState == Player.STATE_BUFFERING ||
+            p.playbackState == Player.STATE_READY
+        )
+    }
+
+    private fun scheduleHandoffRecovery(reason: String) {
+        if (handoffRecoveryJob?.isActive == true) return
+
+        handoffRecoveryJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(HANDOFF_RECOVERY_DELAY_MS)
+
+            if (!_isMobilePlayback.value || hasActiveLocalStream()) {
+                return@launch
+            }
+
+            val now = System.currentTimeMillis()
+            if (now - lastHandoffRetryAtMs < HANDOFF_RETRY_MIN_GAP_MS) {
+                return@launch
+            }
+
+            lastHandoffRetryAtMs = now
+            Log.w(TAG, "Recovering mobile handoff ($reason): requesting fresh stream handoff")
+            webSocketClient.sendStartMobilePlayback()
+        }
+    }
+
     private fun stopDesktopProgressJob() {
         desktopProgressJob?.cancel()
         desktopProgressJob = null
@@ -208,6 +249,8 @@ class PlaybackViewModel(
                 p.playWhenReady = true
                 p.play()
             }
+            handoffRecoveryJob?.cancel()
+            handoffRecoveryJob = null
             _playbackState.value = _playbackState.value.copy(isPlaying = p.isPlaying)
             Log.d(TAG, "Already streaming $url — keeping current player")
             return true
@@ -286,6 +329,8 @@ class PlaybackViewModel(
         }.also { p.addListener(it) }
 
         p.playWhenReady = true
+        handoffRecoveryJob?.cancel()
+        handoffRecoveryJob = null
         return true
     }
 
@@ -321,6 +366,7 @@ class PlaybackViewModel(
     // ═════════════════════════════════════════════════════════════════════
 
     fun requestMobilePlayback() {
+        scheduleHandoffRecovery("manual-request")
         webSocketClient.sendStartMobilePlayback()
     }
 
@@ -432,6 +478,7 @@ class PlaybackViewModel(
         super.onCleared()
         progressJob?.cancel()
         stopDesktopProgressJob()
+        handoffRecoveryJob?.cancel()
         player?.let { p -> streamingListener?.let { p.removeListener(it) } }
     }
 }

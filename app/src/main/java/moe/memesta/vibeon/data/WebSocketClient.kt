@@ -115,6 +115,7 @@ class WebSocketClient {
     private var lastSkipCommandAtMs: Long = 0L
     private var lastSkipDirection: String = ""
     private var lastSkipFromTrackId: String = ""  // Track which song we skipped FROM
+    private var lastMobilePlaybackRequestAtMs: Long = 0L
 
     // ── Observable state ─────────────────────────────────────────────────
     private val _isConnected = MutableStateFlow(false)
@@ -275,7 +276,10 @@ class WebSocketClient {
     fun sendGetLyrics() = sendSimple("getLyrics")
     fun sendGetLibrary() = sendSimple("getLibrary")
     fun sendGetPlaylists() = sendSimple("getPlaylists")
-    fun sendStartMobilePlayback() = sendSimple("startMobilePlayback")
+    fun sendStartMobilePlayback() {
+        lastMobilePlaybackRequestAtMs = System.currentTimeMillis()
+        sendSimple("startMobilePlayback")
+    }
     fun sendStopMobilePlayback()  = sendSimple("stopMobilePlayback")
     fun sendToggleShuffle() = sendSimple("toggleShuffle")
     fun sendToggleRepeat()  = sendSimple("cycleRepeat")
@@ -598,13 +602,18 @@ class WebSocketClient {
 
             if (json.has("output")) {
                 val output = json.getString("output")
-                val isRecentHandoff = (System.currentTimeMillis() - lastHandoffAtMs) in 0..1500
+                val now = System.currentTimeMillis()
+                val isRecentHandoff = (now - lastHandoffAtMs) in 0..1500
+                val isRecentMobileRequest = (now - lastMobilePlaybackRequestAtMs) in 0..5000
 
                 // Ignore transient "desktop" status that raced with handoffPrepare.
                 // The stream URL is consumed right after ExoPlayer starts preparing, so we
                 // cannot rely on _streamUrl being non-null here — only check the time window.
-                if (output == "desktop" && _isMobilePlayback.value && isRecentHandoff) {
-                    Log.w(TAG, "Ignoring stale desktop status during handoff window (${System.currentTimeMillis() - lastHandoffAtMs}ms after handoff)")
+                if (output == "desktop" && _isMobilePlayback.value && (isRecentHandoff || isRecentMobileRequest)) {
+                    Log.w(
+                        TAG,
+                        "Ignoring stale desktop status during handoff window (${now - lastHandoffAtMs}ms after handoff, ${now - lastMobilePlaybackRequestAtMs}ms after mobile request)"
+                    )
                 } else {
                     _isMobilePlayback.value = output == "mobile"
                 }

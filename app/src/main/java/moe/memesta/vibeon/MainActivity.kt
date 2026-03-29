@@ -33,12 +33,18 @@ import moe.memesta.vibeon.ui.theme.VibeonTheme
 import moe.memesta.vibeon.ui.navigation.AppNavHost
 import android.content.ComponentName
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.common.Player
 import com.google.common.util.concurrent.ListenableFuture
 import androidx.core.view.WindowCompat
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var discoveryRepository: DiscoveryRepository
@@ -52,6 +58,12 @@ class MainActivity : ComponentActivity() {
     private var mediaController: MediaController? = null
     private var streamRepository: StreamRepository? = null
     private var playerListener: Player.Listener? = null
+    private var controllerRetryJob: Job? = null
+    private var controllerRetryCount = 0
+
+    companion object {
+        private const val CONTROLLER_MAX_RETRIES = 8
+    }
 
     private fun attachControllerListener(controller: MediaController) {
         playerListener?.let { controller.removeListener(it) }
@@ -73,6 +85,57 @@ class MainActivity : ComponentActivity() {
         playerListener = listener
         controller.addListener(listener)
         playbackViewModel.setPlayer(controller)
+    }
+
+    private fun ensureMediaControllerConnected(forceReconnect: Boolean = false) {
+        mediaController?.let {
+            attachControllerListener(it)
+            return
+        }
+
+        if (!forceReconnect && controllerFuture != null) {
+            return
+        }
+
+        if (forceReconnect) {
+            try {
+                controllerFuture?.let { MediaController.releaseFuture(it) }
+            } catch (e: IllegalArgumentException) {
+                Log.w("MainActivity", "Ignoring controller future release error: ${e.message}")
+            }
+            controllerFuture = null
+        }
+
+        val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture?.addListener({
+            try {
+                val controller = controllerFuture?.get() ?: return@addListener
+                mediaController = controller
+                controllerRetryCount = 0
+                controllerRetryJob?.cancel()
+                controllerRetryJob = null
+                attachControllerListener(controller)
+                Log.i("MainActivity", "✅ MediaController connected")
+            } catch (e: Exception) {
+                Log.w("MainActivity", "MediaController connect attempt failed: ${e.message}")
+                scheduleControllerRetry()
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun scheduleControllerRetry() {
+        if (controllerRetryCount >= CONTROLLER_MAX_RETRIES) {
+            Log.e("MainActivity", "❌ MediaController retries exhausted")
+            return
+        }
+        controllerRetryCount += 1
+        val delayMs = (500L * (1L shl (controllerRetryCount - 1).coerceAtMost(4))).coerceAtMost(5000L)
+        controllerRetryJob?.cancel()
+        controllerRetryJob = lifecycleScope.launch {
+            delay(delayMs)
+            ensureMediaControllerConnected(forceReconnect = true)
+        }
     }
 
     // Runtime notification permission launcher (Android 13+)
@@ -123,6 +186,16 @@ val appContainer = VibeonApp.instance.container
         
         // Auto-start discovery for favorite device detection
         connectionViewModel.startScanning()
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                connectionViewModel.wsIsConnected.collect { connected ->
+                    if (connected && mediaController == null) {
+                        ensureMediaControllerConnected(forceReconnect = false)
+                    }
+                }
+            }
+        }
         
         // Try to initialize StreamRepository but don't crash if it fails
         try {
@@ -177,22 +250,7 @@ val appContainer = VibeonApp.instance.container
 }
     override fun onStart() {
         super.onStart()
-        mediaController?.let {
-            attachControllerListener(it)
-            return
-        }
-
-        val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
-        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        controllerFuture?.addListener({
-            try {
-                val controller = controllerFuture?.get() ?: return@addListener
-                mediaController = controller
-                attachControllerListener(controller)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "❌ Failed to connect to MediaController: ${e.message}")
-            }
-        }, ContextCompat.getMainExecutor(this))
+        ensureMediaControllerConnected(forceReconnect = false)
     }
 
     override fun onStop() {
@@ -208,6 +266,8 @@ val appContainer = VibeonApp.instance.container
     override fun onDestroy() {
         playerListener?.let { mediaController?.removeListener(it) }
         playerListener = null
+        controllerRetryJob?.cancel()
+        controllerRetryJob = null
         try {
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: IllegalArgumentException) {
