@@ -3,32 +3,23 @@ package moe.memesta.vibeon.ui
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.material3.carousel.CarouselItemScope
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
@@ -42,7 +33,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import moe.memesta.vibeon.data.TrackInfo
-import moe.memesta.vibeon.ui.components.AlbumCard
 import moe.memesta.vibeon.ui.AlbumTrackRow
 import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -50,6 +40,7 @@ import moe.memesta.vibeon.ui.theme.MotionTokens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
+import java.net.URLEncoder
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
@@ -128,6 +119,8 @@ fun ArtistDetailScreen(
         albumYearLanes.asReversed().flatMap { it.albums }
     }
 
+    val albumThemeCache = remember { mutableStateMapOf<String, ThemeColors>() }
+
     val scrollState = rememberLazyListState()
     val splitIndex = 1 + albumYearLanes.size
     var hasInitializedStartPosition by remember(decodedArtistName) { mutableStateOf(false) }
@@ -163,12 +156,6 @@ fun ArtistDetailScreen(
             yield()
         }
     }
-
-    val dividerColor = lerp(
-        MaterialTheme.colorScheme.outlineVariant,
-        MaterialTheme.colorScheme.primary,
-        splitProgress
-    )
 
     val albumsLabelAlpha by animateFloatAsState(
         targetValue = (1f - splitProgress * 0.55f).coerceIn(0.55f, 1f),
@@ -227,6 +214,7 @@ fun ArtistDetailScreen(
             itemsIndexed(albumYearLanes) { _, lane ->
                 YearAlbumLane(
                     lane = lane,
+                    albumThemeCache = albumThemeCache,
                     navController = navController,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
@@ -360,6 +348,7 @@ fun ArtistDetailScreen(
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 private fun YearAlbumLane(
     lane: ArtistAlbumYearLane,
+    albumThemeCache: SnapshotStateMap<String, ThemeColors>,
     navController: NavController,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?
@@ -372,6 +361,7 @@ private fun YearAlbumLane(
     )
 
     val carouselState = rememberCarouselState { lane.albums.size }
+    val context = LocalContext.current
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val preferredItemWidth: Dp = maxWidth * 0.75f
@@ -386,8 +376,8 @@ private fun YearAlbumLane(
             contentPadding = PaddingValues(start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
         ) { index ->
             val album = lane.albums[index]
-            val context = LocalContext.current
-            var albumTheme by remember(album.coverUrl) { mutableStateOf(ThemeColors()) }
+            val themeCacheKey = album.coverUrl ?: "album:${album.albumId}"
+            var albumTheme by remember(themeCacheKey) { mutableStateOf(albumThemeCache[themeCacheKey] ?: ThemeColors()) }
             val albumOverlay = if (albumTheme.muted != Color.Transparent) {
                 albumTheme.muted
             } else {
@@ -399,19 +389,30 @@ private fun YearAlbumLane(
                 MaterialTheme.colorScheme.onPrimaryContainer
             }
 
-            LaunchedEffect(album.coverUrl) {
-                albumTheme = ThemeColors()
-                if (album.coverUrl != null) {
-                    val loader = AppImageLoader.get(context)
-                    val request = ImageRequest.Builder(context)
-                        .data(album.coverUrl)
-                        .allowHardware(false)
-                        .build()
-                    val result = withContext(Dispatchers.IO) { loader.execute(request) }
-                    if (result is SuccessResult) {
-                        albumTheme = PaletteUtils.extractColors(result.drawable)
+            LaunchedEffect(themeCacheKey, album.coverUrl) {
+                val cachedTheme = albumThemeCache[themeCacheKey]
+                if (cachedTheme != null) {
+                    albumTheme = cachedTheme
+                } else {
+                    albumTheme = ThemeColors()
+                    if (album.coverUrl != null) {
+                        val loader = AppImageLoader.get(context)
+                        val request = ImageRequest.Builder(context)
+                            .data(album.coverUrl)
+                            .allowHardware(false)
+                            .build()
+                        val result = withContext(Dispatchers.IO) { loader.execute(request) }
+                        if (result is SuccessResult) {
+                            val extractedTheme = PaletteUtils.extractColors(result.drawable)
+                            albumThemeCache[themeCacheKey] = extractedTheme
+                            albumTheme = extractedTheme
+                        }
                     }
                 }
+            }
+
+            val encodedAlbumId = remember(album.albumId) {
+                URLEncoder.encode(album.albumId, StandardCharsets.UTF_8.toString())
             }
 
             Box(
@@ -419,7 +420,7 @@ private fun YearAlbumLane(
                     .maskClip(RoundedCornerShape(24.dp))
                     .fillMaxSize()
                     .bouncyClickable(scaleDown = 0.96f, indication = null) {
-                        navController.navigate("album/${java.net.URLEncoder.encode(album.albumId, "UTF-8")}")
+                        navController.navigate("album/$encodedAlbumId")
                     }
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
