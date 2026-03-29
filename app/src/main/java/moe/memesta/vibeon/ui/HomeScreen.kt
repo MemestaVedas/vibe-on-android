@@ -234,7 +234,7 @@ fun HomeScreen(
             .take(10)
     }
 
-    val isLoading = effectiveTracks.isEmpty() && connectionState == ConnectionState.CONNECTED
+    val isLoading = effectiveTracks.isEmpty() && connectionState == ConnectionState.CONNECTED && !isManualRefreshing
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
