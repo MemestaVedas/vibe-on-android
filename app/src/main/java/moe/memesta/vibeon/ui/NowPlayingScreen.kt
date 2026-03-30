@@ -930,15 +930,9 @@ fun NowPlayingContent(
                                 Text(
                                     text = qualityLabel,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .background(
-                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
-                                            shape = RoundedCornerShape(999.dp)
-                                        )
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
