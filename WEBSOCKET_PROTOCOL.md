@@ -93,6 +93,7 @@ After the `connected` message is processed, the client also sends `getStatus` an
 | `mobilePositionUpdate` | `positionSecs` | Report playback position |
 | `getPlaylists` | — | List all playlists |
 | `getPlaylistTracks` | `playlist_id` | Get playlist tracks |
+| `createPlaylist` | `name`, optional `songs`, optional customization fields | Create playlist with metadata |
 | `addToPlaylist` | `playlist_id`, `path` | Add track to playlist |
 | `removeFromPlaylist` | `playlist_id`, `playlist_track_id` | Remove from playlist |
 | `reorderPlaylistTracks` | `playlist_id`, `track_ids` | Reorder playlist |
@@ -128,6 +129,7 @@ The `WebSocketClient` class provides typed send methods:
 | `sendMobilePositionUpdate(secs)` | `mobilePositionUpdate` + positionSecs |
 | `sendGetPlaylists()` | `getPlaylists` |
 | `sendGetPlaylistTracks(id)` | `getPlaylistTracks` + playlist_id |
+| `sendCreatePlaylist(name, songs, customization)` | `createPlaylist` + payload fields |
 | `sendAddToPlaylist(id, path)` | `addToPlaylist` + playlist_id + path |
 | `sendRemoveFromPlaylist(id, tid)` | `removeFromPlaylist` + playlist_id + playlist_track_id |
 | `sendReorderPlaylistTracks(id, ids)` | `reorderPlaylistTracks` + playlist_id + track_ids |
