@@ -210,8 +210,8 @@ fun NowPlayingScreen(
         volume = volume,
         playlists = playlists,
         onToggleFavorite = { path -> connectionViewModel.toggleFavorite(path) },
-        onToggleShuffle = { connectionViewModel.toggleShuffle() },
-        onToggleRepeat = { connectionViewModel.toggleRepeat() },
+        onToggleShuffle = { if (!isMobilePlayback) connectionViewModel.toggleShuffle() },
+        onToggleRepeat = { if (!isMobilePlayback) connectionViewModel.toggleRepeat() },
         onSetVolume = { newVolume -> playbackViewModel.setVolume(newVolume) },
         onLoadPlaylists = { connectionViewModel.getPlaylists() },
         onAddToPlaylist = { playlistId, trackPath ->
@@ -221,7 +221,14 @@ fun NowPlayingScreen(
     val trackBrowserState = TrackBrowserState(
         queue = queue,
         currentIndex = currentIndex,
-        onPlayTrack = { path -> connectionViewModel.playTrack(path) }
+        onPlayTrack = { path ->
+            // Only send track change to PC if mobile playback is NOT active
+            // When mobile is playing, it has exclusive control over playback
+            // Sending track changes to PC while mobile is streaming would cause desync
+            if (!isMobilePlayback) {
+                connectionViewModel.playTrack(path)
+            }
+        }
     )
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -348,15 +355,24 @@ fun NowPlayingScreen(
                             },
                             onSkipNext = {
                                 android.util.Log.i("NowPlayingScreen", "⏭️ Skip Next button pressed")
-                                connectionViewModel.next()
+                                // Only send skip to PC if mobile playback is NOT active
+                                if (!isMobilePlayback) {
+                                    connectionViewModel.next()
+                                }
                             },
                             onSkipPrevious = {
                                 android.util.Log.i("NowPlayingScreen", "⏮️ Skip Previous button pressed")
-                                connectionViewModel.previous()
+                                // Only send skip to PC if mobile playback is NOT active
+                                if (!isMobilePlayback) {
+                                    connectionViewModel.previous()
+                                }
                             },
                             onSeek = { progress ->
-                                val positionSecs = (progress * playbackState.duration / 1000.0)
-                                connectionViewModel.seek(positionSecs)
+                                // Only send seek to PC if mobile playback is NOT active
+                                if (!isMobilePlayback) {
+                                    val positionSecs = (progress * playbackState.duration / 1000.0)
+                                    connectionViewModel.seek(positionSecs)
+                                }
                             },
                             onBackToLibrary = onBackPressed,
                             onTogglePlaybackLocation = {
