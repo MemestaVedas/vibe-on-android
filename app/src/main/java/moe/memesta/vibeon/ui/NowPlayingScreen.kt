@@ -799,7 +799,15 @@ fun NowPlayingContent(
                     
                     Box(
                         modifier = Modifier
-                            .clip(albumCardShape),
+                            .clip(albumCardShape)
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures { change, dragAmount ->
+                                    if (dragAmount > 100f) { // Swipe down threshold
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onBackToLibrary()
+                                    }
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         if (!displayCover.isNullOrEmpty()) {
