@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -264,6 +266,13 @@ fun ArtistDetailScreen(
                             modifier = Modifier.weight(1f),
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = album.tracks.size.toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
 
@@ -425,9 +434,9 @@ private fun YearAlbumLane(
 
             Box(
                 modifier = Modifier
-                    .maskClip(RoundedCornerShape(24.dp))
+                    .maskClip(RoundedCornerShape(40.dp))
                     .fillMaxHeight()
-                    .aspectRatio(1f)
+                    .aspectRatio(0.9f)
                     .bouncyClickable(scaleDown = 0.96f, indication = null) {
                         navController.navigate("album/$encodedAlbumId")
                     }
@@ -503,7 +512,7 @@ private fun YearAlbumLane(
 private fun SquigglyLineSeparator(
     color: Color,
     modifier: Modifier = Modifier,
-    waveHeight: Float = 6f,
+    waveHeight: Float = 4.5f,
     strokeWidth: Float = 2f
 ) {
     Canvas(
@@ -513,7 +522,7 @@ private fun SquigglyLineSeparator(
     ) {
         val centerY = size.height / 2f
         val path = Path().apply { moveTo(0f, centerY) }
-        val segmentWidth = 26f
+        val segmentWidth = 16f
         var x = 0f
         var waveUp = true
 
@@ -536,7 +545,11 @@ private fun SquigglyLineSeparator(
         drawPath(
             path = path,
             color = color,
-            style = Stroke(width = strokeWidth)
+            style = Stroke(
+                width = strokeWidth,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
         )
     }
 }
