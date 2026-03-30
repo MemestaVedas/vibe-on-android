@@ -79,12 +79,12 @@ fun LyricsScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     
-    // Auto-scroll
+    // Auto-scroll: keep current line in the middle of the screen
     LaunchedEffect(currentLineIndex, lyrics) {
         if (currentLineIndex >= 0 && !isEmpty) {
             scope.launch {
                 listState.animateScrollToItem(
-                    index = (currentLineIndex - 2).coerceAtLeast(0),
+                    index = (currentLineIndex - 4).coerceAtLeast(0),
                     scrollOffset = 0
                 )
             }
