@@ -66,6 +66,10 @@ data class PlaylistInfo(
     val id: String,
     val name: String,
     val trackCount: Int,
+    val customizationType: String? = null,
+    val color: Int? = null,
+    val iconName: String? = null,
+    val imageUri: String? = null,
     val createdAt: String = "",
     val updatedAt: String = ""
 )
@@ -403,7 +407,7 @@ class WebSocketClient {
         put("type", "createPlaylist")
         put("name", name)
         put("songs", org.json.JSONArray().apply { songPaths.forEach { put(it) } })
-        put("customizationType", customization.type.name)
+        put("customizationType", customization.type.name.lowercase())
         when (customization.type) {
             moe.memesta.vibeon.ui.PlaylistCustomizationType.Image ->
                 put("imageUri", customization.imageUri?.toString())
@@ -693,6 +697,10 @@ class WebSocketClient {
                         id = obj.getString("id"),
                         name = obj.getString("name"),
                         trackCount = obj.optInt("trackCount", 0),
+                        customizationType = obj.optStringOrNull("customizationType", "customization_type"),
+                        color = obj.optIntOrNull("color"),
+                        iconName = obj.optStringOrNull("iconName", "icon_name"),
+                        imageUri = obj.optStringOrNull("imageUri", "image_uri"),
                         createdAt  = obj.optString("createdAt", ""),
                         updatedAt  = obj.optString("updatedAt", "")
                     )
