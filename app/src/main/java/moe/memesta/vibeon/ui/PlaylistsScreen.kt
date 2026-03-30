@@ -8,7 +8,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.Piano
+import androidx.compose.material.icons.rounded.Speaker
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -242,6 +247,19 @@ fun PlaylistCard(
     playlist: moe.memesta.vibeon.data.PlaylistInfo,
     onPlaylistClick: () -> Unit
 ) {
+    val showImage = playlist.customizationType.equals("image", ignoreCase = true) && !playlist.imageUri.isNullOrBlank()
+    val useIcon = playlist.customizationType.equals("icon", ignoreCase = true)
+    val accentColor = playlist.color?.let { Color(it) } ?: MaterialTheme.colorScheme.primary
+    val playlistIcon = when (playlist.iconName) {
+        "Headphones" -> Icons.Rounded.Headphones
+        "Favorite", "Heart" -> Icons.Rounded.Favorite
+        "Piano" -> Icons.Rounded.Piano
+        "Speaker" -> Icons.Rounded.Speaker
+        "Album" -> Icons.Rounded.Album
+        "GraphicEq" -> Icons.Rounded.GraphicEq
+        else -> Icons.Filled.QueueMusic
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -260,15 +278,24 @@ fun PlaylistCard(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                .background(accentColor.copy(alpha = if (useIcon) 0.88f else 0.32f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Filled.QueueMusic,
-                contentDescription = "Playlist",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp)
-            )
+            if (showImage) {
+                AsyncImage(
+                    model = playlist.imageUri,
+                    contentDescription = "Playlist cover",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    playlistIcon,
+                    contentDescription = "Playlist",
+                    tint = if (useIcon) Color.White else accentColor,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))

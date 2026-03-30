@@ -445,6 +445,15 @@ fun PlaylistSongSelectionStep(
                     it.getDisplayArtist(displayLanguage).contains(searchQuery, ignoreCase = true)
         }
     }
+    val selectedCount = remember(selectedSongPaths) {
+        selectedSongPaths.count { it.value }
+    }
+    val allFilteredSelected = remember(filteredSongs, selectedSongPaths) {
+        filteredSongs.isNotEmpty() && filteredSongs.all { selectedSongPaths[it.path] == true }
+    }
+    val hasSelectedInFiltered = remember(filteredSongs, selectedSongPaths) {
+        filteredSongs.any { selectedSongPaths[it.path] == true }
+    }
 
     Column(
         modifier = Modifier
@@ -465,6 +474,38 @@ fun PlaylistSongSelectionStep(
             singleLine = true,
             shape = RoundedCornerShape(12.dp)
         )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Dimens.ScreenPadding),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$selectedCount selected",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    enabled = filteredSongs.isNotEmpty() && !allFilteredSelected,
+                    onClick = {
+                        filteredSongs.forEach { onSelectionChange(it.path, true) }
+                    }
+                ) {
+                    Text("Select all")
+                }
+                TextButton(
+                    enabled = hasSelectedInFiltered,
+                    onClick = {
+                        filteredSongs.forEach { onSelectionChange(it.path, false) }
+                    }
+                ) {
+                    Text("Clear")
+                }
+            }
+        }
 
         LazyColumn(
             modifier = Modifier
