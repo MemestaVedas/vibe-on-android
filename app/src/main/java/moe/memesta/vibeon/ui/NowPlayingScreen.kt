@@ -125,7 +125,6 @@ import moe.memesta.vibeon.ui.theme.ensureLuminance
 import moe.memesta.vibeon.ui.theme.*
 import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.nowplaying.HeartBurstOverlay
-import moe.memesta.vibeon.ui.nowplaying.MorphDismissButton
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
@@ -1381,11 +1380,22 @@ fun NowPlayingContent(
         ) {
             Box(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), CircleShape)
-                    .size(40.dp),
+                    .size(40.dp)
+                    .bouncyClickable(onClick = onBackToLibrary),
                 contentAlignment = Alignment.Center
             ) {
-                MorphDismissButton(onClick = onBackToLibrary)
+                Box(
+                    modifier = Modifier
+                        .width(24.dp)
+                        .aspectRatio(316f / 278f)
+                        .graphicsLayer(
+                            scaleX = -1f,
+                            rotationZ = 180f
+                        )
+                        .border(1.5.dp, secondaryColor, ArrowBlobShape)
+                        .clip(ArrowBlobShape)
+                        .background(tertiaryColor)
+                )
             }
 
             Text(
