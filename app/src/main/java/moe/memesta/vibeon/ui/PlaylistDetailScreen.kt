@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,6 +64,7 @@ fun PlaylistDetailScreen(
 
     val playlistName = playlists.find { it.id == decodedPlaylistId }?.name ?: "Playlist"
     val scrollState = rememberLazyListState()
+    var pendingRemoveTrack by remember { mutableStateOf<TrackInfo?>(null) }
 
     // Refresh playlist tracks on enter
     LaunchedEffect(decodedPlaylistId) {
@@ -108,6 +110,17 @@ fun PlaylistDetailScreen(
                                 .background(Color.White.copy(alpha = 0.15f), CircleShape)
                         ) {
                             Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        }
+
+                        IconButton(
+                            onClick = { connectionViewModel.getPlaylistTracks(decodedPlaylistId) },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(end = Dimens.ScreenPadding, top = 20.dp)
+                                .size(40.dp)
+                                .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                        ) {
+                            Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", tint = Color.White)
                         }
                         
                         FloatingActionButton(
@@ -190,11 +203,7 @@ fun PlaylistDetailScreen(
                             }
                         },
                         onRemove = {
-                            val trackId = track.playlistTrackId
-                            if (trackId != null) {
-                                connectionViewModel.removeFromPlaylist(decodedPlaylistId, trackId)
-                                connectionViewModel.getPlaylistTracks(decodedPlaylistId)
-                            }
+                            pendingRemoveTrack = track
                         },
                         onClick = {
                             connectionViewModel.wsClient.sendSetQueue(playlistTracks.map { it.path })
@@ -204,6 +213,34 @@ fun PlaylistDetailScreen(
                     )
                 }
             }
+        }
+
+        if (pendingRemoveTrack != null) {
+            val removeTitle = pendingRemoveTrack?.getDisplayName(displayLanguage) ?: "this track"
+            AlertDialog(
+                onDismissRequest = { pendingRemoveTrack = null },
+                title = { Text("Remove Track?") },
+                text = { Text("Remove \"$removeTitle\" from this playlist?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val trackId = pendingRemoveTrack?.playlistTrackId
+                            if (trackId != null) {
+                                connectionViewModel.removeFromPlaylist(decodedPlaylistId, trackId)
+                                connectionViewModel.getPlaylistTracks(decodedPlaylistId)
+                            }
+                            pendingRemoveTrack = null
+                        }
+                    ) {
+                        Text("Remove")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingRemoveTrack = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
