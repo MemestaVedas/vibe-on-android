@@ -1003,7 +1003,7 @@ fun NowPlayingContent(
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = if (scrubberMode == ScrubberMode.WAVEFORM) Icons.Outlined.GraphicEq else Icons.Outlined.HorizontalRule,
+                                imageVector = if (scrubberMode == ScrubberMode.WAVEFORM) Icons.Rounded.GraphicEq else Icons.Rounded.HorizontalRule,
                                 contentDescription = if (scrubberMode == ScrubberMode.WAVEFORM) "Switch to classic progress bar" else "Switch to waveform",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(18.dp)
