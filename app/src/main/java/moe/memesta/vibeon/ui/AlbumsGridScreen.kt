@@ -2,7 +2,11 @@ package moe.memesta.vibeon.ui
 
 import android.graphics.drawable.BitmapDrawable
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,9 +27,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
@@ -40,6 +42,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -51,10 +55,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,6 +72,7 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.data.local.LibraryViewStyle
 import moe.memesta.vibeon.ui.components.SortBottomSheet
@@ -115,69 +123,19 @@ fun AlbumsGridScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (albumViewStyle == LibraryViewStyle.MODERN) {
-            AlbumsSearchTopBar(
-                searchQuery = searchQuery,
-                onSearchQueryChange = { searchQuery = it },
-                onSidebarClick = onSidebarClick,
-                onSortClick = { showSortSheet = true },
-                resultCount = visibleAlbums.size
-            )
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = Dimens.ScreenPadding, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            CircleShape
-                        )
-                    ) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Text(
-                        text = "Albums",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-
-                IconButton(
-                    onClick = { showSortSheet = true },
-                    modifier = Modifier.background(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        CircleShape
-                    )
-                ) {
-                    Icon(
-                        Icons.Rounded.Sort,
-                        contentDescription = "Sort",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
-        }
+        AlbumsSearchTopBar(
+            searchQuery = searchQuery,
+            onSearchQueryChange = { searchQuery = it },
+            onSidebarClick = onSidebarClick,
+            onSortClick = { showSortSheet = true }
+        )
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(
                 start = Dimens.ScreenPadding,
                 end = Dimens.ScreenPadding,
-                top = if (albumViewStyle == LibraryViewStyle.MODERN) 8.dp else Dimens.ScreenPadding,
+                top = 8.dp,
                 bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
             ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -237,66 +195,73 @@ private fun AlbumsSearchTopBar(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSidebarClick: () -> Unit,
-    onSortClick: () -> Unit,
-    resultCount: Int
+    onSortClick: () -> Unit
 ) {
+    var isSearchFocused by remember { mutableStateOf(false) }
+    val searchScale by animateFloatAsState(
+        targetValue = if (isSearchFocused) 1f else 0.985f,
+        animationSpec = spring(),
+        label = "albumsSearchScale"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = Dimens.ScreenPadding, vertical = 4.dp)
+            .padding(horizontal = Dimens.ScreenPadding, vertical = 6.dp)
     ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "Albums",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onSidebarClick) {
-                    Icon(Icons.Rounded.Menu, contentDescription = "Sidebar")
-                }
-            },
-            actions = {
-                IconButton(onClick = onSortClick) {
-                    Icon(Icons.Rounded.Sort, contentDescription = "Sort")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-                scrolledContainerColor = Color.Transparent
-            )
-        )
-
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            leadingIcon = {
-                Icon(Icons.Rounded.Search, contentDescription = null)
-            },
-            trailingIcon = {
-                if (searchQuery.isNotBlank()) {
-                    IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear")
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            IconButton(onClick = onSidebarClick, modifier = Modifier.size(40.dp)) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_vibe_logo),
+                    contentDescription = "Vibe-On",
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            TextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .graphicsLayer(scaleX = searchScale, scaleY = searchScale)
+                    .onFocusChanged { isSearchFocused = it.isFocused },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                trailingIcon = {
+                    AnimatedVisibility(visible = searchQuery.isNotBlank()) {
+                        IconButton(onClick = { onSearchQueryChange("") }) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                        }
                     }
-                }
-            },
-            placeholder = { Text("Search albums or artists") },
-            shape = RoundedCornerShape(28.dp)
-        )
+                },
+                placeholder = { Text("Search albums or artists") },
+                shape = RoundedCornerShape(32.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
+            )
+
+            IconButton(onClick = onSortClick, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        AssistChip(
-            onClick = onSortClick,
-            label = { Text("$resultCount albums") },
-            leadingIcon = {
-                Icon(Icons.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
-            }
+        Text(
+            text = "Albums",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(horizontal = 4.dp)
         )
     }
 }
