@@ -1376,20 +1376,7 @@ fun NowPlayingContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Box(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f), CircleShape)
-                    .size(40.dp)
-                    .bouncyClickable(onClick = { showPlaylistDialog = true }),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Rounded.PlaylistAdd,
-                    contentDescription = "Add to Playlist",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            Spacer(modifier = Modifier.width(40.dp))
         } // Closes the Header Row
     } // Closes the main Box (e.g., PlayerScreen content)
     
