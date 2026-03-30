@@ -15,6 +15,8 @@ import androidx.compose.material.icons.rounded.Piano
 import androidx.compose.material.icons.rounded.Speaker
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -22,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,9 +50,6 @@ import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeBackground
 import moe.memesta.vibeon.ui.theme.VibeSurface
-import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
-import moe.memesta.vibeon.ui.utils.getDisplayName
-import moe.memesta.vibeon.ui.utils.getDisplayArtist
 
 /**
  * PlaylistsScreen - Displays user-created playlists from the PC
@@ -68,6 +68,7 @@ fun PlaylistsScreen(
     var showCreateWizard by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
     var currentSortOption by remember { mutableStateOf<SortOption>(SortOption.PlaylistNameAZ) }
+    var searchQuery by remember { mutableStateOf("") }
     
     // Fetch playlists when screen loads
     LaunchedEffect(Unit) {
@@ -82,6 +83,17 @@ fun PlaylistsScreen(
             SortOption.PlaylistTrackCountAsc -> playlists.sortedBy { it.trackCount }
             SortOption.PlaylistTrackCountDesc -> playlists.sortedByDescending { it.trackCount }
             else -> playlists
+        }
+    }
+
+    val visiblePlaylists = remember(sortedPlaylists, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) {
+            sortedPlaylists
+        } else {
+            sortedPlaylists.filter { playlist ->
+                playlist.name.contains(query, ignoreCase = true)
+            }
         }
     }
 
@@ -109,6 +121,15 @@ fun PlaylistsScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.Bold
                     )
+
+                    FilledTonalIconButton(
+                        onClick = { viewModel.getPlaylists() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = "Refresh playlists"
+                        )
+                    }
                 }
                 
                 Box(
@@ -153,32 +174,76 @@ fun PlaylistsScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.Bold
                     )
-                    
-                    FilledTonalIconButton(
-                        onClick = { showSortSheet = true }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Sort,
-                            contentDescription = "Sort playlists"
-                        )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalIconButton(
+                            onClick = { viewModel.getPlaylists() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Refresh,
+                                contentDescription = "Refresh playlists"
+                            )
+                        }
+
+                        FilledTonalIconButton(
+                            onClick = { showSortSheet = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Sort,
+                                contentDescription = "Sort playlists"
+                            )
+                        }
                     }
                 }
-                
-                LazyColumn(
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
                     modifier = Modifier
-                        .fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = Dimens.ScreenPadding,
-                        end = Dimens.ScreenPadding,
-                        bottom = contentPadding.calculateBottomPadding() + 160.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
-                ) {
-                    itemsIndexed(sortedPlaylists) { index, playlist ->
-                        PlaylistCard(
-                            playlist = playlist,
-                            onPlaylistClick = { onPlaylistSelected(playlist.id) }
+                        .fillMaxWidth()
+                        .padding(horizontal = Dimens.ScreenPadding),
+                    placeholder = { Text("Search playlists") },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = null
                         )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                if (visiblePlaylists.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = contentPadding.calculateBottomPadding() + 80.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No playlists match \"${searchQuery.trim()}\"",
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = Dimens.ScreenPadding,
+                            end = Dimens.ScreenPadding,
+                            bottom = contentPadding.calculateBottomPadding() + 160.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.ItemSpacing)
+                    ) {
+                        itemsIndexed(visiblePlaylists) { _, playlist ->
+                            PlaylistCard(
+                                playlist = playlist,
+                                onPlaylistClick = { onPlaylistSelected(playlist.id) }
+                            )
+                        }
                     }
                 }
             }
