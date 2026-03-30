@@ -69,6 +69,7 @@ fun MainContentPager(
             1 -> AlbumsGridScreen(
                 viewModel = libraryViewModel,
                 onBackClick = { /* Pager handles back in Activity if needed, but here we stay */ },
+                onSidebarClick = { scope.launch { pagerState.animateScrollToPage(0) } },
                 onAlbumClick = { albumName -> navController.navigate("album/${URLEncoder.encode(albumName, "UTF-8")}") },
                 onPlayAlbum = { albumName -> 
                     libraryViewModel.playAlbum(albumName)
@@ -87,6 +88,7 @@ fun MainContentPager(
             3 -> ArtistsListScreen(
                 viewModel = libraryViewModel,
                 onBackClick = { },
+                onSidebarClick = { scope.launch { pagerState.animateScrollToPage(0) } },
                 onArtistClick = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
                 onPlayArtist = { artistName -> 
                     libraryViewModel.playArtist(artistName)

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
@@ -39,6 +40,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -76,6 +79,7 @@ import moe.memesta.vibeon.ui.utils.LocalAlbumViewStyle
 fun AlbumsGridScreen(
     viewModel: LibraryViewModel,
     onBackClick: () -> Unit,
+    onSidebarClick: () -> Unit,
     onAlbumClick: (String) -> Unit,
     onPlayAlbum: (String) -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp),
@@ -112,86 +116,13 @@ fun AlbumsGridScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         if (albumViewStyle == LibraryViewStyle.MODERN) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = Dimens.ScreenPadding, vertical = 6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    AssistChip(
-                        onClick = { showSortSheet = true },
-                        label = { Text(currentSortOption.displayName) },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Albums",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Moments, covers, and collections in a gallery-first Material 3 layout.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Search, contentDescription = null)
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotBlank()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    placeholder = {
-                        Text("Search albums or artists")
-                    },
-                    shape = RoundedCornerShape(26.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SuggestionChip(
-                        onClick = { showSortSheet = true },
-                        label = { Text("${visibleAlbums.size} albums") }
-                    )
-
-                    if (visibleAlbums.isNotEmpty()) {
-                        FilledTonalButton(onClick = { onPlayAlbum(visibleAlbums.first().name) }) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Play something")
-                        }
-                    }
-                }
-            }
+            AlbumsSearchTopBar(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onSidebarClick = onSidebarClick,
+                onSortClick = { showSortSheet = true },
+                resultCount = visibleAlbums.size
+            )
         } else {
             Row(
                 modifier = Modifier
@@ -295,6 +226,76 @@ fun AlbumsGridScreen(
             onOptionSelected = { option ->
                 viewModel.setAlbumSortOption(option)
                 showSortSheet = false
+            }
+        )
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun AlbumsSearchTopBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSidebarClick: () -> Unit,
+    onSortClick: () -> Unit,
+    resultCount: Int
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = Dimens.ScreenPadding, vertical = 4.dp)
+    ) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = "Albums",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onSidebarClick) {
+                    Icon(Icons.Rounded.Menu, contentDescription = "Sidebar")
+                }
+            },
+            actions = {
+                IconButton(onClick = onSortClick) {
+                    Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                scrolledContainerColor = Color.Transparent
+            )
+        )
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            leadingIcon = {
+                Icon(Icons.Rounded.Search, contentDescription = null)
+            },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                    }
+                }
+            },
+            placeholder = { Text("Search albums or artists") },
+            shape = RoundedCornerShape(28.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        AssistChip(
+            onClick = onSortClick,
+            label = { Text("$resultCount albums") },
+            leadingIcon = {
+                Icon(Icons.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
     }

@@ -868,35 +868,20 @@ fun NowPlayingContent(
                     },
                     label = "titleTrackChange"
                 ) { animatedTitle ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = animatedTitle,
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontFamily = MPlus1pRoundedFamily,
-                                fontWeight = FontWeight(animatedTitleWeight),
-                                letterSpacing = animatedTitleSpacing.em
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip,
-                            modifier = Modifier
-                                .weight(1f)
-                                .basicMarquee(iterations = Int.MAX_VALUE)
-                        )
-                        if (!qualityLabel.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = qualityLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
+                    Text(
+                        text = animatedTitle,
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontFamily = MPlus1pRoundedFamily,
+                            fontWeight = FontWeight(animatedTitleWeight),
+                            letterSpacing = animatedTitleSpacing.em
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .basicMarquee(iterations = Int.MAX_VALUE)
+                    )
                 }
                 
                 if (romajiSubtitle != null) {
@@ -986,7 +971,32 @@ fun NowPlayingContent(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(Modifier.weight(1f))
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!qualityLabel.isNullOrBlank()) {
+                                Text(
+                                    text = qualityLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .background(
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+                                            shape = RoundedCornerShape(999.dp)
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = formatTime(totalSecs),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(4.dp))
                         IconButton(
                             onClick = onToggleScrubberMode,
                             modifier = Modifier.size(32.dp)
@@ -998,12 +1008,6 @@ fun NowPlayingContent(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = formatTime(totalSecs),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
 
                     AnimatedContent(

@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
@@ -46,6 +48,7 @@ import moe.memesta.vibeon.data.local.LibraryViewStyle
 fun ArtistsListScreen(
     viewModel: LibraryViewModel,
     onBackClick: () -> Unit,
+    onSidebarClick: () -> Unit,
     onArtistClick: (String) -> Unit,
     onPlayArtist: (String) -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp),
@@ -100,108 +103,13 @@ fun ArtistsListScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         if (artistViewStyle == LibraryViewStyle.MODERN) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    AssistChip(
-                        onClick = { showSortSheet = true },
-                        label = { Text(currentSortOption.displayName) },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Artists",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "A people-first gallery inspired flow with expressive Material 3 surfaces.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(Icons.Rounded.Search, contentDescription = null)
-                    },
-                    placeholder = {
-                        Text("Search artists")
-                    },
-                    shape = RoundedCornerShape(24.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if (artists.isNotEmpty()) {
-                    Text(
-                        text = "People Highlights",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        artists.take(3).forEach { artist ->
-                            ElevatedSuggestionChip(
-                                onClick = { onArtistClick(artist.name) },
-                                label = {
-                                    Text(
-                                        text = artist.getDisplayName(displayLanguage),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SuggestionChip(
-                        onClick = { showSortSheet = true },
-                        label = { Text("${artists.size} artists") }
-                    )
-
-                    if (artists.isNotEmpty()) {
-                        FilledTonalButton(onClick = { onPlayArtist(artists.first().name) }) {
-                            Text("Play artist")
-                        }
-                    }
-                }
-            }
+            ArtistsSearchTopBar(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onSidebarClick = onSidebarClick,
+                onSortClick = { showSortSheet = true },
+                resultCount = artists.size
+            )
         } else {
             Row(
                 modifier = Modifier
@@ -296,6 +204,74 @@ fun ArtistsListScreen(
             onOptionSelected = { option ->
                 viewModel.setArtistSortOption(option)
                 showSortSheet = false
+            }
+        )
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ArtistsSearchTopBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSidebarClick: () -> Unit,
+    onSortClick: () -> Unit,
+    resultCount: Int
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = "Artists",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onSidebarClick) {
+                    Icon(Icons.Rounded.Menu, contentDescription = "Sidebar")
+                }
+            },
+            actions = {
+                IconButton(onClick = onSortClick) {
+                    Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+                scrolledContainerColor = Color.Transparent
+            )
+        )
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                    }
+                }
+            },
+            placeholder = { Text("Search artists") },
+            shape = RoundedCornerShape(28.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        AssistChip(
+            onClick = onSortClick,
+            label = { Text("$resultCount artists") },
+            leadingIcon = {
+                Icon(Icons.Rounded.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
     }
