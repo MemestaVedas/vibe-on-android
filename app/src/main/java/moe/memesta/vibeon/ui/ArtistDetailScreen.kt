@@ -3,6 +3,7 @@ package moe.memesta.vibeon.ui
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,8 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -93,7 +96,12 @@ fun ArtistDetailScreen(
                     coverUrl = first?.coverUrl,
                     year = groupedTracks.mapNotNull { it.year }.maxOrNull()
                         ?: inferYearFromAlbumOrPath(albumName, groupedTracks.firstOrNull()?.path),
-                    tracks = groupedTracks
+                    tracks = groupedTracks.sortedWith(
+                        compareBy<TrackInfo> { it.year ?: Int.MIN_VALUE }
+                            .thenBy { it.discNumber ?: 1 }
+                            .thenBy { it.trackNumber ?: Int.MAX_VALUE }
+                            .thenBy { it.title.lowercase() }
+                    )
                 )
             }
             .sortedWith(
@@ -116,7 +124,7 @@ fun ArtistDetailScreen(
     }
 
     val songsAlbumOrder = remember(albumYearLanes) {
-        albumYearLanes.asReversed().flatMap { it.albums }
+        albumYearLanes.flatMap { it.albums }
     }
 
     val albumThemeCache = remember { mutableStateMapOf<String, ThemeColors>() }
@@ -245,16 +253,16 @@ fun ArtistDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (album.year != null) "${album.year} • ${album.displayAlbum}" else album.displayAlbum,
+                            text = album.displayAlbum,
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.width(10.dp))
-                        HorizontalDivider(
+                        SquigglyLineSeparator(
                             modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -418,7 +426,8 @@ private fun YearAlbumLane(
             Box(
                 modifier = Modifier
                     .maskClip(RoundedCornerShape(24.dp))
-                    .fillMaxSize()
+                    .fillMaxHeight()
+                    .aspectRatio(1f)
                     .bouncyClickable(scaleDown = 0.96f, indication = null) {
                         navController.navigate("album/$encodedAlbumId")
                     }
@@ -487,6 +496,48 @@ private fun YearAlbumLane(
             )
         }
         }
+    }
+}
+
+@Composable
+private fun SquigglyLineSeparator(
+    color: Color,
+    modifier: Modifier = Modifier,
+    waveHeight: Float = 6f,
+    strokeWidth: Float = 2f
+) {
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(18.dp)
+    ) {
+        val centerY = size.height / 2f
+        val path = Path().apply { moveTo(0f, centerY) }
+        val segmentWidth = 26f
+        var x = 0f
+        var waveUp = true
+
+        while (x < size.width) {
+            val nextX = (x + segmentWidth).coerceAtMost(size.width)
+            val controlX1 = x + segmentWidth * 0.3f
+            val controlX2 = x + segmentWidth * 0.7f
+            val controlY = if (waveUp) centerY - waveHeight else centerY + waveHeight
+
+            path.cubicTo(
+                controlX1, centerY,
+                controlX2, controlY,
+                nextX, centerY
+            )
+
+            x = nextX
+            waveUp = !waveUp
+        }
+
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(width = strokeWidth)
+        )
     }
 }
 
