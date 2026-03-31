@@ -16,3 +16,4 @@ These milestones align with wiki notes under `wiki/vibe-on-android/2026-03-24-im
 9. `build: move Java and Kotlin targets to 11` (`491ea4c`)
 10. `di: add hilt foundation wiring` (`2e7b07b`)
 11. `build: add paging dependencies for list migration` (`0d70ae5`)
+12. `perf: add baseline profile module and app wiring`
