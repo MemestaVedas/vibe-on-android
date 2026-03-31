@@ -112,6 +112,7 @@ fun HomeScreen(
     onArtistSelected: (String) -> Unit,
     onSearchClick: () -> Unit,
     onViewAllSongs: () -> Unit,
+    onViewFavorites: () -> Unit,
     onViewPlaylists: () -> Unit,
     onViewStats: () -> Unit,
     onViewOfflineSongs: () -> Unit,
@@ -385,6 +386,23 @@ fun HomeScreen(
                             onClick = {
                                 scope.launch { drawerState.close() }
                                 onViewAllSongs()
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.Favorite,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            label = { Text("Favorites") },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                onViewFavorites()
                             },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )

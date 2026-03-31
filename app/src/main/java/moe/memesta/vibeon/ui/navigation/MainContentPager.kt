@@ -46,6 +46,7 @@ fun MainContentPager(
                 onArtistSelected = { artistName -> navController.navigate("artist/${URLEncoder.encode(artistName, "UTF-8")}") },
                 onSearchClick = onSearchClick,
                 onViewAllSongs = { navController.navigate("all_songs") },
+                onViewFavorites = { scope.launch { pagerState.animateScrollToPage(4) } },
                 onViewPlaylists = { navController.navigate("playlists") },
                 onViewStats = { scope.launch { pagerState.animateScrollToPage(2) } },
                 onViewOfflineSongs = { navController.navigate("offline_songs") },
