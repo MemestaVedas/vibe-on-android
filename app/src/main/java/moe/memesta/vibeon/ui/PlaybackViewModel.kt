@@ -5,6 +5,8 @@ import android.os.SystemClock
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -24,7 +26,8 @@ data class HeartBurstEvent(
     val timestampMs: Long = System.currentTimeMillis()
 )
 
-class PlaybackViewModel(
+@HiltViewModel
+class PlaybackViewModel @Inject constructor(
     private val webSocketClient: WebSocketClient,
     private val playerSettingsRepository: PlayerSettingsRepository,
     private var player: Player? = null

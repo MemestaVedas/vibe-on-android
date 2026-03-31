@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -24,17 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.PlaybackService
-import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.StreamRepository
-import moe.memesta.vibeon.data.DiscoveredDevice
-import moe.memesta.vibeon.data.stats.LocalPlaybackStatsRepository
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.theme.VibeonTheme
 import moe.memesta.vibeon.ui.navigation.AppNavHost
 import android.content.ComponentName
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.session.MediaController
@@ -43,19 +40,25 @@ import androidx.media3.common.Player
 import com.google.common.util.concurrent.ListenableFuture
 import androidx.core.view.WindowCompat
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private lateinit var discoveryRepository: DiscoveryRepository
-    private lateinit var connectionViewModel: ConnectionViewModel
-    private lateinit var localStatsRepository: LocalPlaybackStatsRepository
-    private lateinit var playbackViewModel: PlaybackViewModel
-    private lateinit var favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager
-    private lateinit var playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository
-    private lateinit var onboardingManager: moe.memesta.vibeon.data.local.OnboardingManager
+    private val connectionViewModel: ConnectionViewModel by viewModels()
+    private val playbackViewModel: PlaybackViewModel by viewModels()
+
+    @Inject
+    lateinit var favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager
+
+    @Inject
+    lateinit var playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository
+
+    @Inject
+    lateinit var onboardingManager: moe.memesta.vibeon.data.local.OnboardingManager
+
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
     private var streamRepository: StreamRepository? = null
@@ -159,33 +162,6 @@ class MainActivity : ComponentActivity() {
                 notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-        
-val appContainer = VibeonApp.instance.container
-
-        discoveryRepository = appContainer.discoveryRepository
-        favoritesManager = appContainer.favoritesManager
-        playerSettingsRepository = appContainer.playerSettingsRepository
-        localStatsRepository = appContainer.localStatsRepository
-        onboardingManager = appContainer.onboardingManager
-
-        // Use ViewModelProvider so ViewModels survive configuration changes
-        connectionViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return ConnectionViewModel(discoveryRepository, localStatsRepository, appContainer.webSocketClient) as T
-            }
-        })[ConnectionViewModel::class.java]
-
-        playbackViewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return PlaybackViewModel(
-                    webSocketClient = appContainer.webSocketClient,
-                    playerSettingsRepository = appContainer.playerSettingsRepository
-                ) as T
-            }
-        })[PlaybackViewModel::class.java]
-        
         // Auto-start discovery for favorite device detection
         connectionViewModel.startScanning()
 

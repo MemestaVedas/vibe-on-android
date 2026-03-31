@@ -3,6 +3,8 @@ package moe.memesta.vibeon.ui
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +27,8 @@ enum class ConnectionState {
     FAILED
 }
 
-class ConnectionViewModel(
+@HiltViewModel
+class ConnectionViewModel @Inject constructor(
     private val repository: DiscoveryRepository,
     val localStatsRepository: LocalPlaybackStatsRepository,
     val wsClient: WebSocketClient
