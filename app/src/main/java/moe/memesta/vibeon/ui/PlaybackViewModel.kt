@@ -29,8 +29,7 @@ data class HeartBurstEvent(
 @HiltViewModel
 class PlaybackViewModel @Inject constructor(
     private val webSocketClient: WebSocketClient,
-    private val playerSettingsRepository: PlayerSettingsRepository,
-    private var player: Player? = null
+    private val playerSettingsRepository: PlayerSettingsRepository
 ) : ViewModel() {
 
     companion object {
@@ -60,6 +59,7 @@ class PlaybackViewModel @Inject constructor(
     // ── Internal ─────────────────────────────────────────────────────────
     private var pendingStreamUrl: String? = null
     private var currentStreamUrl: String? = null
+    private var player: Player? = null
     private var streamingListener: Player.Listener? = null
     private var progressJob: kotlinx.coroutines.Job? = null
     private var desktopProgressJob: kotlinx.coroutines.Job? = null

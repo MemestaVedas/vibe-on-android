@@ -87,6 +87,7 @@ class LibraryViewModel(
     private val _currentTrackSortOption = MutableStateFlow<SortOption>(SortOption.TrackDefault)
     val currentTrackSortOption: StateFlow<SortOption> = _currentTrackSortOption
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val pagedTracks: kotlinx.coroutines.flow.Flow<PagingData<TrackInfo>> =
         combine(_searchQuery, _currentTrackSortOption) { query, sort ->
             query.trim() to sort
