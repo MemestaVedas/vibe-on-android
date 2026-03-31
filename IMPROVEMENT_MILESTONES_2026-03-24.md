@@ -22,3 +22,4 @@ These milestones align with wiki notes under `wiki/vibe-on-android/2026-03-24-im
 15. `perf: migrate to Kotlin 2.1 + Compose compiler plugin and strong skipping`
 16. `di: migrate core MainActivity ViewModels to Hilt`
 17. `audio: add persisted transition settings foundation`
+18. `cast: add route discovery foundation scaffolding`

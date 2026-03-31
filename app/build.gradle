@@ -114,6 +114,8 @@ dependencies {
     // Media3 for Audio
     implementation "androidx.media3:media3-exoplayer:1.2.1"
     implementation "androidx.media3:media3-session:1.2.1"
+    implementation 'androidx.mediarouter:mediarouter:1.8.1'
+    implementation 'com.google.android.gms:play-services-cast-framework:22.3.0'
 
     // Legacy media compat for MediaStyle in NotificationCompat
     implementation "androidx.media:media:1.7.0"

@@ -1,6 +1,7 @@
 package moe.memesta.vibeon
 
 import android.content.Context
+import moe.memesta.vibeon.data.cast.CastStateHolder
 import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.StreamRepository
 import moe.memesta.vibeon.data.WebSocketClient
@@ -50,5 +51,9 @@ class AppContainer(private val context: Context) {
 
     val torrentStoragePreferences: TorrentStoragePreferences by lazy {
         TorrentStoragePreferences(context.applicationContext)
+    }
+
+    val castStateHolder: CastStateHolder by lazy {
+        CastStateHolder(context.applicationContext)
     }
 }
