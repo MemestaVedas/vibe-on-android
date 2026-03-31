@@ -1,6 +1,7 @@
 package moe.memesta.vibeon.data.local
 
 import androidx.room.*
+import androidx.paging.PagingSource
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -40,6 +41,48 @@ interface TrackDao {
 
     @Query("SELECT * FROM tracks ORDER BY artist, album, trackNumber LIMIT :limit OFFSET :offset")
     suspend fun getTracksPage(limit: Int, offset: Int): List<TrackEntity>
+
+    @Query(
+        """
+        SELECT t.*
+        FROM tracks t
+        WHERE t.id = (
+            SELECT t2.id
+            FROM tracks t2
+            WHERE t2.canonicalId = t.canonicalId
+            ORDER BY
+                CASE WHEN t2.source = 'pc' THEN 0 ELSE 1 END,
+                t2.lastUpdated DESC,
+                t2.id ASC
+            LIMIT 1
+        )
+        AND (
+            :query = ''
+            OR t.title LIKE '%' || :query || '%'
+            OR t.artist LIKE '%' || :query || '%'
+            OR t.album LIKE '%' || :query || '%'
+            OR COALESCE(t.titleRomaji, '') LIKE '%' || :query || '%'
+            OR COALESCE(t.artistRomaji, '') LIKE '%' || :query || '%'
+            OR COALESCE(t.albumRomaji, '') LIKE '%' || :query || '%'
+            OR COALESCE(t.titleEn, '') LIKE '%' || :query || '%'
+            OR COALESCE(t.artistEn, '') LIKE '%' || :query || '%'
+            OR COALESCE(t.albumEn, '') LIKE '%' || :query || '%'
+        )
+        ORDER BY
+            CASE WHEN :sortKey = 'track_title_az' THEN lower(t.title) END ASC,
+            CASE WHEN :sortKey = 'track_title_za' THEN lower(t.title) END DESC,
+            CASE WHEN :sortKey = 'track_duration_asc' THEN t.duration END ASC,
+            CASE WHEN :sortKey = 'track_duration_desc' THEN t.duration END DESC,
+            CASE WHEN :sortKey = 'track_default' THEN lower(t.artist) END ASC,
+            CASE WHEN :sortKey = 'track_default' THEN lower(t.album) END ASC,
+            CASE WHEN :sortKey = 'track_default' THEN COALESCE(t.trackNumber, 0) END ASC,
+            lower(t.title) ASC
+    """
+    )
+    fun getTracksDedupedPaging(
+        query: String,
+        sortKey: String
+    ): PagingSource<Int, TrackEntity>
 
     // ═══════════════════════════════════════════════════════════════
     // Deduplication queries

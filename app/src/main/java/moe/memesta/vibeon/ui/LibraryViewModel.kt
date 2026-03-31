@@ -2,9 +2,14 @@ package moe.memesta.vibeon.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -81,6 +86,16 @@ class LibraryViewModel(
     // Track sorting
     private val _currentTrackSortOption = MutableStateFlow<SortOption>(SortOption.TrackDefault)
     val currentTrackSortOption: StateFlow<SortOption> = _currentTrackSortOption
+
+    val pagedTracks: kotlinx.coroutines.flow.Flow<PagingData<TrackInfo>> =
+        combine(_searchQuery, _currentTrackSortOption) { query, sort ->
+            query.trim() to sort
+        }
+            .distinctUntilChanged()
+            .flatMapLatest { (query, sort) ->
+                repository.getPagedTracks(query = query, sortOption = sort)
+            }
+            .cachedIn(viewModelScope)
 
     // Artist sorting
     private val _currentArtistSortOption = MutableStateFlow<SortOption>(SortOption.ArtistDefault)
@@ -261,6 +276,11 @@ class LibraryViewModel(
             wsClient.sendStartMobilePlayback()
         }
     }
+
+    fun playTrack(track: TrackInfo) {
+        val playbackContext = currentTrackContext()
+        playTrack(track, playbackContext)
+    }
     
     fun sendPlay() {
         wsClient.sendPlay()
@@ -359,6 +379,20 @@ class LibraryViewModel(
             SortOption.TrackDurationDesc -> tracks.sortedWith(compareByDescending { it.duration })
             else -> tracks
         }
+    }
+
+    private fun filteredTracks(tracks: List<TrackInfo>, query: String): List<TrackInfo> {
+        if (query.isBlank()) return tracks
+        return tracks.filter {
+            it.title.contains(query, ignoreCase = true) ||
+                it.artist.contains(query, ignoreCase = true) ||
+                it.album.contains(query, ignoreCase = true)
+        }
+    }
+
+    private fun currentTrackContext(): List<TrackInfo> {
+        val filtered = filteredTracks(_tracks.value, _searchQuery.value)
+        return sortTracks(filtered, _currentTrackSortOption.value)
     }
     
     fun setTrackSortOption(option: SortOption) {

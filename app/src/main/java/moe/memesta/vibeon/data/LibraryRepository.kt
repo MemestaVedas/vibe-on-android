@@ -1,6 +1,10 @@
 package moe.memesta.vibeon.data
 
 import android.util.Log
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,27 +47,25 @@ class LibraryRepository(
     // Expose tracks from DB as the single source of truth (deduped by canonicalId)
     // Dynamically inject the current baseUrl for relative coverUrls
     val tracks: Flow<List<TrackInfo>> = trackDao.getTracksDeduped().map { entities ->
-        entities.map { entity ->
-            val finalCoverUrl = entity.albumArtUrl?.let { url ->
-                if (url.startsWith("/")) "$baseUrl$url" else url
+        entities.map(::toTrackInfo)
+    }
+
+    fun getPagedTracks(query: String, sortOption: SortOption): Flow<PagingData<TrackInfo>> {
+        val normalizedQuery = query.trim()
+        return Pager(
+            config = PagingConfig(
+                pageSize = 60,
+                prefetchDistance = 30,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = {
+                trackDao.getTracksDedupedPaging(
+                    query = normalizedQuery,
+                    sortKey = sortOption.storageKey
+                )
             }
-            TrackInfo(
-                path = entity.id,
-                title = entity.title,
-                artist = entity.artist,
-                album = entity.album,
-                duration = entity.duration,
-                coverUrl = finalCoverUrl,
-                year = entity.year,
-                titleRomaji = entity.titleRomaji,
-                titleEn = entity.titleEn,
-                artistRomaji = entity.artistRomaji,
-                artistEn = entity.artistEn,
-                albumRomaji = entity.albumRomaji,
-                albumEn = entity.albumEn,
-                discNumber = entity.discNumber,
-                trackNumber = entity.trackNumber
-            )
+        ).flow.map { pagingData ->
+            pagingData.map(::toTrackInfo)
         }
     }
 
@@ -232,4 +234,27 @@ class LibraryRepository(
 
     suspend fun getPlaybackEvents(startMs: Long? = null, endMs: Long? = null) =
         streamClient.getPlaybackEvents(startMs, endMs)
+
+    private fun toTrackInfo(entity: TrackEntity): TrackInfo {
+        val finalCoverUrl = entity.albumArtUrl?.let { url ->
+            if (url.startsWith("/")) "$baseUrl$url" else url
+        }
+        return TrackInfo(
+            path = entity.id,
+            title = entity.title,
+            artist = entity.artist,
+            album = entity.album,
+            duration = entity.duration,
+            coverUrl = finalCoverUrl,
+            year = entity.year,
+            titleRomaji = entity.titleRomaji,
+            titleEn = entity.titleEn,
+            artistRomaji = entity.artistRomaji,
+            artistEn = entity.artistEn,
+            albumRomaji = entity.albumRomaji,
+            albumEn = entity.albumEn,
+            discNumber = entity.discNumber,
+            trackNumber = entity.trackNumber
+        )
+    }
 }

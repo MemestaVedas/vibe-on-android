@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import moe.memesta.vibeon.data.SortOption
@@ -50,9 +50,8 @@ fun LibraryScreen(
 ) {
     BackHandler(onBack = onBackClick)
 
-    val tracks by viewModel.tracks.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
+    val pagedTracks = viewModel.pagedTracks.collectAsLazyPagingItems()
     
     val listState = rememberLazyListState()
     
@@ -60,20 +59,6 @@ fun LibraryScreen(
     
     val trackSortOption by viewModel.currentTrackSortOption.collectAsState()
     
-    // Derived Data
-    val displayedTracks = remember(tracks, searchQuery, trackSortOption) {
-        val filtered = if (searchQuery.isNotEmpty()) {
-            tracks.filter { 
-                it.title.contains(searchQuery, ignoreCase = true) || 
-                it.artist.contains(searchQuery, ignoreCase = true) 
-            }
-        } else {
-            tracks
-        }
-        
-        viewModel.sortTracks(filtered, trackSortOption)
-    }
-
     var showSortSheet by remember { mutableStateOf(false) }
     
     Box(
@@ -133,11 +118,32 @@ fun LibraryScreen(
                 }
                 
                 // Content
-                if (isLoading && tracks.isEmpty()) {
+                if (isLoading && pagedTracks.itemCount == 0) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         VibeContainedLoadingIndicator(label = "Loading your library...")
                     }
-                } else if (tracks.isEmpty()) {
+                } else if (pagedTracks.loadState.refresh is LoadState.Error && pagedTracks.itemCount == 0) {
+                    val error = (pagedTracks.loadState.refresh as LoadState.Error).error
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "Unable to load library",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                error.localizedMessage ?: "Unknown paging error",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { pagedTracks.retry() }) {
+                                Text("Retry")
+                            }
+                        }
+                    }
+                } else if (pagedTracks.itemCount == 0 && pagedTracks.loadState.refresh is LoadState.NotLoading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No tracks found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                     }
@@ -153,8 +159,12 @@ fun LibraryScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        itemsIndexed(displayedTracks) { index, track ->
-                            val prevTrack = if (index > 0) displayedTracks[index - 1] else null
+                        items(
+                            count = pagedTracks.itemCount,
+                            key = { index -> pagedTracks[index]?.path ?: "track_$index" }
+                        ) { index ->
+                            val track = pagedTracks[index] ?: return@items
+                            val prevTrack = if (index > 0) pagedTracks.peek(index - 1) else null
                             val currentAlbum = remember(track.album, track.discNumber) { 
                                 parseAlbum(track.album, track.discNumber) 
                             }
@@ -188,7 +198,7 @@ fun LibraryScreen(
 
                             val onTrackClick = remember(track) {
                                 {
-                                    viewModel.playTrack(track, displayedTracks)
+                                    viewModel.playTrack(track)
                                     onTrackSelected(track)
                                 }
                             }
@@ -196,6 +206,19 @@ fun LibraryScreen(
                                 track = track,
                                 onTrackClick = onTrackClick
                             )
+                        }
+
+                        if (pagedTracks.loadState.append is LoadState.Loading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(strokeWidth = 2.dp)
+                                }
+                            }
                         }
                     }
                 }
