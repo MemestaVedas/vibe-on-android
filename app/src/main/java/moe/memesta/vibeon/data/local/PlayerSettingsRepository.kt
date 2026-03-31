@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import kotlinx.coroutines.CoroutineScope
@@ -17,6 +18,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import moe.memesta.vibeon.data.model.TransitionMode
+import moe.memesta.vibeon.data.model.TransitionSettings
 
 enum class DisplayLanguage(val value: String) {
     ORIGINAL("original"),
@@ -104,6 +107,22 @@ class PlayerSettingsRepository(context: Context) {
             initialValue = false
         )
 
+    val transitionSettings: StateFlow<TransitionSettings> = dataStore.data
+        .map { preferences ->
+            TransitionSettings(
+                mode = TransitionMode.fromString(
+                    preferences[KEY_TRANSITION_MODE] ?: TransitionMode.NONE.value
+                ),
+                durationMs = (preferences[KEY_TRANSITION_DURATION_MS] ?: 1200)
+                    .coerceIn(250, 5000)
+            )
+        }
+        .stateIn(
+            scope = repositoryScope,
+            started = SharingStarted.Eagerly,
+            initialValue = TransitionSettings()
+        )
+
     fun getDisplayLanguage(): DisplayLanguage = _displayLanguage.value
 
     fun setDisplayLanguage(language: DisplayLanguage) {
@@ -154,6 +173,22 @@ class PlayerSettingsRepository(context: Context) {
         }
     }
 
+    fun setTransitionMode(mode: TransitionMode) {
+        repositoryScope.launch {
+            dataStore.edit { preferences ->
+                preferences[KEY_TRANSITION_MODE] = mode.value
+            }
+        }
+    }
+
+    fun setTransitionDurationMs(durationMs: Int) {
+        repositoryScope.launch {
+            dataStore.edit { preferences ->
+                preferences[KEY_TRANSITION_DURATION_MS] = durationMs.coerceIn(250, 5000)
+            }
+        }
+    }
+
     companion object {
         private const val KEY_DISPLAY_LANGUAGE = "display_language"
         private const val KEY_ALBUM_VIEW_STYLE = "album_view_style"
@@ -161,5 +196,7 @@ class PlayerSettingsRepository(context: Context) {
         private val KEY_SCRUBBER_MODE = stringPreferencesKey("SCRUBBER_MODE")
         private val KEY_SHEET_HINT_SHOWN = booleanPreferencesKey("sheet_hint_shown")
         private val KEY_ART_GESTURE_HINT_SHOWN = booleanPreferencesKey("art_gesture_hint_shown")
+        private val KEY_TRANSITION_MODE = stringPreferencesKey("transition_mode")
+        private val KEY_TRANSITION_DURATION_MS = intPreferencesKey("transition_duration_ms")
     }
 }
