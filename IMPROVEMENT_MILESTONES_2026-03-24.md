@@ -8,3 +8,11 @@
 6. `feat(ui): replace pairing TODO actions with user feedback`
 
 These milestones align with wiki notes under `wiki/vibe-on-android/2026-03-24-improvements.md`.
+
+## 2026-03-31 Incremental Performance + Architecture Start
+
+7. `android: bump targetSdk to 35` (`1a32b91`)
+8. `build: enable compose compiler metrics reports` (`48fb660`)
+9. `build: move Java and Kotlin targets to 11` (`491ea4c`)
+10. `di: add hilt foundation wiring` (`2e7b07b`)
+11. `build: add paging dependencies for list migration` (`0d70ae5`)
