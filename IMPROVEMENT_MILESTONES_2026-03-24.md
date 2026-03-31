@@ -19,3 +19,4 @@ These milestones align with wiki notes under `wiki/vibe-on-android/2026-03-24-im
 12. `perf: add baseline profile module and app wiring`
 13. `sync: add WorkManager discovery scheduler foundation`
 14. `perf: migrate OfflineSongs screen to Paging Compose`
+15. `perf: migrate to Kotlin 2.1 + Compose compiler plugin and strong skipping`
