@@ -10,7 +10,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -45,8 +46,8 @@ fun OfflineSongsScreen(
     viewModel: OfflineSongsViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val songs by viewModel.songs.collectAsState()
     val unifiedSongs by viewModel.unifiedSongs.collectAsState()
+    val pagedSongs = viewModel.pagedUnifiedSongs.collectAsLazyPagingItems()
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
 
@@ -108,7 +109,7 @@ fun OfflineSongsScreen(
                     Text("Grant Permission")
                 }
             }
-        } else if (unifiedSongs.isEmpty()) {
+        } else if (pagedSongs.itemCount == 0 && pagedSongs.loadState.refresh !is LoadState.Loading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No offline songs found.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -143,13 +144,29 @@ fun OfflineSongsScreen(
                     }
                 }
                 items(
-                    items = unifiedSongs,
-                    key = { it.id }
-                ) { song ->
-                    UnifiedSongItem(
-                        song = song,
-                        onClick = { viewModel.playUnified(song, connectionViewModel) }
-                    )
+                    count = pagedSongs.itemCount,
+                    key = { index -> pagedSongs[index]?.id ?: index }
+                ) { index ->
+                    val song = pagedSongs[index]
+                    if (song != null) {
+                        UnifiedSongItem(
+                            song = song,
+                            onClick = { viewModel.playUnified(song, connectionViewModel) }
+                        )
+                    }
+                }
+
+                if (pagedSongs.loadState.append is LoadState.Loading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(strokeWidth = 2.dp)
+                        }
+                    }
                 }
             }
         }

@@ -5,9 +5,18 @@ import android.content.ContentUris
 import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
+import androidx.paging.cachedIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.media3.common.MediaItem
@@ -40,6 +49,21 @@ class OfflineSongsViewModel(application: Application) : AndroidViewModel(applica
     /** Unified view merging offline songs + server library. Updated by [mergeWithServerLibrary]. */
     private val _unifiedSongs = MutableStateFlow<List<UnifiedSong>>(emptyList())
     val unifiedSongs: StateFlow<List<UnifiedSong>> = _unifiedSongs
+
+    /** Paging-backed stream used by UI lists to avoid rendering from one giant in-memory list. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pagedUnifiedSongs: Flow<PagingData<UnifiedSong>> = _unifiedSongs
+        .flatMapLatest { songs ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 60,
+                    prefetchDistance = 30,
+                    enablePlaceholders = false
+                ),
+                pagingSourceFactory = { UnifiedSongsPagingSource(songs) }
+            ).flow
+        }
+        .cachedIn(viewModelScope)
 
     /** Currently playing unified song (for the mini player). */
     private val _currentUnified = MutableStateFlow<UnifiedSong?>(null)
@@ -189,5 +213,42 @@ class OfflineSongsViewModel(application: Application) : AndroidViewModel(applica
     override fun onCleared() {
         super.onCleared()
         player.release()
+    }
+}
+
+private class UnifiedSongsPagingSource(
+    private val songs: List<UnifiedSong>
+) : PagingSource<Int, UnifiedSong>() {
+
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, UnifiedSong> {
+        return try {
+            val page = params.key ?: 0
+            val pageSize = params.loadSize
+            val fromIndex = (page * pageSize).coerceAtMost(songs.size)
+            val toIndex = (fromIndex + pageSize).coerceAtMost(songs.size)
+
+            val data = if (fromIndex >= toIndex) {
+                emptyList()
+            } else {
+                songs.subList(fromIndex, toIndex)
+            }
+
+            val nextKey = if (toIndex >= songs.size) null else page + 1
+            val prevKey = if (page == 0) null else page - 1
+
+            LoadResult.Page(
+                data = data,
+                prevKey = prevKey,
+                nextKey = nextKey
+            )
+        } catch (t: Throwable) {
+            LoadResult.Error(t)
+        }
+    }
+
+    override fun getRefreshKey(state: PagingState<Int, UnifiedSong>): Int? {
+        val anchor = state.anchorPosition ?: return null
+        val anchorPage = state.closestPageToPosition(anchor)
+        return anchorPage?.prevKey?.plus(1) ?: anchorPage?.nextKey?.minus(1)
     }
 }
