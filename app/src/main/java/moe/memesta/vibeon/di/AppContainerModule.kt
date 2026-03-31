@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import moe.memesta.vibeon.AppContainer
+import moe.memesta.vibeon.VibeonApp
 import moe.memesta.vibeon.data.DiscoveryRepository
 import moe.memesta.vibeon.data.WebSocketClient
 import moe.memesta.vibeon.data.local.FavoritesManager
@@ -21,7 +22,10 @@ object AppContainerModule {
 
     @Provides
     @Singleton
-    fun provideAppContainer(@ApplicationContext context: Context): AppContainer = AppContainer(context)
+    fun provideAppContainer(@ApplicationContext context: Context): AppContainer {
+        // Reuse the app-owned container so Hilt and non-Hilt call sites share singletons.
+        return (context.applicationContext as VibeonApp).container
+    }
 
     @Provides
     @Singleton
