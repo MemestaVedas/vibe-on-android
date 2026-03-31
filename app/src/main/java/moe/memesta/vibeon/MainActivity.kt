@@ -42,10 +42,12 @@ import androidx.media3.session.SessionToken
 import androidx.media3.common.Player
 import com.google.common.util.concurrent.ListenableFuture
 import androidx.core.view.WindowCompat
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private lateinit var discoveryRepository: DiscoveryRepository
     private lateinit var connectionViewModel: ConnectionViewModel

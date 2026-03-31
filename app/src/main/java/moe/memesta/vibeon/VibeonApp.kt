@@ -1,7 +1,9 @@
 package moe.memesta.vibeon
 
 import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
 
+@HiltAndroidApp
 class VibeonApp : Application() {
 
     lateinit var container: AppContainer

@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.22'
     id 'com.google.devtools.ksp' version '1.9.22-1.0.17'
+    id 'com.google.dagger.hilt.android' version '2.53.1'
 }
 
 android {
@@ -163,6 +164,10 @@ dependencies {
 
     // Jsoup for parsing nyaa.si search results
     implementation 'org.jsoup:jsoup:1.17.2'
+
+    // Hilt (incremental adoption; AppContainer remains active for now)
+    implementation 'com.google.dagger:hilt-android:2.53.1'
+    ksp 'com.google.dagger:hilt-android-compiler:2.53.1'
 
     // libtorrent4j — torrent engine used by libretorrent (proninyaroslav)
     implementation 'org.libtorrent4j:libtorrent4j:2.1.0-31'
