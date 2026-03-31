@@ -453,6 +453,22 @@ fun AppNavHost(
                     )
                 }
 
+                composable("playlists") {
+                    if (libraryViewModel != null) {
+                        PlaylistsScreen(
+                            viewModel = connectionViewModel,
+                            libraryViewModel = libraryViewModel,
+                            contentPadding = innerPadding,
+                            onPlaylistSelected = { playlistId ->
+                                val encodedPlaylistId = java.net.URLEncoder.encode(playlistId, "UTF-8")
+                                navController.navigate("playlist/$encodedPlaylistId")
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navController.navigate("discovery") }
+                    }
+                }
+
                 // Albums Tab - Redirecting to main pager
                 composable("albums") {
                     LaunchedEffect(Unit) {
