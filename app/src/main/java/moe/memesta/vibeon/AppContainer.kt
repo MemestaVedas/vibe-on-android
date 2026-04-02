@@ -45,6 +45,10 @@ class AppContainer(private val context: Context) {
         )
     }
 
+    val streamRepository: StreamRepository by lazy {
+        StreamRepository()
+    }
+
     val torrentSessionSettingsRepository: TorrentSessionSettingsRepository by lazy {
         TorrentSessionSettingsRepository(context.applicationContext)
     }

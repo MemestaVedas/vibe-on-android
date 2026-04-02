@@ -65,8 +65,14 @@ class PlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
 
-        val dataSourceFactory: DataSource.Factory = if (streamRepository != null) {
-            DataSource.Factory { P2PDataSource(streamRepository!!, CoroutineScope(SupervisorJob())) }
+        val resolvedStreamRepository = runCatching {
+            streamRepository ?: VibeonApp.instance.container.streamRepository.also {
+                streamRepository = it
+            }
+        }.getOrNull()
+
+        val dataSourceFactory: DataSource.Factory = if (resolvedStreamRepository != null) {
+            DataSource.Factory { P2PDataSource(resolvedStreamRepository, CoroutineScope(SupervisorJob())) }
         } else {
             DefaultDataSource.Factory(this)
         }

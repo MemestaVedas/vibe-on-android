@@ -38,6 +38,7 @@ import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.DiscoveredDevice
+import moe.memesta.vibeon.data.worker.SyncScheduler
 import moe.memesta.vibeon.torrent.TorrentViewModel
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.pairing.PairingScreen
@@ -54,10 +55,14 @@ fun AppNavHost(
     playbackViewModel: PlaybackViewModel,
     favoritesManager: moe.memesta.vibeon.data.local.FavoritesManager,
     playerSettingsRepository: moe.memesta.vibeon.data.local.PlayerSettingsRepository,
-    trackDao: moe.memesta.vibeon.data.local.TrackDao,
+    trackDaoProvider: () -> moe.memesta.vibeon.data.local.TrackDao,
     onboardingManager: OnboardingManager
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    LaunchedEffect(Unit) {
+        SyncScheduler.schedulePeriodicDiscoverySync(context)
+    }
 
     val navController = rememberNavController()
     var currentDevice by remember { mutableStateOf<DiscoveredDevice?>(null) }
@@ -99,7 +104,7 @@ fun AppNavHost(
     val libraryRepository = remember(connectedHost, connectedPort) {
         if (connectedHost != null && connectedPort != null) {
             moe.memesta.vibeon.data.LibraryRepository(
-                trackDao,
+                trackDaoProvider(),
                 connectionViewModel.wsClient,
                 connectedHost,
                 connectedPort
@@ -120,7 +125,7 @@ fun AppNavHost(
         libraryRepository?.let { repo ->
             moe.memesta.vibeon.ui.stats.StatsViewModel(
                 repository = repo,
-                trackDao = trackDao,
+                trackDao = trackDaoProvider(),
                 wsClient = connectionViewModel.wsClient,
                 localStatsRepository = connectionViewModel.localStatsRepository
             )

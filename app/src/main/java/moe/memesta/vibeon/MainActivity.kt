@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import moe.memesta.vibeon.PlaybackService
-import moe.memesta.vibeon.data.StreamRepository
 import moe.memesta.vibeon.ui.*
 import moe.memesta.vibeon.ui.theme.VibeonTheme
 import moe.memesta.vibeon.ui.navigation.AppNavHost
@@ -61,7 +60,6 @@ class MainActivity : ComponentActivity() {
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
-    private var streamRepository: StreamRepository? = null
     private var playerListener: Player.Listener? = null
     private var controllerRetryJob: Job? = null
     private var controllerRetryCount = 0
@@ -162,8 +160,6 @@ class MainActivity : ComponentActivity() {
                 notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-        // Auto-start discovery for favorite device detection
-        connectionViewModel.startScanning()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -173,20 +169,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        }
-        
-        // Try to initialize StreamRepository but don't crash if it fails
-        try {
-            val streamRepo = StreamRepository()
-            PlaybackService.streamRepository = streamRepo
-            this.streamRepository = streamRepo
-            Log.i("MainActivity", "✅ StreamRepository initialized successfully")
-        } catch (e: UnsatisfiedLinkError) {
-            Log.w("MainActivity", "⚠️ Native library not available, P2P streaming disabled: ${e.message}")
-        } catch (e: NoClassDefFoundError) {
-            Log.w("MainActivity", "⚠️ JNA library not found, P2P streaming disabled: ${e.message}")
-        } catch (e: Exception) {
-            Log.e("MainActivity", "⚠️ Failed to initialize StreamRepository: ${e.message}", e)
         }
 
         setContent {
@@ -205,9 +187,6 @@ class MainActivity : ComponentActivity() {
                 moe.memesta.vibeon.ui.theme.DynamicTheme(seedBitmap = coverBitmap) {
                 // Initialize ViewModels or generic state if needed for global context
                 // But for now, AppNavHost handles navigation
-                
-                val libraryDatabase = moe.memesta.vibeon.data.local.LibraryDatabase.getInstance(applicationContext)
-                val trackDao = libraryDatabase.trackDao()
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -218,7 +197,7 @@ class MainActivity : ComponentActivity() {
                         playbackViewModel, 
                         favoritesManager, 
                         playerSettingsRepository,
-                        trackDao,
+                        trackDaoProvider = { moe.memesta.vibeon.data.local.LibraryDatabase.getInstance(applicationContext).trackDao() },
                         onboardingManager
                     )
                 }
