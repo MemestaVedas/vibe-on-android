@@ -7,20 +7,17 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
 /**
- * Material 3 Shapes with full roundness for Vibe-On!
- * - Small: Pill shapes (50% roundness) for buttons and chips
- * - Medium: Rounded cards (24dp) for track items and album cards (Squircle)
- * - Large: Extra rounded (32dp) for dialogs and bottom sheets
+ * Expressive Material 3 shape scale.
+ *
+ * This keeps a soft visual language but gives each size tier a distinct
+ * personality so surfaces don't collapse into one radius everywhere.
  */
 val Shapes = Shapes(
-    // Pill shapes for buttons, chips, and FABs
-    small = RoundedCornerShape(percent = 50),
-    
-    // Rounded cards for track items, album grid items (Squircle)
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(16.dp),
     medium = RoundedCornerShape(24.dp),
-    
-    // Extra rounded for dialogs, bottom sheets, and large surfaces
-    large = RoundedCornerShape(32.dp)
+    large = RoundedCornerShape(34.dp),
+    extraLarge = RoundedCornerShape(42.dp)
 )
 
 // --- Semantic Shapes for Content ---

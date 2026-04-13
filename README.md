@@ -341,6 +341,16 @@ cp target/aarch64-linux-android/release/libvibe_on_core.so app/src/main/jniLibs/
 ./gradlew installDebug
 ```
 
+**⚡ Poco F1-only debug install (recommended for current debugging)**
+```powershell
+./scripts/install-poco-f1-debug.ps1
+```
+
+**📊 Optional: enable Compose compiler metrics only when profiling**
+```bash
+./gradlew :app:assembleDebug -PenableComposeCompilerMetrics=true
+```
+
 </details>
 
 <br />

@@ -66,6 +66,21 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val CONTROLLER_MAX_RETRIES = 8
+        private val POCO_F1_IDENTIFIERS = listOf("beryllium", "poco f1", "pocophone f1")
+    }
+
+    private fun isAllowedDebugDevice(): Boolean {
+        val fields = listOf(
+            Build.DEVICE,
+            Build.PRODUCT,
+            Build.MODEL,
+            Build.MANUFACTURER,
+            Build.BRAND
+        )
+        return fields.any { field ->
+            val normalized = field?.lowercase().orEmpty()
+            POCO_F1_IDENTIFIERS.any { normalized.contains(it) }
+        }
     }
 
     private fun attachControllerListener(controller: MediaController) {
@@ -154,6 +169,15 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
 
+        if (BuildConfig.DEBUG && !isAllowedDebugDevice()) {
+            setContent {
+                VibeonTheme {
+                    DebugDeviceRestrictionScreen()
+                }
+            }
+            return
+        }
+
         // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -178,33 +202,34 @@ class MainActivity : ComponentActivity() {
             val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsState()
             val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsState()
             val coverBitmap = moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl(currentTrack.coverUrl)
-            
+
             CompositionLocalProvider(
                 moe.memesta.vibeon.ui.utils.LocalDisplayLanguage provides displayLanguage,
                 moe.memesta.vibeon.ui.utils.LocalAlbumViewStyle provides albumViewStyle,
                 moe.memesta.vibeon.ui.utils.LocalArtistViewStyle provides artistViewStyle
             ) {
                 moe.memesta.vibeon.ui.theme.DynamicTheme(seedBitmap = coverBitmap) {
-                // Initialize ViewModels or generic state if needed for global context
-                // But for now, AppNavHost handles navigation
+                    // Initialize ViewModels or generic state if needed for global context
+                    // But for now, AppNavHost handles navigation
 
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AppNavHost(
-                        connectionViewModel, 
-                        playbackViewModel, 
-                        favoritesManager, 
-                        playerSettingsRepository,
-                        trackDaoProvider = { moe.memesta.vibeon.data.local.LibraryDatabase.getInstance(applicationContext).trackDao() },
-                        onboardingManager
-                    )
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AppNavHost(
+                            connectionViewModel,
+                            playbackViewModel,
+                            favoritesManager,
+                            playerSettingsRepository,
+                            trackDaoProvider = { moe.memesta.vibeon.data.local.LibraryDatabase.getInstance(applicationContext).trackDao() },
+                            onboardingManager
+                        )
+                    }
                 }
             }
         }
     }
-}
+
     override fun onStart() {
         super.onStart()
         ensureMediaControllerConnected(forceReconnect = false)
@@ -233,5 +258,33 @@ class MainActivity : ComponentActivity() {
         mediaController = null
         controllerFuture = null
         super.onDestroy()
+    }
+}
+
+@Composable
+private fun DebugDeviceRestrictionScreen() {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Debug build locked to Poco F1",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Connect and run on Poco F1 (beryllium) for this debug cycle.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
