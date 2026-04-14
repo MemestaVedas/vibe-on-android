@@ -1,5 +1,6 @@
 package moe.memesta.vibeon.ui.theme
 
+import android.os.SystemClock
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -119,6 +120,7 @@ fun Modifier.bouncyClickable(
 ): Modifier = composed {
     val interactionSource = remember { MutableInteractionSource() }
     var isPressed by remember { mutableStateOf(false) }
+    var lastHapticAt by remember { mutableLongStateOf(0L) }
     val haptic = LocalHapticFeedback.current
     
     // Resolve indication: if it's our sentinel, use LocalIndication.current
@@ -133,8 +135,11 @@ fun Modifier.bouncyClickable(
             when (interaction) {
                 is PressInteraction.Press -> {
                     isPressed = true
-                    // Subtle haptic like PixelPlayer bounds
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastHapticAt >= HAPTIC_COOLDOWN_MS) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        lastHapticAt = now
+                    }
                 }
                 is PressInteraction.Release, is PressInteraction.Cancel -> isPressed = false
             }
@@ -171,4 +176,6 @@ fun Modifier.bouncyClickable(
 
 /** Sentinel to detect when `indication` was not provided — avoids calling a @Composable at param site. */
 private object IndicationSentinel 
+
+private const val HAPTIC_COOLDOWN_MS = 120L
 

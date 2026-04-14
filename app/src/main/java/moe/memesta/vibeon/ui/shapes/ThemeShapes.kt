@@ -1,7 +1,6 @@
 package moe.memesta.vibeon.ui.shapes
 
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
@@ -13,22 +12,22 @@ import androidx.compose.ui.unit.dp
  * personality so surfaces don't collapse into one radius everywhere.
  */
 val Shapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(16.dp),
-    medium = RoundedCornerShape(24.dp),
-    large = RoundedCornerShape(34.dp),
-    extraLarge = RoundedCornerShape(42.dp)
+    extraSmall = ShapeCache.rounded10,
+    small = ShapeCache.rounded16,
+    medium = ShapeCache.rounded24,
+    large = ShapeCache.rounded34,
+    extraLarge = ShapeCache.rounded42
 )
 
 // --- Semantic Shapes for Content ---
 
 val SongCoverShape: Shape = CircleShape // Circle for songs
 
-val PlaylistCoverShape: Shape = RoundedCornerShape(24.dp) // Stadium/Pill shape for playlists
+val PlaylistCoverShape: Shape = ShapeCache.rounded24 // Stadium/Pill shape for playlists
 
 val ArtistCoverShape: Shape = CircleShape // Circle shape for artists
 
-val DomeShape: Shape = RoundedCornerShape(
+val DomeShape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(
     topStart = 32.dp, 
     topEnd = 32.dp, 
     bottomStart = 0.dp, 
@@ -38,22 +37,22 @@ val DomeShape: Shape = RoundedCornerShape(
 // ─── Futuristic Kinetic semantic aliases ─────────────────────────────────────
 
 /** Full pill for the OrbitButton and FluxPill toggle chips. */
-val PillButtonShape: Shape = RoundedCornerShape(percent = 50)
+val PillButtonShape: Shape = ShapeCache.pill
 
 /**
  * Asymmetric prism shape for PrismIconButton and secondary controls.
  * Opposite corners are sized differently to convey kinetic energy.
  */
-val PrismButtonShape: Shape = RoundedCornerShape(
+val PrismButtonShape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(
     topStart = 10.dp, topEnd = 18.dp,
     bottomStart = 18.dp, bottomEnd = 10.dp
 )
 
 /** Slightly squircle card — main surface for album/track cards. */
-val ElevatedCardShape: Shape = RoundedCornerShape(20.dp)
+val ElevatedCardShape: Shape = ShapeCache.rounded20
 
 /** Full-bleed bottom sheet top rounding. */
-val SheetShape: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+val SheetShape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
 /** Compact chip/badge rounding. */
-val ChipShape: Shape = RoundedCornerShape(12.dp)
+val ChipShape: Shape = ShapeCache.rounded12

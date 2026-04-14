@@ -35,6 +35,7 @@ import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.shapes.*
+import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
@@ -48,7 +49,7 @@ fun AlbumGridItem(
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     // Dynamic color state for each album
-    var dominantColor by remember(coverUrl) { mutableStateOf<Color?>(null) }
+    var dominantColor by remember(coverUrl) { mutableStateOf(coverUrl?.let { AlbumArtColorCache.get(it) }) }
     val defaultColor = MaterialTheme.colorScheme.primary
     val primaryColor = dominantColor ?: defaultColor
     
@@ -68,6 +69,10 @@ fun AlbumGridItem(
     val context = LocalContext.current
     LaunchedEffect(coverUrl) {
         if (coverUrl != null) {
+            AlbumArtColorCache.get(coverUrl)?.let {
+                dominantColor = it
+                return@LaunchedEffect
+            }
             try {
                 withContext(Dispatchers.IO) {
                     val loader = context.imageLoader
@@ -82,7 +87,9 @@ fun AlbumGridItem(
                         bitmap?.let {
                             val palette = Palette.from(it).generate()
                             palette.dominantSwatch?.let { swatch ->
-                                dominantColor = Color(swatch.rgb)
+                                val extracted = Color(swatch.rgb)
+                                dominantColor = extracted
+                                AlbumArtColorCache.put(coverUrl, extracted)
                             }
                         }
                     }

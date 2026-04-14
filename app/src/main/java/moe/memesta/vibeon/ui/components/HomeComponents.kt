@@ -54,7 +54,7 @@ fun GridTrackCard(
         modifier = modifier
             .fillMaxWidth()
             .height(Dimens.ListItemHeight)
-            .clip(RoundedCornerShape(Dimens.CornerRadiusMedium))
+            .clip(ShapeCache.rounded12)
             .bouncyClickable(scaleDown = 0.97f, indication = null) { onClick() }
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -63,7 +63,7 @@ fun GridTrackCard(
         Box(
             modifier = Modifier
                 .size(46.dp)
-                .clip(RoundedCornerShape(Dimens.CornerRadiusSmall))
+                .clip(ShapeCache.rounded8)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         ) {
             if (track.coverUrl != null && allowImageLoad) {

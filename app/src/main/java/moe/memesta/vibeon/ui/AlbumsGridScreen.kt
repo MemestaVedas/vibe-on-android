@@ -68,6 +68,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.SortOption
+import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
 import moe.memesta.vibeon.data.local.LibraryViewStyle
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -282,7 +283,7 @@ private fun AlbumSpotlightCard(
     onClick: () -> Unit,
     onPlay: () -> Unit
 ) {
-    var dominantColor by remember(coverUrl) { mutableStateOf<Color?>(null) }
+    var dominantColor by remember(coverUrl) { mutableStateOf(coverUrl?.let { AlbumArtColorCache.get(it) }) }
     val gradientColor = dominantColor ?: MaterialTheme.colorScheme.primary
     val onGradientColor = dominantColor?.let { color ->
         val r = (color.red * 255).toInt()
@@ -295,6 +296,10 @@ private fun AlbumSpotlightCard(
     val context = LocalContext.current
     LaunchedEffect(coverUrl) {
         if (coverUrl != null) {
+            AlbumArtColorCache.get(coverUrl)?.let {
+                dominantColor = it
+                return@LaunchedEffect
+            }
             try {
                 withContext(Dispatchers.IO) {
                     val request = ImageRequest.Builder(context)
@@ -307,7 +312,9 @@ private fun AlbumSpotlightCard(
                         bitmap?.let {
                             val palette = Palette.from(it).generate()
                             palette.dominantSwatch?.let { swatch ->
-                                dominantColor = Color(swatch.rgb)
+                                val extracted = Color(swatch.rgb)
+                                dominantColor = extracted
+                                AlbumArtColorCache.put(coverUrl, extracted)
                             }
                         }
                     }

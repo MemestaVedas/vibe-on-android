@@ -246,7 +246,7 @@ fun BottomPlayerBar(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            val miniArtShape = RoundedCornerShape(14.dp)
+                            val miniArtShape = ShapeCache.rounded14
                             Box(
                                 modifier = Modifier
                                     .size(52.dp)
