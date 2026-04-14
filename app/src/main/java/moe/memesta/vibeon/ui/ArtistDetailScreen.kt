@@ -436,7 +436,7 @@ private fun YearAlbumLane(
                 modifier = Modifier
                     .maskClip(RoundedCornerShape(40.dp))
                     .fillMaxHeight()
-                    .aspectRatio(0.9f)
+                    .aspectRatio(1f)
                     .bouncyClickable(scaleDown = 0.96f, indication = null) {
                         navController.navigate("album/$encodedAlbumId")
                     }
