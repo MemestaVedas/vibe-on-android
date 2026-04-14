@@ -13,7 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateMap
@@ -383,9 +383,9 @@ private fun YearAlbumLane(
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val preferredItemWidth: Dp = maxWidth * 0.75f
 
-        HorizontalMultiBrowseCarousel(
+        HorizontalUncontainedCarousel(
             state = carouselState,
-            preferredItemWidth = preferredItemWidth,
+            itemWidth = preferredItemWidth,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(preferredItemWidth),

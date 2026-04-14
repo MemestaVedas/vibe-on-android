@@ -580,8 +580,8 @@ fun HomeScreen(
                             albums = prioritizedAlbums,
                             displayLanguage = displayLanguage,
                             onAlbumSelected = onAlbumSelected,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
+                            sharedTransitionScope = null,
+                            animatedVisibilityScope = null
                         )
                     }
                 }
@@ -621,8 +621,8 @@ fun HomeScreen(
                             artists = prioritizedArtists,
                             displayLanguage = displayLanguage,
                             onArtistSelected = onArtistSelected,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
+                            sharedTransitionScope = null,
+                            animatedVisibilityScope = null
                         )
                     }
                 }
