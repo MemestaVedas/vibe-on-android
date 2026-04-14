@@ -3,8 +3,6 @@ package moe.memesta.vibeon.ui
 import android.graphics.drawable.BitmapDrawable
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -27,38 +25,34 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -118,25 +112,28 @@ fun AlbumsGridScreen(
         visibleAlbums.maxByOrNull { it.songCount }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        AlbumsSearchTopBar(
-            searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
-            onSidebarClick = onSidebarClick,
-            onSortClick = { showSortSheet = true }
-        )
-
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            AlbumsSearchTopBar(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onSidebarClick = onSidebarClick,
+                onSortClick = { showSortSheet = true }
+            )
+        }
+    ) { innerPadding ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(
                 start = Dimens.ScreenPadding,
                 end = Dimens.ScreenPadding,
-                top = 8.dp,
-                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                bottom = innerPadding.calculateBottomPadding() + contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
             ),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -197,12 +194,7 @@ private fun AlbumsSearchTopBar(
     onSidebarClick: () -> Unit,
     onSortClick: () -> Unit
 ) {
-    var isSearchFocused by remember { mutableStateOf(false) }
-    val searchScale by animateFloatAsState(
-        targetValue = if (isSearchFocused) 1f else 0.985f,
-        animationSpec = spring(),
-        label = "albumsSearchScale"
-    )
+    var isSearchExpanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -215,23 +207,33 @@ private fun AlbumsSearchTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            IconButton(onClick = onSidebarClick, modifier = Modifier.size(40.dp)) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_vibe_logo),
-                    contentDescription = "Vibe-On",
-                    modifier = Modifier.size(26.dp)
-                )
+            AnimatedVisibility(visible = !isSearchExpanded) {
+                IconButton(onClick = onSidebarClick, modifier = Modifier.size(40.dp)) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_vibe_logo),
+                        contentDescription = "Vibe-On",
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
 
-            TextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
+            SearchBar(
+                query = searchQuery,
+                onQueryChange = onSearchQueryChange,
+                onSearch = { isSearchExpanded = false },
+                active = isSearchExpanded,
+                onActiveChange = { isSearchExpanded = it },
                 modifier = Modifier
-                    .weight(1f)
-                    .graphicsLayer(scaleX = searchScale, scaleY = searchScale)
-                    .onFocusChanged { isSearchFocused = it.isFocused },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    .then(if (isSearchExpanded) Modifier.fillMaxWidth() else Modifier.weight(1f)),
+                leadingIcon = {
+                    if (isSearchExpanded) {
+                        IconButton(onClick = { isSearchExpanded = false }) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        }
+                    } else {
+                        Icon(Icons.Rounded.Search, contentDescription = null)
+                    }
+                },
                 trailingIcon = {
                     AnimatedVisibility(visible = searchQuery.isNotBlank()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
@@ -241,28 +243,33 @@ private fun AlbumsSearchTopBar(
                 },
                 placeholder = { Text("Search albums or artists") },
                 shape = RoundedCornerShape(32.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+                tonalElevation = 0.dp,
+                colors = SearchBarDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    dividerColor = Color.Transparent
                 )
-            )
+            ) { }
 
-            IconButton(onClick = onSortClick, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+            AnimatedVisibility(visible = !isSearchExpanded) {
+                IconButton(onClick = onSortClick, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        AnimatedVisibility(visible = !isSearchExpanded) {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = "Albums",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+                Text(
+                    text = "Albums",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        }
     }
 }
 

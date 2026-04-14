@@ -2,8 +2,6 @@ package moe.memesta.vibeon.ui
 
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -14,18 +12,18 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -103,27 +101,29 @@ fun ArtistsListScreen(
     val spotlightArtist = remember(artists) {
         artists.maxByOrNull { it.followerCount.substringBefore(' ').toIntOrNull() ?: 0 }
     }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        ArtistsSearchTopBar(
-            searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
-            onSidebarClick = onSidebarClick,
-            onSortClick = { showSortSheet = true }
-        )
-        
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            ArtistsSearchTopBar(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                onSidebarClick = onSidebarClick,
+                onSortClick = { showSortSheet = true }
+            )
+        }
+    ) { innerPadding ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = 8.dp,
-                bottom = contentPadding.calculateBottomPadding() + 24.dp
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                bottom = innerPadding.calculateBottomPadding() + contentPadding.calculateBottomPadding() + 24.dp
             ),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -180,12 +180,7 @@ private fun ArtistsSearchTopBar(
     onSidebarClick: () -> Unit,
     onSortClick: () -> Unit
 ) {
-    var isSearchFocused by remember { mutableStateOf(false) }
-    val searchScale by animateFloatAsState(
-        targetValue = if (isSearchFocused) 1f else 0.985f,
-        animationSpec = spring(),
-        label = "artistsSearchScale"
-    )
+    var isSearchExpanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -198,23 +193,33 @@ private fun ArtistsSearchTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            IconButton(onClick = onSidebarClick, modifier = Modifier.size(40.dp)) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_vibe_logo),
-                    contentDescription = "Vibe-On",
-                    modifier = Modifier.size(26.dp)
-                )
+            AnimatedVisibility(visible = !isSearchExpanded) {
+                IconButton(onClick = onSidebarClick, modifier = Modifier.size(40.dp)) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_vibe_logo),
+                        contentDescription = "Vibe-On",
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
 
-            TextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
+            SearchBar(
+                query = searchQuery,
+                onQueryChange = onSearchQueryChange,
+                onSearch = { isSearchExpanded = false },
+                active = isSearchExpanded,
+                onActiveChange = { isSearchExpanded = it },
                 modifier = Modifier
-                    .weight(1f)
-                    .graphicsLayer(scaleX = searchScale, scaleY = searchScale)
-                    .onFocusChanged { isSearchFocused = it.isFocused },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    .then(if (isSearchExpanded) Modifier.fillMaxWidth() else Modifier.weight(1f)),
+                leadingIcon = {
+                    if (isSearchExpanded) {
+                        IconButton(onClick = { isSearchExpanded = false }) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        }
+                    } else {
+                        Icon(Icons.Rounded.Search, contentDescription = null)
+                    }
+                },
                 trailingIcon = {
                     AnimatedVisibility(visible = searchQuery.isNotBlank()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
@@ -224,28 +229,33 @@ private fun ArtistsSearchTopBar(
                 },
                 placeholder = { Text("Search artists") },
                 shape = RoundedCornerShape(32.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+                tonalElevation = 0.dp,
+                colors = SearchBarDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    dividerColor = Color.Transparent
                 )
-            )
+            ) { }
 
-            IconButton(onClick = onSortClick, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+            AnimatedVisibility(visible = !isSearchExpanded) {
+                IconButton(onClick = onSortClick, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        AnimatedVisibility(visible = !isSearchExpanded) {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = "Artists",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+                Text(
+                    text = "Artists",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        }
     }
 }
 
