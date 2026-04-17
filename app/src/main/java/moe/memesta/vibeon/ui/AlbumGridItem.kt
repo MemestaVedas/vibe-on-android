@@ -1,13 +1,9 @@
 package moe.memesta.vibeon.ui
 
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.* 
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,27 +11,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.palette.graphics.Palette
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
+import moe.memesta.vibeon.ui.utils.PaletteUtils
+
+private data class AlbumCardColors(
+    val primary: Color,
+    val secondary: Color,
+    val onPrimary: Color,
+    val onSecondary: Color
+)
+
+private fun contentColorFor(color: Color): Color =
+    if (color.luminance() > 0.5f) Color.Black else Color.White
+
+private fun deriveSecondaryColor(primary: Color): Color {
+    val target = if (primary.luminance() > 0.55f) Color.Black else Color.White
+    return lerp(primary, target, 0.22f)
+}
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
@@ -48,57 +52,41 @@ fun AlbumGridItem(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
-    // Dynamic color state for each album
-    var dominantColor by remember(coverUrl) { mutableStateOf(coverUrl?.let { AlbumArtColorCache.get(it) }) }
-    val defaultColor = MaterialTheme.colorScheme.primary
-    val primaryColor = dominantColor ?: defaultColor
-    
-    // Calculate onPrimary color based on dominant color luminance
-    val onPrimaryColor = dominantColor?.let { color ->
-        // Calculate luminance of the dominant color
-        val r = (color.red * 255).toInt()
-        val g = (color.green * 255).toInt()
-        val b = (color.blue * 255).toInt()
-        val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-        
-        // Use white text on dark colors, black on light colors
-        if (luminance > 0.5) Color.Black else Color.White
-    } ?: MaterialTheme.colorScheme.onPrimary
-    
-    // Extract dominant color from album art
-    val context = LocalContext.current
-    LaunchedEffect(coverUrl) {
-        if (coverUrl != null) {
-            AlbumArtColorCache.get(coverUrl)?.let {
-                dominantColor = it
-                return@LaunchedEffect
-            }
-            try {
-                withContext(Dispatchers.IO) {
-                    val loader = context.imageLoader
-                    val request = ImageRequest.Builder(context)
-                        .data(coverUrl)
-                        .allowHardware(false)
-                        .build()
-                    
-                    val result = loader.execute(request)
-                    if (result is SuccessResult) {
-                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
-                        bitmap?.let {
-                            val palette = Palette.from(it).generate()
-                            palette.dominantSwatch?.let { swatch ->
-                                val extracted = Color(swatch.rgb)
-                                dominantColor = extracted
-                                AlbumArtColorCache.put(coverUrl, extracted)
-                            }
-                        }
-                    }
+    val fallbackPrimary = MaterialTheme.colorScheme.primary
+    val fallbackPrimaryContainer = MaterialTheme.colorScheme.primaryContainer
+    val fallbackOnPrimary = MaterialTheme.colorScheme.onPrimary
+    val fallbackOnPrimaryContainer = MaterialTheme.colorScheme.onPrimaryContainer
+
+    var cardColors by remember(coverUrl) {
+        mutableStateOf(
+            coverUrl?.let { url ->
+                AlbumArtColorCache.get(url)?.let { cachedPrimary ->
+                    val cachedSecondary = deriveSecondaryColor(cachedPrimary)
+                    AlbumCardColors(
+                        primary = cachedPrimary,
+                        secondary = cachedSecondary,
+                        onPrimary = contentColorFor(cachedPrimary),
+                        onSecondary = contentColorFor(cachedSecondary)
+                    )
                 }
-            } catch (e: Exception) {
-                // Fallback to default color on error
             }
-        }
+        )
     }
+
+    val resolvedColors = cardColors ?: AlbumCardColors(
+        primary = fallbackPrimary,
+        secondary = fallbackPrimaryContainer,
+        onPrimary = fallbackOnPrimary,
+        onSecondary = fallbackOnPrimaryContainer
+    )
+    val primaryColor = resolvedColors.primary
+    val sampledSecondary = resolvedColors.secondary
+    val onPrimaryColor = resolvedColors.onPrimary
+    val pillContainerColor = remember(primaryColor) {
+        val target = if (primaryColor.luminance() > 0.5f) Color.Black else Color.White
+        lerp(primaryColor, target, 0.26f)
+    }
+    val onPillContainerColor = contentColorFor(pillContainerColor)
     
     Card(
         modifier = Modifier
@@ -129,7 +117,29 @@ fun AlbumGridItem(
                     model = coverUrl,
                     contentDescription = albumName,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    onSuccess = { success ->
+                        if (cardColors == null) {
+                            val extractedColors = PaletteUtils.extractColors(success.result.drawable)
+                            val extractedPrimary = when {
+                                extractedColors.vibrant.alpha > 0f -> extractedColors.vibrant
+                                extractedColors.muted.alpha > 0f -> extractedColors.muted
+                                else -> fallbackPrimary
+                            }
+                            val extractedSecondary = when {
+                                extractedColors.muted.alpha > 0f -> extractedColors.muted
+                                extractedColors.vibrant.alpha > 0f -> deriveSecondaryColor(extractedPrimary)
+                                else -> fallbackPrimaryContainer
+                            }
+                            cardColors = AlbumCardColors(
+                                primary = extractedPrimary,
+                                secondary = extractedSecondary,
+                                onPrimary = if (extractedColors.onVibrant.alpha > 0f) extractedColors.onVibrant else contentColorFor(extractedPrimary),
+                                onSecondary = if (extractedColors.onMuted.alpha > 0f) extractedColors.onMuted else contentColorFor(extractedSecondary)
+                            )
+                            coverUrl?.let { url -> AlbumArtColorCache.put(url, extractedPrimary) }
+                        }
+                    }
                 )
             } else {
                 Box(
@@ -146,6 +156,48 @@ fun AlbumGridItem(
                     )
                 }
             }
+
+            if (songCount > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 8.dp),
+                    shape = RoundedCornerShape(999.dp),
+                    color = pillContainerColor.copy(alpha = 0.94f),
+                    tonalElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(start = 4.dp, end = 6.dp, top = 3.dp, bottom = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MusicNote,
+                            contentDescription = null,
+                            tint = onPillContainerColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = primaryColor,
+                            tonalElevation = 0.dp
+                        ) {
+                            Box(
+                                modifier = Modifier.size(26.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = songCount.toString(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.W700,
+                                    color = onPrimaryColor,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             
             // Gradient overlay and text at bottom
             Box(
@@ -156,13 +208,15 @@ fun AlbumGridItem(
                 // Gradient overlay
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
+                        .fillMaxSize()
                         .background(
                             brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    primaryColor
+                                colorStops = arrayOf(
+                                    0.0f to Color.Transparent,
+                                    0.18f to Color.Transparent,
+                                    0.40f to sampledSecondary.copy(alpha = 0.18f),
+                                    0.68f to primaryColor.copy(alpha = 0.78f),
+                                    1.0f to primaryColor.copy(alpha = 0.98f)
                                 )
                             )
                         )
@@ -200,17 +254,6 @@ fun AlbumGridItem(
                         modifier = Modifier.fillMaxWidth()
                     )
                     
-                    if (songCount > 0) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "$songCount Songs",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = onPrimaryColor.copy(alpha = 0.8f),
-                            maxLines = 1,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
                 }
             }
         }
