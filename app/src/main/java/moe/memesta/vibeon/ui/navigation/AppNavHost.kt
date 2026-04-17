@@ -45,6 +45,7 @@ import moe.memesta.vibeon.ui.pairing.PairingScreen
 import moe.memesta.vibeon.ui.onboarding.WelcomeScreen
 import moe.memesta.vibeon.ui.onboarding.OnboardingOverlay
 import moe.memesta.vibeon.data.local.OnboardingManager
+import moe.memesta.vibeon.ui.components.AppCornerBleedBackground
 import moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl
 import moe.memesta.vibeon.ui.utils.rememberIsLandscape
 
@@ -153,6 +154,10 @@ fun AppNavHost(
     SharedTransitionLayout {
         // Enclose everything in a Box so the PairingScreen can overlay the entire Scaffold
         Box(modifier = Modifier.fillMaxSize()) {
+            AppCornerBleedBackground(
+                albumArtBitmap = albumArtBitmap,
+                modifier = Modifier.matchParentSize()
+            )
             Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
