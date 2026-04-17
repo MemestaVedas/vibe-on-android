@@ -2,9 +2,12 @@ package moe.memesta.vibeon.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
@@ -12,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -23,14 +27,17 @@ import androidx.compose.ui.unit.dp
 fun VibeLoadingIndicator(
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
-    label: String = "Loading..."
+    label: String = "Loading...",
+    indicatorSize: Dp = 48.dp
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.semantics {
+            contentDescription = label
+        },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        LoadingIndicator()
+        LoadingIndicator(modifier = Modifier.size(indicatorSize))
         if (showLabel) {
             Text(
                 text = label,
@@ -46,14 +53,20 @@ fun VibeLoadingIndicator(
 fun VibeContainedLoadingIndicator(
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
-    label: String = "Loading..."
+    label: String = "Loading...",
+    indicatorSize: Dp = 56.dp
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.semantics {
+            contentDescription = label
+        },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ContainedLoadingIndicator(containerShape = MaterialShapes.Pill.toShape())
+        ContainedLoadingIndicator(
+            modifier = Modifier.size(indicatorSize),
+            containerShape = MaterialShapes.Pill.toShape()
+        )
         if (showLabel) {
             Text(
                 text = label,

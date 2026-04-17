@@ -35,6 +35,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeoutOrNull
+import moe.memesta.vibeon.ui.theme.rememberPrefersReducedMotion
 
 import moe.memesta.vibeon.ui.shapes.*
 
@@ -64,6 +65,7 @@ fun DynamicNavButton(
 ) {
     var isMenuOpen by remember { mutableStateOf(false) }
     var hoveredIndex by remember { mutableStateOf(-1) }
+    val prefersReducedMotion = rememberPrefersReducedMotion()
     
     val currentPage = NavPages.find { it.route == currentRoute || (it.route == "library" && currentRoute == "discovery") } ?: NavPages.last()
     
@@ -91,8 +93,8 @@ fun DynamicNavButton(
                     // Column for shapes with icons inside
                     Column(
                         modifier = Modifier
-                            .width(56.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+                            .width(64.dp)
+                            .clip(ShapeCache.rounded24)
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                             .padding(vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -101,16 +103,20 @@ fun DynamicNavButton(
                         menuItems.forEachIndexed { index, page ->
                             val isHovered = index == hoveredIndex
                             val scale by animateFloatAsState(if (isHovered) 1.2f else 1.0f, 
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
+                                animationSpec = if (prefersReducedMotion) {
+                                    androidx.compose.animation.core.snap()
+                                } else {
+                                    spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMedium
+                                    )
+                                },
                                 label = "scale"
                             )
                             
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(48.dp)
                                     .scale(scale)
                                     .clip(page.shape)
                                     .background(if (isHovered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
@@ -152,7 +158,7 @@ fun DynamicNavButton(
                                 if (isHovered) {
                                     Text(
                                         text = page.label,
-                                        color = Color.White,
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
@@ -168,10 +174,14 @@ fun DynamicNavButton(
         // The main button (Search) - shape changes based on current page
         val mainScale by animateFloatAsState(
             targetValue = if (isMenuOpen) 1.15f else 1.0f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium
-            ),
+            animationSpec = if (prefersReducedMotion) {
+                androidx.compose.animation.core.snap()
+            } else {
+                spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            },
             label = "mainScale"
         )
         

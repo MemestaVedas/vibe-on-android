@@ -31,14 +31,18 @@ class WavyBottomShape(
         val width = size.width
         val height = size.height
         val amplitude = with(density) { waveHeight.toPx() }
-        val freq = waveFrequency * 2f * PI.toFloat() / width
+            .coerceIn(0f, height * 0.5f)
+        val normalizedFrequency = waveFrequency.coerceAtLeast(0.25f)
+        val freq = normalizedFrequency * 2f * PI.toFloat() / width
+        val sampleStep = (width / 60f).toInt().coerceIn(2, 10)
 
         val path = Path().apply {
             moveTo(0f, 0f)
             lineTo(width, 0f)
             
             val waveBottomBase = height - amplitude
-            for (x in width.toInt() downTo 0 step 5) {
+            var x = width.toInt()
+            while (x >= 0) {
                 val angle: Double = ((x.toFloat() * freq)).toDouble()
                 val sinValue: Float = sin(angle).toFloat()
                 val waveFactor: Float = (sinValue + 1f) * 0.5f 
@@ -49,6 +53,7 @@ class WavyBottomShape(
                 } else {
                     lineTo(x.toFloat(), y)
                 }
+                x -= sampleStep
             }
             lineTo(0f, waveBottomBase + ((sin(0.0).toFloat() + 1f) * 0.5f * amplitude))
             close()
@@ -70,14 +75,16 @@ class PetalShape(
         density: Density
     ): Outline {
         val path = Path()
+        val normalizedPetals = petals.coerceAtLeast(2)
+        val normalizedDepth = depth.coerceIn(0.05f, 0.45f)
         val cx = size.width / 2f
         val cy = size.height / 2f
-        val baseRadius = size.width / 2f * (1f - depth)
-        val variation = size.width / 2f * depth
+        val baseRadius = size.width / 2f * (1f - normalizedDepth)
+        val variation = size.width / 2f * normalizedDepth
 
         for (i in 0..360 step 5) {
             val angle = Math.toRadians(i.toDouble())
-            val r = baseRadius + variation * sin(angle * petals).toFloat()
+            val r = baseRadius + variation * sin(angle * normalizedPetals).toFloat()
             val x = cx + r * cos(angle).toFloat()
             val y = cy + r * sin(angle).toFloat()
             if (i == 0) {
