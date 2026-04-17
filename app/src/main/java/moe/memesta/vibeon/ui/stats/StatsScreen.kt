@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,7 +32,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,13 +46,14 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -142,18 +141,31 @@ fun StatsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Standard header matching Albums/Artists style
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 6.dp)
+                .padding(horizontal = 20.dp, vertical = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Surface(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onBackPressed),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
                 Surface(
                     modifier = Modifier
                         .size(40.dp)
@@ -169,25 +181,35 @@ fun StatsScreen(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Statistics",
+                text = "Listening stats",
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "See how you've been vibing",
+                text = if (summary != null) {
+                    "${summary.totalPlayCount} plays across ${summary.activeDays} active days"
+                } else {
+                    "See how you've been vibing"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         RangeChips(
-            summary = summary,
             cs = cs,
             selectedRange = uiState.selectedRange,
             onRangeSelected = { statsViewModel.onRangeSelected(it) }
+        )
+        SummaryPill(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .fillMaxWidth(),
+            label = "Active days",
+            value = summary?.activeDays?.toString() ?: "--"
         )
         if (uiState.isLoading && summary == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -246,40 +268,47 @@ fun StatsScreen(
 
 @Composable
 private fun RangeChips(
-    summary: PlaybackStatsCalculator.PlaybackStatsSummary?,
     cs: androidx.compose.material3.ColorScheme,
     selectedRange: StatsTimeRange,
     onRangeSelected: (StatsTimeRange) -> Unit
 ) {
+    ConnectedButtonGroup(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        options = StatsTimeRange.values().toList(),
+        selectedOption = selectedRange,
+        onSelected = onRangeSelected,
+        selectedContainerColor = cs.primaryContainer,
+        selectedContentColor = cs.onPrimaryContainer,
+        unselectedContainerColor = cs.surfaceContainer,
+        unselectedContentColor = cs.onSurfaceVariant,
+        label = { option, _ -> Text(option.displayName, style = MaterialTheme.typography.labelMedium) }
+    )
+}
+
+@Composable
+private fun SummaryPill(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        StatsTimeRange.values().forEach { range ->
-            AnimatedSelectableChip(
-                selected = range == selectedRange,
-                onClick = { onRangeSelected(range) },
-                label = { Text(range.displayName, style = MaterialTheme.typography.labelMedium) },
-                shape = CircleShape,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = cs.primaryContainer,
-                    selectedLabelColor = cs.onPrimaryContainer
-                )
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        HeroStatCard(
-            modifier = Modifier.weight(1f),
-            icon = Icons.Outlined.CalendarMonth,
-            label = "Active days",
-            value = summary?.activeDays?.toString() ?: "--",
-            containerColor = cs.primaryContainer.copy(alpha = 0.7f),
-            contentColor = cs.onPrimaryContainer
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -327,6 +356,51 @@ private fun HeroStatCard(
     }
 }
 
+@Composable
+private fun StatsEmptyState(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 20.dp, vertical = 22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(48.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 // â”€â”€ Timeline section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
@@ -341,44 +415,31 @@ private fun ListeningTimelineSection(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            TimelineMetric.values().forEach { metric ->
-                AnimatedSelectableChip(
-                    selected = metric == selectedMetric,
-                    onClick = { onMetricSelected(metric) },
-                    label = { Text(metric.displayName, style = MaterialTheme.typography.labelSmall) },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                )
-            }
-        }
+        ConnectedButtonGroup(
+            modifier = Modifier,
+            options = TimelineMetric.values().toList(),
+            selectedOption = selectedMetric,
+            onSelected = onMetricSelected,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            label = { option, _ -> Text(option.displayName, style = MaterialTheme.typography.labelSmall) }
+        )
         val timeline = summary?.timeline.orEmpty()
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
             )
         ) {
             if (timeline.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No listening data yet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                        textAlign = TextAlign.Center
-                    )
-                }
+                StatsEmptyState(
+                    icon = Icons.Outlined.AutoGraph,
+                    title = "No listening data yet",
+                    subtitle = "Play a bit more music and timeline insights will show up here.",
+                    modifier = Modifier.padding(16.dp)
+                )
             } else {
                 TimelineVerticalBarChart(
                     timeline = timeline,
@@ -477,29 +538,20 @@ private fun CategoryMetricsSection(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            CategoryDimension.values().forEach { dim ->
-                val dp = dimensionPalette(dim)
-                AnimatedSelectableChip(
-                    selected = dim == selectedDimension,
-                    onClick = { onDimensionSelected(dim) },
-                    label = { Text(dim.displayName, style = MaterialTheme.typography.labelSmall) },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = dp.accent,
-                        selectedLabelColor = dp.accentOn,
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        labelColor = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-            }
-        }
+        ConnectedButtonGroup(
+            modifier = Modifier,
+            options = CategoryDimension.values().toList(),
+            selectedOption = selectedDimension,
+            onSelected = onDimensionSelected,
+            selectedContainerColor = palette.accent,
+            selectedContentColor = palette.accentOn,
+            unselectedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            label = { option, _ -> Text(option.displayName, style = MaterialTheme.typography.labelSmall) }
+        )
         val entries = buildCategoryEntries(summary, selectedDimension, displayLanguage)
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = palette.container)
         ) {
             Column(
@@ -513,11 +565,11 @@ private fun CategoryMetricsSection(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 if (entries.isEmpty()) {
-                    Text(
-                        text = "Play more music to see stats",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = palette.content.copy(alpha = 0.55f),
-                        modifier = Modifier.padding(vertical = 20.dp)
+                    StatsEmptyState(
+                        icon = Icons.Outlined.MusicNote,
+                        title = "No category stats yet",
+                        subtitle = "Keep listening and we will rank your top songs, artists, albums, and genres.",
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
                     CategoryHorizontalBarChart(
@@ -968,25 +1020,43 @@ private fun formatMinuteLabel(startMinute: Int): String {
 }
 
 @Composable
-private fun AnimatedSelectableChip(
-    selected: Boolean = false,
-    onClick: () -> Unit = {},
-    label: @Composable () -> Unit = {},
-    shape: androidx.compose.ui.graphics.Shape = CircleShape,
-    colors: androidx.compose.material3.SelectableChipColors = FilterChipDefaults.filterChipColors()
+private fun <T> ConnectedButtonGroup(
+    modifier: Modifier = Modifier,
+    options: List<T>,
+    selectedOption: T,
+    onSelected: (T) -> Unit,
+    selectedContainerColor: Color,
+    selectedContentColor: Color,
+    unselectedContainerColor: Color,
+    unselectedContentColor: Color,
+    label: @Composable (T, Boolean) -> Unit
 ) {
-    val scale by animateFloatAsState(targetValue = if (selected) 1f else 0.96f)
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = label,
-        shape = shape,
-        colors = colors,
-        modifier = Modifier.graphicsLayer {
-            scaleX = scale
-            scaleY = scale
+    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+        options.forEachIndexed { index, option ->
+            val selected = option == selectedOption
+            val scale by animateFloatAsState(
+                targetValue = if (selected) 1f else 0.97f,
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMedium),
+                label = "segmented-$index"
+            )
+            SegmentedButton(
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                selected = selected,
+                onClick = { onSelected(option) },
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = selectedContainerColor,
+                    activeContentColor = selectedContentColor,
+                    inactiveContainerColor = unselectedContainerColor,
+                    inactiveContentColor = unselectedContentColor
+                ),
+                modifier = Modifier.graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+                label = { label(option, selected) }
+            )
         }
-    )
+    }
 }
 
 @Composable
