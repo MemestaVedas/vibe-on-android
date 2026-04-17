@@ -265,7 +265,10 @@ class WebSocketClient {
 
     private fun send(msg: JSONObject) {
         webSocket?.send(msg.toString())
-        Log.d(TAG, "→ ${msg.optString("type")}")
+        val type = msg.optString("type")
+        if (type != "reportPlaybackEvent") {
+            Log.d(TAG, "→ $type")
+        }
     }
 
     private fun sendSimple(type: String) = send(JSONObject().apply { put("type", type) })

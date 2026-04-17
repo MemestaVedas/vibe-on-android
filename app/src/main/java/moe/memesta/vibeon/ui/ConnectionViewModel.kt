@@ -35,6 +35,9 @@ class ConnectionViewModel @Inject constructor(
 ) : ViewModel() {
     companion object {
         private const val SUPPORTED_PROTOCOL_MAJOR = 1
+        private const val MAX_EVENTS_PER_SYNC = 400
+        private const val EVENT_SYNC_BATCH_SIZE = 40
+        private const val EVENT_SYNC_BATCH_DELAY_MS = 90L
     }
 
     private val statsTracker by lazy {
@@ -248,9 +251,32 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val events = localStatsRepository.readEvents()
             if (events.isNotEmpty()) {
-                val payload = if (events.size > 1000) events.takeLast(1000) else events
-                Log.i("ConnectionViewModel", "📤 Syncing ${payload.size}/${events.size} local events to PC")
-                wsClient.sendSyncPlaybackEvents(payload)
+                val payload = if (events.size > MAX_EVENTS_PER_SYNC) {
+                    events.takeLast(MAX_EVENTS_PER_SYNC)
+                } else {
+                    events
+                }
+
+                Log.i(
+                    "ConnectionViewModel",
+                    "📤 Syncing ${payload.size}/${events.size} local events to PC in batches of $EVENT_SYNC_BATCH_SIZE"
+                )
+
+                payload
+                    .chunked(EVENT_SYNC_BATCH_SIZE)
+                    .forEachIndexed { index, batch ->
+                        if (!wsClient.isConnected.value) {
+                            Log.w("ConnectionViewModel", "Connection dropped during local event sync; stopping at batch $index")
+                            return@forEachIndexed
+                        }
+
+                        wsClient.sendSyncPlaybackEvents(batch)
+
+                        val sentCount = ((index + 1) * EVENT_SYNC_BATCH_SIZE).coerceAtMost(payload.size)
+                        if (sentCount < payload.size) {
+                            delay(EVENT_SYNC_BATCH_DELAY_MS)
+                        }
+                    }
             }
         }
     }

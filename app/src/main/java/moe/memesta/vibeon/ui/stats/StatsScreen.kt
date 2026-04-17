@@ -46,14 +46,16 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1020,6 +1022,7 @@ private fun formatMinuteLabel(startMinute: Int): String {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun <T> ConnectedButtonGroup(
     modifier: Modifier = Modifier,
     options: List<T>,
@@ -1031,7 +1034,7 @@ private fun <T> ConnectedButtonGroup(
     unselectedContentColor: Color,
     label: @Composable (T, Boolean) -> Unit
 ) {
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+    ButtonGroup(modifier = modifier.fillMaxWidth()) {
         options.forEachIndexed { index, option ->
             val selected = option == selectedOption
             val scale by animateFloatAsState(
@@ -1039,22 +1042,33 @@ private fun <T> ConnectedButtonGroup(
                 animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMedium),
                 label = "segmented-$index"
             )
-            SegmentedButton(
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                selected = selected,
-                onClick = { onSelected(option) },
-                colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = selectedContainerColor,
-                    activeContentColor = selectedContentColor,
-                    inactiveContainerColor = unselectedContainerColor,
-                    inactiveContentColor = unselectedContentColor
-                ),
-                modifier = Modifier.graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                },
-                label = { label(option, selected) }
-            )
+            val buttonModifier = Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            if (selected) {
+                Button(
+                    onClick = { onSelected(option) },
+                    modifier = buttonModifier,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = selectedContainerColor,
+                        contentColor = selectedContentColor
+                    )
+                ) {
+                    label(option, true)
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { onSelected(option) },
+                    modifier = buttonModifier,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = unselectedContainerColor,
+                        contentColor = unselectedContentColor
+                    )
+                ) {
+                    label(option, false)
+                }
+            }
         }
     }
 }

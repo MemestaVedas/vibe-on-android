@@ -6,6 +6,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +23,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
@@ -52,6 +59,9 @@ fun AlbumGridItem(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     val fallbackPrimary = MaterialTheme.colorScheme.primary
     val fallbackPrimaryContainer = MaterialTheme.colorScheme.primaryContainer
     val fallbackOnPrimary = MaterialTheme.colorScheme.onPrimary
@@ -72,6 +82,14 @@ fun AlbumGridItem(
             }
         )
     }
+    var isPaletteExtractionInFlight by remember(coverUrl) { mutableStateOf(false) }
+
+    val imageModel = remember(coverUrl, context) {
+        ImageRequest.Builder(context)
+            .data(coverUrl)
+            .crossfade(true)
+            .build()
+    }
 
     val resolvedColors = cardColors ?: AlbumCardColors(
         primary = fallbackPrimary,
@@ -79,9 +97,21 @@ fun AlbumGridItem(
         onPrimary = fallbackOnPrimary,
         onSecondary = fallbackOnPrimaryContainer
     )
-    val primaryColor = resolvedColors.primary
-    val sampledSecondary = resolvedColors.secondary
-    val onPrimaryColor = resolvedColors.onPrimary
+    val primaryColor by animateColorAsState(
+        targetValue = resolvedColors.primary,
+        animationSpec = tween(durationMillis = 280),
+        label = "album_primary"
+    )
+    val sampledSecondary by animateColorAsState(
+        targetValue = resolvedColors.secondary,
+        animationSpec = tween(durationMillis = 280),
+        label = "album_secondary"
+    )
+    val onPrimaryColor by animateColorAsState(
+        targetValue = resolvedColors.onPrimary,
+        animationSpec = tween(durationMillis = 220),
+        label = "album_on_primary"
+    )
     val pillContainerColor = remember(primaryColor) {
         val target = if (primaryColor.luminance() > 0.5f) Color.Black else Color.White
         lerp(primaryColor, target, 0.26f)
@@ -114,30 +144,40 @@ fun AlbumGridItem(
             // Album Art - takes full space
             if (coverUrl != null) {
                 AsyncImage(
-                    model = coverUrl,
+                    model = imageModel,
                     contentDescription = albumName,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     onSuccess = { success ->
-                        if (cardColors == null) {
-                            val extractedColors = PaletteUtils.extractColors(success.result.drawable)
-                            val extractedPrimary = when {
-                                extractedColors.vibrant.alpha > 0f -> extractedColors.vibrant
-                                extractedColors.muted.alpha > 0f -> extractedColors.muted
-                                else -> fallbackPrimary
+                        if (cardColors == null && !isPaletteExtractionInFlight) {
+                            isPaletteExtractionInFlight = true
+                            scope.launch(Dispatchers.Default) {
+                                val extractedColors = PaletteUtils.extractColors(success.result.drawable)
+                                val extractedPrimary = when {
+                                    extractedColors.vibrant.alpha > 0f -> extractedColors.vibrant
+                                    extractedColors.muted.alpha > 0f -> extractedColors.muted
+                                    else -> fallbackPrimary
+                                }
+                                val extractedSecondary = when {
+                                    extractedColors.muted.alpha > 0f -> extractedColors.muted
+                                    extractedColors.vibrant.alpha > 0f -> deriveSecondaryColor(extractedPrimary)
+                                    else -> fallbackPrimaryContainer
+                                }
+                                val extractedCardColors = AlbumCardColors(
+                                    primary = extractedPrimary,
+                                    secondary = extractedSecondary,
+                                    onPrimary = if (extractedColors.onVibrant.alpha > 0f) extractedColors.onVibrant else contentColorFor(extractedPrimary),
+                                    onSecondary = if (extractedColors.onMuted.alpha > 0f) extractedColors.onMuted else contentColorFor(extractedSecondary)
+                                )
+
+                                withContext(Dispatchers.Main.immediate) {
+                                    if (cardColors == null) {
+                                        cardColors = extractedCardColors
+                                        coverUrl?.let { url -> AlbumArtColorCache.put(url, extractedPrimary) }
+                                    }
+                                    isPaletteExtractionInFlight = false
+                                }
                             }
-                            val extractedSecondary = when {
-                                extractedColors.muted.alpha > 0f -> extractedColors.muted
-                                extractedColors.vibrant.alpha > 0f -> deriveSecondaryColor(extractedPrimary)
-                                else -> fallbackPrimaryContainer
-                            }
-                            cardColors = AlbumCardColors(
-                                primary = extractedPrimary,
-                                secondary = extractedSecondary,
-                                onPrimary = if (extractedColors.onVibrant.alpha > 0f) extractedColors.onVibrant else contentColorFor(extractedPrimary),
-                                onSecondary = if (extractedColors.onMuted.alpha > 0f) extractedColors.onMuted else contentColorFor(extractedSecondary)
-                            )
-                            coverUrl?.let { url -> AlbumArtColorCache.put(url, extractedPrimary) }
                         }
                     }
                 )
