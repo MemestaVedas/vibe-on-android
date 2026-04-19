@@ -1,4 +1,4 @@
-﻿package moe.memesta.vibeon.widget
+package moe.memesta.vibeon.widget
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -75,10 +75,11 @@ private fun createBottomGradientBitmap(colorInt: Int): Bitmap {
     val paint = android.graphics.Paint()
     
     val transparent = colorInt and 0x00FFFFFF
+    // Gradient starts visible from ~30% from top, fully opaque at bottom
     paint.shader = android.graphics.LinearGradient(
         0f, 0f, 0f, 100f,
         intArrayOf(transparent, transparent, colorInt),
-        floatArrayOf(0f, 0.56f, 1f),
+        floatArrayOf(0f, 0.30f, 1f),
         android.graphics.Shader.TileMode.CLAMP
     )
     canvas.drawRect(0f, 0f, 1f, 100f, paint)
@@ -176,12 +177,12 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                     contentAlignment = Alignment.Center
                 ) {}
 
-                // Top Right: Phone/PC toggle (Clickable independently to toggle output)
+                // Top Right: PC/Mobile toggle — circle bg changes colour per state
                 Box(
                     modifier = GlanceModifier
                         .defaultWeight()
                         .fillMaxHeight()
-                        .padding(16.dp),
+                        .padding(top = 16.dp, end = 16.dp),
                     contentAlignment = Alignment.TopEnd
                 ) {
                     Box(
@@ -190,7 +191,10 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             .cornerRadius(21.dp)
                             .background(
                                 ColorProvider(
-                                    onPrimaryColor.copy(alpha = 0.76f)
+                                    if (playerInfo.isMobilePlayback)
+                                        onPrimaryColor.copy(alpha = 0.88f)  // light circle when using phone
+                                    else
+                                        secondaryContainer.copy(alpha = 0.88f) // muted circle when using PC
                                 )
                             )
                             .clickable(
@@ -206,10 +210,13 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             else
                                 ImageProvider(R.drawable.ic_widget_computer),
                             contentDescription = if (playerInfo.isMobilePlayback) "Mobile" else "PC",
-                            modifier = GlanceModifier.size(19.dp),
+                            modifier = GlanceModifier.size(22.dp),
                             colorFilter = ColorFilter.tint(
                                 ColorProvider(
-                                    primaryColor.copy(alpha = 0.86f)
+                                    if (playerInfo.isMobilePlayback)
+                                        primaryColor  // dark icon on light bg
+                                    else
+                                        onSecondaryContainer // light icon on muted bg
                                 )
                             )
                         )
@@ -256,74 +263,64 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 ) {}
             }
 
-            // ROW 3: Bottom (Text Info | Zone 4: More options | Like Button)
-            Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-                // Visual Layer
-                Row(modifier = GlanceModifier.fillMaxSize()) {
-                    // Song Title & Artist
-                    Box(
-                        modifier = GlanceModifier
-                            .defaultWeight()
-                            .fillMaxHeight()
-                            .padding(start = 16.dp, bottom = 16.dp, end = 8.dp),
-                        contentAlignment = Alignment.BottomStart
-                    ) {
-                        Column(
-                            modifier = GlanceModifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            Text(
-                                text = playerInfo.title.ifEmpty { "No Track Playing" },
-                                style = TextStyle(
-                                    color = ColorProvider(onPrimaryColor),
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                maxLines = 1
-                            )
-                            Text(
-                                text = playerInfo.artist.ifEmpty { "Unknown Artist" },
-                                style = TextStyle(
-                                    color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Normal
-                                ),
-                                maxLines = 1,
-                                modifier = GlanceModifier.padding(top = 2.dp)
-                            )
-                        }
-                    }
-
-                    // Like Button
-                    Box(
-                        modifier = GlanceModifier
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.BottomEnd
-                    ) {
-                        Image(
-                            provider = if (playerInfo.isLiked)
-                                ImageProvider(R.drawable.ic_widget_heart_filled)
-                            else
-                                ImageProvider(R.drawable.ic_widget_heart_outline),
-                            contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
-                            modifier = GlanceModifier
-                                .padding(end = 16.dp, bottom = 16.dp)
-                                .size(34.dp)
-                                .clickable(
-                                    actionRunCallback<WidgetActionCallback>(
-                                        actionParametersOf(keyAction to ACT_LIKE)
-                                    )
-                                ),
-                            colorFilter = ColorFilter.tint(
-                                ColorProvider(
-                                    if (playerInfo.isLiked) errorContainer else onPrimaryColor
-                                )
-                            )
+            // ROW 3: Bottom (Text + Like anchored to bottom of section)
+            Box(
+                modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
+                contentAlignment = Alignment.BottomStart
+            ) {
+                // Visual: single Row, both text and heart share the same bottom baseline
+                Row(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // Title + Artist
+                    Column(modifier = GlanceModifier.defaultWeight()) {
+                        Text(
+                            text = playerInfo.title.ifEmpty { "No Track Playing" },
+                            style = TextStyle(
+                                color = ColorProvider(onPrimaryColor),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily("m_plus_rounded_1c_bold")
+                            ),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = playerInfo.artist.ifEmpty { "Unknown Artist" },
+                            style = TextStyle(
+                                color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Normal,
+                                fontFamily = FontFamily("m_plus_rounded_1c_regular")
+                            ),
+                            maxLines = 1,
+                            modifier = GlanceModifier.padding(top = 2.dp)
                         )
                     }
+
+                    // Like — direct child of Row, no Box wrapper, same bottom baseline as text
+                    Image(
+                        provider = if (playerInfo.isLiked)
+                            ImageProvider(R.drawable.ic_widget_heart_filled)
+                        else
+                            ImageProvider(R.drawable.ic_widget_heart_outline),
+                        contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
+                        modifier = GlanceModifier
+                            .size(34.dp)
+                            .clickable(
+                                actionRunCallback<WidgetActionCallback>(
+                                    actionParametersOf(keyAction to ACT_LIKE)
+                                )
+                            ),
+                        colorFilter = ColorFilter.tint(
+                            ColorProvider(if (playerInfo.isLiked) errorContainer else onPrimaryColor)
+                        )
+                    )
                 }
 
-                // Tap Zones Layer (Middle Zone 4)
+                // Invisible tap zones overlay (fullsize, covers the section)
                 Row(modifier = GlanceModifier.fillMaxSize()) {
                     Box(modifier = GlanceModifier.defaultWeight().fillMaxHeight()) {}
                     Box(
@@ -360,17 +357,21 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
         }
     }
 
-    val primaryColor = Color(playerInfo.colorPrimary)
-    val onPrimaryColor = Color(playerInfo.colorOnPrimary)
-    val onSecondaryColor = Color(playerInfo.colorOnSecondary)
-    val secondaryContainer = Color(playerInfo.colorSecondaryContainer)
-    val onSecondaryContainer = Color(playerInfo.colorOnSecondaryContainer)
-    val errorContainer = Color(playerInfo.colorErrorContainer)
-    val onErrorContainer = Color(playerInfo.colorOnErrorContainer)
-    val tertiaryColor = if (playerInfo.isMobilePlayback) Color(playerInfo.colorSecondary) else onSecondaryColor
+    // M3 colour tokens from user-generated palette
+    val primaryColor          = Color(playerInfo.colorPrimary)
+    val onPrimaryColor        = Color(playerInfo.colorOnPrimary)
+    val primaryContainer      = Color(playerInfo.colorPrimaryContainer)
+    val onPrimaryContainer    = Color(playerInfo.colorOnPrimaryContainer)
+    val secondaryContainer    = Color(playerInfo.colorSecondaryContainer)
+    val onSecondaryContainer  = Color(playerInfo.colorOnSecondaryContainer)
+    val errorContainer        = Color(playerInfo.colorErrorContainer)
+    val onErrorContainer      = Color(playerInfo.colorOnErrorContainer)
+    // Used for the cookie-shape tile frame when center tile
+    val onSecondaryColor      = Color(playerInfo.colorOnSecondary)
 
     Box(modifier = GlanceModifier.fillMaxSize().cornerRadius(28.dp)) {
-        // Blurred Background
+
+        // ── Background: blurred album art ──────────────────────────────
         if (albumBitmap != null) {
             Image(
                 provider = ImageProvider(albumBitmap),
@@ -379,24 +380,50 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                 modifier = GlanceModifier.fillMaxSize()
             )
         }
-        
-        // Scrim mimicking frosting
+
+        // ── Frosted scrim ─────────────────────────────────────────────
         Box(modifier = GlanceModifier.fillMaxSize().background(ColorProvider(primaryColor.copy(alpha = 0.65f)))) {}
 
-        Column(modifier = GlanceModifier.fillMaxSize()) {
-            // ROW 1: Top (Logo | Open App | Phone/PC) same as main view
-            Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 0.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.TopStart) {}
-                
-                Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.TopEnd) {
-                    Box(modifier = GlanceModifier.size(42.dp).cornerRadius(21.dp).background(ColorProvider(onPrimaryColor.copy(alpha = 0.76f))).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_TOGGLE_OUT))), contentAlignment = Alignment.Center) {
-                        Image(provider = if (playerInfo.isMobilePlayback) ImageProvider(R.drawable.ic_widget_phone) else ImageProvider(R.drawable.ic_widget_computer), contentDescription = "Toggle output", modifier = GlanceModifier.size(19.dp), colorFilter = ColorFilter.tint(ColorProvider(primaryColor.copy(alpha = 0.86f))))
-                    }
+        // ── Content Column ────────────────────────────────────────────
+        Column(modifier = GlanceModifier.fillMaxSize().padding(horizontal = 16.dp)) {
+
+            // ROW 1 ─ Toggle (top-right, circle bg changes colour per state)
+            Row(
+                modifier = GlanceModifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                Box(
+                    modifier = GlanceModifier
+                        .size(42.dp)
+                        .cornerRadius(21.dp)
+                        .background(
+                            ColorProvider(
+                                if (playerInfo.isMobilePlayback)
+                                    onPrimaryColor.copy(alpha = 0.88f)
+                                else
+                                    secondaryContainer.copy(alpha = 0.88f)
+                            )
+                        )
+                        .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_TOGGLE_OUT))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = if (playerInfo.isMobilePlayback) ImageProvider(R.drawable.ic_widget_phone)
+                                   else ImageProvider(R.drawable.ic_widget_computer),
+                        contentDescription = "Toggle output",
+                        modifier = GlanceModifier.size(22.dp),
+                        colorFilter = ColorFilter.tint(
+                            ColorProvider(
+                                if (playerInfo.isMobilePlayback) primaryColor
+                                else onSecondaryContainer
+                            )
+                        )
+                    )
                 }
             }
-            
-            // Text Layer
-            Column(modifier = GlanceModifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 0.dp)) {
+
+            // ROW 2 ─ Title + Artist/Album
+            Column(modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp)) {
                 Text(
                     text = playerInfo.title.ifEmpty { "No Track Playing" },
                     style = TextStyle(
@@ -411,7 +438,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                     text = buildString {
                         append(playerInfo.artist.ifEmpty { "Unknown Artist" })
                         if (!playerInfo.album.isNullOrEmpty()) {
-                            append(" ")
+                            append(" .")
                             append(playerInfo.album)
                         }
                     },
@@ -427,104 +454,188 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
 
             Spacer(modifier = GlanceModifier.defaultWeight())
 
-            // ROW 2: Middle - album tiles
-            Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 12.dp, top = 0.dp, end = 12.dp, bottom = 0.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                for (i in 0..2) {
-                    val isCenter = i == 1
-                    val tileSize = if (isCenter) 112.dp else 88.dp
-                    val frameColor = if (isCenter) onSecondaryColor else onPrimaryColor.copy(alpha = 0.45f)
+            // ROW 3 ─ Three cookie-shaped album art tiles
+            // ──────────────────────────────────────────────────────────
+            // In Glance (RemoteViews), arbitrary path clipping isn't possible.
+            // The cookie shape is achieved by stacking:
+            //   1. ic_cookie_shape icon (tinted with frame color) — acts as the border/frame
+            //   2. Album art image inset with padding — sits inside the frame
+            // This faithfully represents the M3E "cookie" squircle shape token.
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left tile
+                Box(
+                    modifier = GlanceModifier.padding(horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Cookie-shape frame (M3E squircle border — primaryContainer tinted)
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_cookie_shape),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor.copy(alpha = 0.45f))),
+                        modifier = GlanceModifier.size(82.dp)
+                    )
+                    // Album art inset
+                    if (albumBitmap != null) {
+                        Image(
+                            provider = ImageProvider(albumBitmap),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = GlanceModifier.size(68.dp).cornerRadius(18.dp)
+                        )
+                    }
+                }
 
-                    Box(
-                        modifier = GlanceModifier
-                            .defaultWeight()
-                            .padding(horizontal = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = GlanceModifier
-                                .size(tileSize)
-                                .cornerRadius(if (isCenter) 30.dp else 26.dp)
-                                .background(ColorProvider(frameColor.copy(alpha = if (isCenter) 0.95f else 0.5f)))
-                        ) {
-                            if (albumBitmap != null) {
-                                Image(
-                                    provider = ImageProvider(albumBitmap),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = GlanceModifier
-                                        .fillMaxSize()
-                                        .padding(if (isCenter) 4.dp else 3.dp)
-                                        .cornerRadius(if (isCenter) 26.dp else 22.dp)
-                                )
-                            } else {
-                                Image(
-                                    provider = ImageProvider(R.drawable.ic_cookie_shape),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(ColorProvider(tertiaryColor)),
-                                    modifier = GlanceModifier.fillMaxSize().padding(8.dp)
-                                )
-                            }
-                        }
+                // Center tile (larger, highlighted with onSecondary as frame)
+                Box(
+                    modifier = GlanceModifier.padding(horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_cookie_shape),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(ColorProvider(onSecondaryColor)),
+                        modifier = GlanceModifier.size(106.dp)
+                    )
+                    if (albumBitmap != null) {
+                        Image(
+                            provider = ImageProvider(albumBitmap),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = GlanceModifier.size(90.dp).cornerRadius(22.dp)
+                        )
+                    }
+                }
+
+                // Right tile
+                Box(
+                    modifier = GlanceModifier.padding(horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_cookie_shape),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor.copy(alpha = 0.45f))),
+                        modifier = GlanceModifier.size(82.dp)
+                    )
+                    if (albumBitmap != null) {
+                        Image(
+                            provider = ImageProvider(albumBitmap),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = GlanceModifier.size(68.dp).cornerRadius(18.dp)
+                        )
                     }
                 }
             }
 
             Spacer(modifier = GlanceModifier.defaultWeight())
 
-            // ROW 3: Controls
-            Row(modifier = GlanceModifier.fillMaxWidth().padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                // Shuffle
+            // ROW 4 ─ Controls
+            // Shapes and colours per M3E tokens:
+            //   Shuffle  → ic_star_badge  (primaryContainer bg)         + shuffle icon (onPrimaryContainer)
+            //   Repeat   → cornerRadius   (secondaryContainer bg)        + repeat icon (onSecondaryContainer)
+            //   Volume   → ic_spiky_star  (errorContainer bg = red)      + volume icon (onErrorContainer)
+            //   Like     → heart icon     (errorContainer when liked)
+            Row(
+                modifier = GlanceModifier.fillMaxWidth().padding(bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Shuffle — M3E star-badge shape, primaryContainer coloured
                 val isShuffle = playerInfo.isShuffled
-                Box(modifier = GlanceModifier.size(54.dp).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_SHUFFLE))), contentAlignment = Alignment.Center) {
-                    Image(provider = ImageProvider(R.drawable.ic_star_badge), contentDescription = null, colorFilter = ColorFilter.tint(ColorProvider(if (isShuffle) onSecondaryColor else tertiaryColor)), modifier = GlanceModifier.size(52.dp))
-                    Image(provider = ImageProvider(R.drawable.ic_widget_shuffle), contentDescription = "Shuffle", colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)), modifier = GlanceModifier.size(22.dp))
+                Box(
+                    modifier = GlanceModifier
+                        .size(54.dp)
+                        .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_SHUFFLE))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_star_badge),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(ColorProvider(if (isShuffle) onSecondaryColor else primaryContainer)),
+                        modifier = GlanceModifier.size(54.dp)
+                    )
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_widget_shuffle),
+                        contentDescription = "Shuffle",
+                        colorFilter = ColorFilter.tint(ColorProvider(if (isShuffle) primaryColor else onPrimaryContainer)),
+                        modifier = GlanceModifier.size(22.dp)
+                    )
                 }
 
-                Spacer(modifier = GlanceModifier.width(16.dp))
-                
-                // Repeat
+                Spacer(modifier = GlanceModifier.width(12.dp))
+
+                // Repeat — M3E rounded rectangle, secondaryContainer coloured
                 val isRepeat = playerInfo.repeatMode != "off"
                 val repeatIcon = if (playerInfo.repeatMode == "one") R.drawable.ic_widget_repeat_one else R.drawable.ic_widget_repeat
-                Box(modifier = GlanceModifier.size(54.dp).cornerRadius(18.dp).background(ColorProvider(if (isRepeat) onSecondaryContainer else secondaryContainer)).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_REPEAT))), contentAlignment = Alignment.Center) {
-                    Image(provider = ImageProvider(repeatIcon), contentDescription = "Repeat", colorFilter = ColorFilter.tint(ColorProvider(if (isRepeat) secondaryContainer else onSecondaryContainer)), modifier = GlanceModifier.size(25.dp))
+                Box(
+                    modifier = GlanceModifier
+                        .size(54.dp)
+                        .cornerRadius(16.dp)
+                        .background(ColorProvider(if (isRepeat) onSecondaryContainer else secondaryContainer))
+                        .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_REPEAT))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(repeatIcon),
+                        contentDescription = "Repeat",
+                        colorFilter = ColorFilter.tint(ColorProvider(if (isRepeat) secondaryContainer else onSecondaryContainer)),
+                        modifier = GlanceModifier.size(26.dp)
+                    )
                 }
 
-                Spacer(modifier = GlanceModifier.width(16.dp))
+                Spacer(modifier = GlanceModifier.width(12.dp))
 
-                // Volume
+                // Volume — M3E spiky-star shape, errorContainer (red) coloured
                 val volIcon = when (playerInfo.volumeLevel) {
-                    0 -> R.drawable.ic_widget_volume_off
-                    1 -> R.drawable.ic_widget_volume_mid
+                    0    -> R.drawable.ic_widget_volume_off
+                    1    -> R.drawable.ic_widget_volume_mid
                     else -> R.drawable.ic_widget_volume_high
                 }
-                Box(modifier = GlanceModifier.size(54.dp).clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_VOLUME))), contentAlignment = Alignment.Center) {
-                    if (playerInfo.volumeLevel == 0) {
-                        Image(provider = ImageProvider(R.drawable.ic_widget_volume_badge), contentDescription = "Volume muted", modifier = GlanceModifier.size(50.dp))
-                    } else {
-                        Image(provider = ImageProvider(volIcon), contentDescription = "Volume", colorFilter = ColorFilter.tint(ColorProvider(onPrimaryColor)), modifier = GlanceModifier.size(25.dp))
-                    }
+                Box(
+                    modifier = GlanceModifier
+                        .size(54.dp)
+                        .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_VOLUME))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_spiky_star),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(ColorProvider(errorContainer)),
+                        modifier = GlanceModifier.size(54.dp)
+                    )
+                    Image(
+                        provider = ImageProvider(volIcon),
+                        contentDescription = "Volume",
+                        colorFilter = ColorFilter.tint(ColorProvider(onErrorContainer)),
+                        modifier = GlanceModifier.size(24.dp)
+                    )
                 }
 
                 Spacer(modifier = GlanceModifier.defaultWeight())
 
-                // Like
+                // Like — heart icon, errorContainer when liked
                 Box(
                     modifier = GlanceModifier
-                        .size(48.dp)
+                        .size(54.dp)
                         .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_LIKE))),
                     contentAlignment = Alignment.Center
                 ) {
-                     Image(
-                            provider = if (playerInfo.isLiked) ImageProvider(R.drawable.ic_widget_heart_filled) else ImageProvider(R.drawable.ic_widget_heart_outline),
-                            contentDescription = "Like",
-                        modifier = GlanceModifier.size(34.dp),
-                            colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) errorContainer else onPrimaryColor))
-                     )
+                    Image(
+                        provider = if (playerInfo.isLiked) ImageProvider(R.drawable.ic_widget_heart_filled)
+                                   else ImageProvider(R.drawable.ic_widget_heart_outline),
+                        contentDescription = "Like",
+                        modifier = GlanceModifier.size(40.dp),
+                        colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) errorContainer else onPrimaryColor))
+                    )
                 }
             }
         }
 
-        // Tap Zones Layer (Middle Zone 4 -> Back to Main)
+        // ── Tap Zones (unchanged) ─────────────────────────────────────
         Column(modifier = GlanceModifier.fillMaxSize()) {
             Box(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) {}
             Row(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) {

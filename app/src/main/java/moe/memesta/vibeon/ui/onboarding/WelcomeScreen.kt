@@ -16,18 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.shapes.*
@@ -41,173 +39,242 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwipeRight
 import moe.memesta.vibeon.ui.utils.noiseTexture
 
+@Composable
+fun NextActionArea(
+    text: String,
+    color: Color,
+    currentIndex: Int,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(130.dp)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Page Indicator
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                for (i in 0..2) {
+                    val isActive = i == currentIndex
+                    Box(
+                        modifier = Modifier
+                            .height(6.dp)
+                            .width(if (isActive) 16.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(color.copy(alpha = if (isActive) 1f else 0.3f))
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = NorlineFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    fontSize = 32.sp
+                ),
+                color = color
+            )
+        }
+    }
+}
+
 /**
  * Welcome to VIBE-ON! — first-launch tutorial.
- *
- * Design language matches PairingScreen:
- * - Warm pink→purple radial gradient
- * - NorlineFont display text
- * - Wavy clip shape dividers
- * - Dark bottom area with CTA
- *
- * 3-page walkthrough:
- *   1. Welcome splash
- *   2. "Connect to a server" instructions
- *   3. "Navigate with gestures" intro
  */
 @Composable
 fun WelcomeScreen(
     onComplete: () -> Unit
 ) {
-    val pagerState = rememberPagerState(pageCount = { 3 })
-    val scope = rememberCoroutineScope()
+    var currentStep by remember { mutableIntStateOf(0) }
+    var isExiting by remember { mutableStateOf(false) }
 
-    // Background gradient matching PairingScreen
-    val gradientBrush = Brush.radialGradient(
-        colors = listOf(
-            Color(0xFFF5B7B4),
-            Color(0xFFE4B7F2),
-            Color(0xFFD4C0D7),
-            Color(0xFF452253)
-        ),
-        radius = 1800f
+    val summaries = listOf(
+        "Welcome to Vibe-On",
+        "Connect to a Server",
+        "Navigate with Gestures"
     )
-    val contentColor = Color(0xFF452253) // Dark purple content
-    val bottomBg = Color(0xFF141414)
-    val accentPink = Color(0xFFF5B7B4)
+    
+    val gradients = listOf(
+        Brush.radialGradient(
+            colors = listOf(Color(0xFFF5B7B4), Color(0xFFE4B7F2), Color(0xFFD4C0D7), Color(0xFF452253)),
+            radius = 1800f
+        ),
+        Brush.radialGradient(
+            colors = listOf(Color(0xFFB4E4F5), Color(0xFFB4F2D6), Color(0xFFC0D7CD), Color(0xFF224553)),
+            radius = 1800f
+        ),
+        Brush.radialGradient(
+            colors = listOf(Color(0xFFF5DEB4), Color(0xFFF2C8B4), Color(0xFFD7CCC0), Color(0xFF533822)),
+            radius = 1800f
+        )
+    )
 
-    // Logo rotation for page 0
+    val contentColors = listOf(
+        Color(0xFF452253), // Dark Purple Pop
+        Color(0xFF224553), // Dark Teal Pop
+        Color(0xFF533822)  // Dark Brown Pop
+    )
+
     val infiniteTransition = rememberInfiniteTransition(label = "welcome_anim")
     val logoRotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "logo_rotate"
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Restart), label = "logo_rotate"
     )
-
-    // Pulse for decorative elements
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
+        initialValue = 0.95f, targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "pulse"
     )
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent)
+            .background(Color(0xFF141414)) // Base background
             .noiseTexture(alpha = 40)
             .navigationBarsPadding()
     ) {
-        // --- BOTTOM CONTAINER ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.35f)
-                .align(Alignment.BottomCenter)
-                .background(bottomBg)
-                .clickable {
-                    if (pagerState.currentPage < 2) {
-                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                    } else {
-                        onComplete()
-                    }
-                }
-                .padding(bottom = 60.dp, start = 16.dp, end = 16.dp),
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Page indicators
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    repeat(3) { index ->
-                        val isActive = index == pagerState.currentPage
-                        val width by animateDpAsState(
-                            targetValue = if (isActive) 24.dp else 8.dp,
-                            animationSpec = spring(
-                                dampingRatio = 0.8f,
-                                stiffness = 300f
-                            ),
-                            label = "dot_width_$index"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .height(8.dp)
-                                .width(width)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(
-                                    if (isActive) accentPink else accentPink.copy(alpha = 0.3f)
-                                )
-                        )
-                    }
-                }
+        val totalHeight = maxHeight
+        val collapsedHeight = 76.dp
 
-                // CTA text
-                Text(
-                    text = if (pagerState.currentPage < 2) "CONTINUE" else "LET'S GO!",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 52.sp,
-                        fontFamily = NorlineFontFamily,
-                        fontWeight = FontWeight.Normal,
-                        letterSpacing = 1.sp,
-                        lineHeight = 56.sp,
-                        textAlign = TextAlign.Center
-                    ),
-                    maxLines = 1,
-                    softWrap = false,
-                    color = accentPink
+        val curtainTopOffset by animateDpAsState(
+            targetValue = if (isExiting) -maxHeight else 0.dp,
+            animationSpec = tween(600, easing = FastOutSlowInEasing),
+            label = "curtain_top",
+            finishedListener = { if (it < 0.dp) onComplete() }
+        )
+
+        val curtainBottomOffset by animateDpAsState(
+            targetValue = if (isExiting) 200.dp else 0.dp,
+            animationSpec = tween(600, easing = FastOutSlowInEasing),
+            label = "curtain_bottom"
+        )
+
+        // 1. Base Layer (Visible constantly behind everything, seen when on last step)
+        Box(
+            modifier = Modifier.fillMaxSize().offset(y = curtainBottomOffset)
+        ) {
+            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                NextActionArea(
+                    text = "LET'S GO!",
+                    color = Color(0xFFF5B7B4), // Pink pops beautifully against Dark Background
+                    currentIndex = 2,
+                    onClick = { isExiting = true }
                 )
             }
         }
 
-        // --- TOP CONTAINER (Gradient with wavy bottom) ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.78f)
-                .clip(WavyBottomShape(10.dp, 8.0f))
-                .background(gradientBrush)
-        ) {
-            // Grain overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.04f))
-            )
+        // 2. The stacked layout pages over the top (the top curtain)
+        Box(modifier = Modifier.fillMaxSize().offset(y = curtainTopOffset)) {
+            summaries.forEachIndexed { index, summary -> 
+                if (index > currentStep + 1) return@forEachIndexed // Load exactly current and the 1 next waiting card
+    
+                val isCollapsed = index < currentStep
+                val isActive = index == currentStep
+                val isNext = index == currentStep + 1
+                
+                val cardHeight by animateDpAsState(
+                    targetValue = when {
+                        isCollapsed -> collapsedHeight * (index + 1)
+                        isActive -> totalHeight - 130.dp // Leave exact room for NextActionArea peeking
+                        else -> totalHeight // Background filling element
+                    },
+                    animationSpec = tween(400, easing = FastOutSlowInEasing),
+                    label = "card_height_$index"
+                )
+    
+                // Avoid wavy bottom gap on isNext creating black lines at background edges
+                val currentShape = if (isNext) androidx.compose.ui.graphics.RectangleShape else WavyBottomShape(10.dp, 8.0f)
 
-            // Pager content
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-            ) { page ->
-                when (page) {
-                    0 -> WelcomePage(
-                        contentColor = contentColor,
-                        logoRotation = logoRotation,
-                        pulseScale = pulseScale
-                    )
-                    1 -> ConnectServerPage(contentColor = contentColor)
-                    2 -> GestureIntroPage(contentColor = contentColor)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(cardHeight)
+                        .zIndex(10f - index)
+                        .clip(currentShape)
+                        .background(gradients[index])
+                ) {
+                    // Subtle overlay
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.04f)))
+    
+                    // Padded content container so tops overlap correctly
+                    Box(modifier = Modifier.fillMaxSize().padding(top = collapsedHeight * index)) {
+                        
+                        // Collapsed Summary (Title peek on the top edges)
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = isCollapsed,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(150))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(collapsedHeight)
+                                    .padding(bottom = 12.dp)
+                                    .statusBarsPadding()
+                                    .clickable { currentStep = index }, // Make previous cards clickable!
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = summary,
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontFamily = NorlineFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 0.5.sp
+                                    ),
+                                    color = contentColors[index].copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+    
+                        // Active Page Flow Content
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = isActive,
+                            enter = fadeIn(tween(300, delayMillis = 150)),
+                            exit = fadeOut(tween(150))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .statusBarsPadding()
+                                    .padding(bottom = 24.dp) 
+                            ) {
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                    when (index) {
+                                        0 -> WelcomePage(contentColor = contentColors[index], logoRotation = logoRotation, pulseScale = pulseScale)
+                                        1 -> ConnectServerPage(contentColor = contentColors[index])
+                                        2 -> GestureIntroPage(contentColor = contentColors[index])
+                                    }
+                                }
+                            }
+                        }
+    
+                        // Peeking NextActionArea embedded inside the NEXT card (Slides up from the bottom)
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = isNext,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(150)),
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        ) {
+                            NextActionArea(
+                                text = "CONTINUE",
+                                color = contentColors[index], // Using the next page's high contrast color!
+                                currentIndex = currentStep,
+                                onClick = { currentStep++ }
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
-
 @Composable
 private fun WelcomePage(
     contentColor: Color,
@@ -458,6 +525,7 @@ private fun GestureIntroPage(contentColor: Color) {
         Text(
             text = "Hold to navigate",
             style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = NorlineFontFamily,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             ),
@@ -469,8 +537,8 @@ private fun GestureIntroPage(contentColor: Color) {
         Text(
             text = "Press and hold the nav button\nto switch between pages",
             style = MaterialTheme.typography.bodyMedium.copy(
-                textAlign = TextAlign.Center,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif
+                fontFamily = NorlineFontFamily,
+                textAlign = TextAlign.Center
             ),
             color = contentColor.copy(alpha = 0.6f)
         )
@@ -578,7 +646,9 @@ private fun GestureHint(
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall.copy(
-                fontWeight = FontWeight.Medium
+                fontFamily = NorlineFontFamily,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp
             ),
             color = contentColor.copy(alpha = 0.7f)
         )
