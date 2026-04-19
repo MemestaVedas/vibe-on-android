@@ -58,6 +58,7 @@ import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.components.AlbumPalette
 import moe.memesta.vibeon.ui.components.extractAlbumPalette
 import moe.memesta.vibeon.ui.utils.ContrastGuard
+import moe.memesta.vibeon.ui.utils.noiseTexture
 
 val NorlineFontFamily = FontFamily(
     Font(R.font.norline_rounded, FontWeight.Normal)
@@ -99,6 +100,7 @@ fun PairingScreen(
     connectedDevice: DiscoveredDevice? = null,
     albumArtUrl: String? = null,
     albumArtBitmap: Bitmap? = null,
+    albumMainColor: Int? = null,
     fallbackAlbumArtUrl: String? = null,
     onConnect: (String, Int) -> Unit,
     onDeviceSelected: (DiscoveredDevice) -> Unit,
@@ -144,9 +146,9 @@ fun PairingScreen(
     // --- Dynamic palette from album art ---
     val defaultPalette = remember { AlbumPalette() }
     var palette by remember { mutableStateOf(defaultPalette) }
-    LaunchedEffect(albumArtBitmap) {
-        palette = if (albumArtBitmap != null) {
-            extractAlbumPalette(albumArtBitmap)
+    LaunchedEffect(albumMainColor) {
+        palette = if (albumMainColor != null) {
+            extractAlbumPalette(albumMainColor)
         } else {
             defaultPalette
         }
@@ -207,6 +209,7 @@ fun PairingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
+            .noiseTexture(alpha = 40)
             .navigationBarsPadding()
     ) {
         // --- BOTTOM CONTAINER ---

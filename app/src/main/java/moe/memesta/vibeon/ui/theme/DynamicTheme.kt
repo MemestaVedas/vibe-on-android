@@ -8,8 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.google.android.material.color.utilities.Hct
-import com.google.android.material.color.utilities.QuantizerCelebi
-import com.google.android.material.color.utilities.Score
 import com.google.android.material.color.utilities.SchemeTonalSpot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,13 +19,13 @@ import moe.memesta.vibeon.ui.image.AppImageLoader
  * the exact same algorithm as the PC app's useImageColors.ts.
  *
  * Both platforms:
- *   1. Extract source color from album art (dominant hue via QuantizerCelebi + Score)
+ *   1. Use stored album main color as source seed
  *   2. Build SchemeTonalSpot(hct, isDark=true, contrastLevel=0.0)
  *   3. Map tones to ColorScheme roles using identical tone values
  */
 @Composable
 fun DynamicTheme(
-    seedBitmap: Bitmap? = null,
+    albumMainColor: Int? = null,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
@@ -43,17 +41,15 @@ fun DynamicTheme(
         )
     }
 
-    // Track if we've ever had a bitmap to distinguish initial state from refresh
-    var hadBitmap by remember { mutableStateOf(false) }
+    var hadSeedColor by remember { mutableStateOf(false) }
 
-    LaunchedEffect(seedBitmap, darkTheme) {
-        if (seedBitmap != null) {
-            // Generate new scheme from bitmap
-            hadBitmap = true
+    LaunchedEffect(albumMainColor, darkTheme) {
+        if (albumMainColor != null) {
+            hadSeedColor = true
             colorScheme = withContext(Dispatchers.Default) {
-                generateSchemeFromBitmap(seedBitmap, darkTheme)
+                buildScheme(albumMainColor, darkTheme)
             }
-        } else if (!hadBitmap) {
+        } else if (!hadSeedColor) {
             // Only on first load without a bitmap, use fallback
             colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -61,8 +57,7 @@ fun DynamicTheme(
                 defaultDarkColorScheme()
             }
         }
-        // If seedBitmap is null but we had one before, keep the previous colorScheme
-        // This prevents black screen during refresh when bitmap temporarily becomes null
+        // If albumMainColor is null but we had one before, keep previous scheme to avoid flashes.
     }
 
     MaterialTheme(
@@ -71,26 +66,6 @@ fun DynamicTheme(
         shapes = Shapes,
         content = content
     )
-}
-
-/**
- * Generates a ColorScheme from a bitmap using MCU SchemeTonalSpot.
- * Tone values are identical to the PC app's useImageColors.ts:
- *   primary = primaryPalette.tone(80), surface = neutralPalette.tone(6), etc.
- */
-private fun generateSchemeFromBitmap(bitmap: Bitmap, darkTheme: Boolean): ColorScheme {
-    // Scale down for fast quantization (same as PC's sourceColorFromImage)
-    val scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, false)
-    val pixels = IntArray(scaled.width * scaled.height)
-    scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
-    if (scaled != bitmap) scaled.recycle()
-
-    // Quantize → score → pick dominant source color
-    val quantized = QuantizerCelebi.quantize(pixels, 128)
-    val scored = Score.score(quantized)
-    val sourceColor = if (scored.isNotEmpty()) scored[0] else FALLBACK_SEED
-
-    return buildScheme(sourceColor, darkTheme)
 }
 
 private fun buildScheme(sourceColor: Int, darkTheme: Boolean): ColorScheme {

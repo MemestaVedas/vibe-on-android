@@ -9,8 +9,6 @@ import coil.ImageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.google.android.material.color.utilities.Hct
-import com.google.android.material.color.utilities.QuantizerCelebi
-import com.google.android.material.color.utilities.Score
 import com.google.android.material.color.utilities.SchemeTonalSpot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,16 +69,7 @@ object WidgetUpdater {
             }
             cachedAlbumArtData = albumArtData
 
-            // Extract colors from album art
-            val colors = albumArtData?.let { data ->
-                try {
-                    val bitmap = BitmapFactory.decodeByteArray(data, 0, data.size)
-                    bitmap?.let { extractColorsFromBitmap(it) }
-                } catch (e: Exception) {
-                    Log.e("WidgetUpdater", "Failed to extract colors", e)
-                    null
-                }
-            }
+            val colors = track.albumMainColor?.let { colorsFromMainColor(it) }
             cachedColors = colors
 
             val displayTitle = track.getDisplayName(displayLanguage).ifEmpty { "No Track" }
@@ -250,55 +239,21 @@ object WidgetUpdater {
         }
     }
 
-    /**
-     * Extracts Material 3 color scheme from album art bitmap using MCU.
-     * Uses dark theme colors since widgets typically appear on home screens with dark mode.
-     */
-    private fun extractColorsFromBitmap(bitmap: Bitmap): PaletteColors {
-        try {
-            // Scale down for fast quantization
-            val scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, false)
-            val pixels = IntArray(scaled.width * scaled.height)
-            scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
-            if (scaled != bitmap) scaled.recycle()
-
-            // Quantize → score → pick dominant source color
-            val quantized = QuantizerCelebi.quantize(pixels, 128)
-            val scored = Score.score(quantized)
-            val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF1C1B1F.toInt()
-
-            // Generate Material 3 scheme using dark theme tones
-            val hct = Hct.fromInt(sourceColor)
-            val scheme = SchemeTonalSpot(hct, true, 0.0)  // true = dark theme
-
-            return PaletteColors(
-                primary = scheme.primaryPalette.tone(80),
-                onPrimary = scheme.primaryPalette.tone(20),
-                secondary = scheme.secondaryPalette.tone(80),
-                onSecondary = scheme.secondaryPalette.tone(20),
-                error = 0xFFE53935.toInt(),  // Fixed error color
-                primaryContainer = scheme.primaryPalette.tone(30),
-                onPrimaryContainer = scheme.primaryPalette.tone(90),
-                secondaryContainer = scheme.secondaryPalette.tone(30),
-                onSecondaryContainer = scheme.secondaryPalette.tone(90),
-                errorContainer = 0xFF8C1D18.toInt(),  // Fixed error container
-                onErrorContainer = 0xFFF9DEDC.toInt()  // Fixed on-error container
-            )
-        } catch (e: Exception) {
-            Log.e("WidgetUpdater", "Failed to extract colors, using defaults", e)
-            return PaletteColors(
-                primary = 0xFFD0BCFF.toInt(),
-                onPrimary = 0xFF381E72.toInt(),
-                secondary = 0xFFCCC2DC.toInt(),
-                onSecondary = 0xFF332D41.toInt(),
-                error = 0xFFE53935.toInt(),
-                primaryContainer = 0xFF4F378B.toInt(),
-                onPrimaryContainer = 0xFFEADDFF.toInt(),
-                secondaryContainer = 0xFF4A4458.toInt(),
-                onSecondaryContainer = 0xFFE8DEF8.toInt(),
-                errorContainer = 0xFF8C1D18.toInt(),
-                onErrorContainer = 0xFFF9DEDC.toInt()
-            )
-        }
+    private fun colorsFromMainColor(mainColor: Int): PaletteColors {
+        val hct = Hct.fromInt(mainColor)
+        val scheme = SchemeTonalSpot(hct, true, 0.0)
+        return PaletteColors(
+            primary = scheme.primaryPalette.tone(80),
+            onPrimary = scheme.primaryPalette.tone(20),
+            secondary = scheme.secondaryPalette.tone(80),
+            onSecondary = scheme.secondaryPalette.tone(20),
+            error = 0xFFE53935.toInt(),
+            primaryContainer = scheme.primaryPalette.tone(30),
+            onPrimaryContainer = scheme.primaryPalette.tone(90),
+            secondaryContainer = scheme.secondaryPalette.tone(30),
+            onSecondaryContainer = scheme.secondaryPalette.tone(90),
+            errorContainer = 0xFF8C1D18.toInt(),
+            onErrorContainer = 0xFFF9DEDC.toInt()
+        )
     }
 }

@@ -1,6 +1,5 @@
 package moe.memesta.vibeon.ui.components
 
-import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -34,11 +33,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.material.color.utilities.Hct
-import com.google.android.material.color.utilities.QuantizerCelebi
-import com.google.android.material.color.utilities.Score
 import com.google.android.material.color.utilities.SchemeTonalSpot
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.utils.ContrastGuard
@@ -57,22 +52,14 @@ data class AlbumPalette(
 )
 
 /**
- * Extract an AlbumPalette from a Bitmap using MCU SchemeTonalSpot.
+ * Build an AlbumPalette from a persisted seed color.
  */
-suspend fun extractAlbumPalette(bitmap: Bitmap): AlbumPalette = withContext(Dispatchers.Default) {
-    val scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, false)
-    val pixels = IntArray(scaled.width * scaled.height)
-    scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
-    if (scaled != bitmap) scaled.recycle()
-
-    val quantized = QuantizerCelebi.quantize(pixels, 128)
-    val scored = Score.score(quantized)
-    val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF6366F1.toInt()
-
+fun extractAlbumPalette(mainColor: Int?): AlbumPalette {
+    val sourceColor = mainColor ?: 0xFF6366F1.toInt()
     val hct = Hct.fromInt(sourceColor)
     val scheme = SchemeTonalSpot(hct, true, 0.0)
 
-    AlbumPalette(
+    return AlbumPalette(
         primary = Color(scheme.primaryPalette.tone(80)),
         secondary = Color(scheme.secondaryPalette.tone(70)),
         tertiary = Color(scheme.tertiaryPalette.tone(60)),
@@ -90,7 +77,7 @@ suspend fun extractAlbumPalette(bitmap: Bitmap): AlbumPalette = withContext(Disp
  */
 @Composable
 fun AnimatedRadialGradientBackground(
-    albumArtBitmap: Bitmap?,
+    albumMainColor: Int?,
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -101,10 +88,10 @@ fun AnimatedRadialGradientBackground(
 
     var currentPalette by remember { mutableStateOf(defaultPalette) }
 
-    // Extract palette when bitmap changes
-    LaunchedEffect(albumArtBitmap) {
-        currentPalette = if (albumArtBitmap != null) {
-            extractAlbumPalette(albumArtBitmap)
+    // Extract palette when seed color changes
+    LaunchedEffect(albumMainColor) {
+        currentPalette = if (albumMainColor != null) {
+            extractAlbumPalette(albumMainColor)
         } else {
             defaultPalette
         }

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [TrackEntity::class, AlbumArtEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class LibraryDatabase : RoomDatabase() {
@@ -26,6 +26,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                     "vibe_on_library.db"
                 )
                     .addMigrations(MIGRATION_3_4)
+                    .addMigrations(MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

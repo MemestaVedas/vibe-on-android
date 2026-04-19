@@ -839,58 +839,24 @@ fun HeroHeader(
                         .build()
                 }
 
-                // Extract Dynamic Color for Overlay
-                var dynamicBaseColor by remember { mutableStateOf<Color?>(null) }
+                // Use persisted album main color for overlay
+                var dynamicBaseColor by remember(album.albumMainColor) { mutableStateOf(album.albumMainColor?.let(::Color)) }
                 // Animated title and artist colors derived from album art palette
                 var titleColor by remember { mutableStateOf(Color.White) }
                 var artistColor by remember { mutableStateOf(Color.White.copy(alpha = 0.85f)) }
                 
-                LaunchedEffect(album.coverUrl) {
-                    val loader = AppImageLoader.get(context)
-                    val paletteRequest = ImageRequest.Builder(context)
-                        .data(album.coverUrl)
-                        .allowHardware(false)
-                        .build()
-
-                    val result = withContext(Dispatchers.IO) {
-                        loader.execute(paletteRequest)
+                LaunchedEffect(album.albumMainColor) {
+                    val seed = album.albumMainColor ?: 0xFF121113.toInt()
+                    val hct = com.google.android.material.color.utilities.Hct.fromInt(seed)
+                    val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
+                    val primaryMid = scheme.primaryPalette.tone(50)
+                    titleColor = if (primaryMid < 50.0) {
+                        Color(scheme.primaryPalette.tone(95))
+                    } else {
+                        Color(scheme.primaryPalette.tone(10))
                     }
-                    if (result is coil.request.SuccessResult) {
-                        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap?.copy(
-                            android.graphics.Bitmap.Config.ARGB_8888,
-                            false
-                        )
-                        if (bitmap != null) {
-                            val color = withContext(Dispatchers.Default) {
-                                val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 64, 64, false)
-                                val pixels = IntArray(scaled.width * scaled.height)
-                                scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
-                                if (scaled != bitmap) scaled.recycle()
-
-                                val quantized = com.google.android.material.color.utilities.QuantizerCelebi.quantize(pixels, 128)
-                                val scored = com.google.android.material.color.utilities.Score.score(quantized)
-                                val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF121113.toInt()
-
-                                val hct = com.google.android.material.color.utilities.Hct.fromInt(sourceColor)
-                                val scheme = com.google.android.material.color.utilities.SchemeTonalSpot(hct, true, 0.0)
-                                // Choose a readable title/artist color from the extracted scheme
-                                // Title: compute an onPrimary-like color from the dynamic scheme for good contrast
-                                val primaryMid = scheme.primaryPalette.tone(50)
-                                titleColor = if (primaryMid < 50.0) {
-                                    // primary is relatively dark -> use light onPrimary
-                                    Color(scheme.primaryPalette.tone(95))
-                                } else {
-                                    // primary is relatively light -> use dark onPrimary
-                                    Color(scheme.primaryPalette.tone(10))
-                                }
-                                // Artist: use the scheme's secondary/on-secondary tone for contrast
-                                artistColor = Color(scheme.secondaryPalette.tone(90))
-                                Color(scheme.primaryPalette.tone(50))
-                            }
-                            bitmap.recycle()
-                            dynamicBaseColor = color
-                        }
-                    }
+                    artistColor = Color(scheme.secondaryPalette.tone(90))
+                    dynamicBaseColor = Color(scheme.primaryPalette.tone(50))
                 }
 
                 val finalOverlayColor = dynamicBaseColor ?: MaterialTheme.colorScheme.surface

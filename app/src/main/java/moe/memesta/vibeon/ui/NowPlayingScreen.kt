@@ -291,20 +291,8 @@ fun NowPlayingScreen(
         label = "scopedPrimaryContainer"
     )
 
-    LaunchedEffect(coverUrl) {
-        if (coverUrl != null) {
-            val loader = AppImageLoader.get(context)
-            val request = ImageRequest.Builder(context)
-                .data(coverUrl)
-                .allowHardware(false)
-                .build()
-            val result = withContext(kotlinx.coroutines.Dispatchers.IO) { loader.execute(request) }
-            if (result is SuccessResult) {
-                themeColors = PaletteUtils.extractColors(result.drawable)
-            }
-        } else {
-            themeColors = ThemeColors()
-        }
+    LaunchedEffect(currentTrack.albumMainColor) {
+        themeColors = PaletteUtils.colorsFromMainColor(currentTrack.albumMainColor)
     }
 
     // Modal sheet for Queue

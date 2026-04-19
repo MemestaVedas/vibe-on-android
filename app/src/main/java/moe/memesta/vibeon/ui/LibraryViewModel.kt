@@ -160,6 +160,7 @@ class LibraryViewModel(
                         name = album,
                         artist = albumTracks.firstOrNull()?.artist ?: "",
                         coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                        albumMainColor = albumTracks.firstOrNull()?.albumMainColor,
                         songCount = albumTracks.size,
                         nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
                         nameEn = albumTracks.firstOrNull()?.albumEn,
@@ -175,6 +176,7 @@ class LibraryViewModel(
                         name = artist,
                         followerCount = "${artistTracks.size} Tracks",
                         photoUrl = artistTracks.firstOrNull()?.coverUrl,
+                        mainColor = artistTracks.firstOrNull()?.albumMainColor,
                         nameRomaji = artistTracks.firstOrNull()?.artistRomaji,
                         nameEn = artistTracks.firstOrNull()?.artistEn
                     )
@@ -231,6 +233,7 @@ class LibraryViewModel(
                               name = albumName,
                               artist = albumTracks.firstOrNull()?.artist ?: "",
                               coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                              albumMainColor = albumTracks.firstOrNull()?.albumMainColor,
                               songCount = albumTracks.size,
                               nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
                               nameEn = albumTracks.firstOrNull()?.albumEn,
@@ -243,6 +246,7 @@ class LibraryViewModel(
                           name = it.artist, 
                           followerCount = "${filtered.count { t -> t.artist == it.artist }} Tracks", 
                           photoUrl = it.coverUrl,
+                          mainColor = it.albumMainColor,
                           nameRomaji = it.artistRomaji,
                           nameEn = it.artistEn
                       ) 
@@ -331,6 +335,7 @@ class LibraryViewModel(
                         name = album,
                         artist = albumTracks.firstOrNull()?.artist ?: "",
                         coverUrl = albumTracks.firstOrNull()?.coverUrl,
+                        albumMainColor = albumTracks.firstOrNull()?.albumMainColor,
                         songCount = albumTracks.size,
                         nameRomaji = albumTracks.firstOrNull()?.albumRomaji,
                         nameEn = albumTracks.firstOrNull()?.albumEn,

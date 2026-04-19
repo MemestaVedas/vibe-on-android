@@ -1,10 +1,8 @@
 package moe.memesta.vibeon.ui.utils
 
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import androidx.compose.ui.graphics.Color
-import com.google.android.material.color.utilities.*
+import com.google.android.material.color.utilities.Hct
+import com.google.android.material.color.utilities.SchemeTonalSpot
 
 /**
  * Data class to hold extracted theme colors.
@@ -17,47 +15,17 @@ data class ThemeColors(
 )
 
 object PaletteUtils {
-    
-    /**
-     * Extracts vibrant and muted colors using MCU from a Coil Drawable.
-     */
-    fun extractColors(drawable: Drawable?): ThemeColors {
-        if (drawable == null || drawable !is BitmapDrawable) {
-            return ThemeColors()
-        }
-        
-        var bitmap = drawable.bitmap
-        
-        // Handle Hardware Bitmaps (Android 8+)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
-            bitmap.config == Bitmap.Config.HARDWARE) {
-            bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
-        }
-        
-        // Match logic in DynamicTheme.kt
-        val scaled = Bitmap.createScaledBitmap(bitmap, 64, 64, false)
-        val pixels = IntArray(scaled.width * scaled.height)
-        scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
-        if (scaled != bitmap) scaled.recycle()
 
-        val quantized = QuantizerCelebi.quantize(pixels, 128)
-        val scored = Score.score(quantized)
-        val sourceColor = if (scored.isNotEmpty()) scored[0] else 0xFF121113.toInt()
+    fun colorsFromMainColor(mainColor: Int?): ThemeColors {
+        if (mainColor == null) return ThemeColors()
 
-        val hct = Hct.fromInt(sourceColor)
+        val hct = Hct.fromInt(mainColor)
         val scheme = SchemeTonalSpot(hct, true, 0.0)
-        
-        val vibrant = Color(scheme.primaryPalette.tone(80))
-        val muted = Color(scheme.secondaryPalette.tone(80))
-        
-        val onVibrant = Color(scheme.primaryPalette.tone(20))
-        val onMuted = Color(scheme.secondaryPalette.tone(20))
-        
         return ThemeColors(
-            vibrant = vibrant,
-            muted = muted,
-            onVibrant = onVibrant,
-            onMuted = onMuted
+            vibrant = Color(scheme.primaryPalette.tone(80)),
+            muted = Color(scheme.secondaryPalette.tone(80)),
+            onVibrant = Color(scheme.primaryPalette.tone(20)),
+            onMuted = Color(scheme.secondaryPalette.tone(20))
         )
     }
 }

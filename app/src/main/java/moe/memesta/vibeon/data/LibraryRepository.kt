@@ -199,6 +199,7 @@ class LibraryRepository(
                 album = track.album,
                 duration = track.duration,
                 albumArtUrl = relativeCoverUrl,
+                albumMainColor = track.albumMainColor,
                 year = track.year ?: inferYearFromPath(track.path, track.album),
                 source = "pc",  // Mark as coming from PC
                 canonicalId = TrackEntity.generateCanonicalId(track.title, track.artist, track.album),
@@ -246,6 +247,7 @@ class LibraryRepository(
             album = entity.album,
             duration = entity.duration,
             coverUrl = finalCoverUrl,
+            albumMainColor = entity.albumMainColor,
             year = entity.year,
             titleRomaji = entity.titleRomaji,
             titleEn = entity.titleEn,

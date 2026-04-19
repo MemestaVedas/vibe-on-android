@@ -1,6 +1,5 @@
 package moe.memesta.vibeon.ui
 
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -25,25 +24,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.ui.components.ArtistGridItem
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.ui.theme.Dimens
-import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
 import moe.memesta.vibeon.ui.utils.LocalArtistViewStyle
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayName
@@ -76,6 +67,7 @@ fun ArtistsListScreen(
                     name = artist,
                     followerCount = "${artistTracks.size} Tracks",
                     photoUrl = firstTrack?.coverUrl,
+                    mainColor = firstTrack?.albumMainColor,
                     nameRomaji = firstTrack?.artistRomaji,
                     nameEn = firstTrack?.artistEn
                 )
@@ -135,6 +127,7 @@ fun ArtistsListScreen(
                         artistName = spotlightArtist.getDisplayName(displayLanguage),
                         trackCount = spotlightArtist.followerCount,
                         photoUrl = spotlightArtist.photoUrl,
+                        mainColor = spotlightArtist.mainColor,
                         onClick = { onArtistClick(spotlightArtist.name) },
                         onPlay = { onPlayArtist(spotlightArtist.name) }
                     )
@@ -151,6 +144,7 @@ fun ArtistsListScreen(
                 ArtistGridItem(
                     artistName = artist.getDisplayName(displayLanguage),
                     photoUrl = artist.photoUrl,
+                    mainColor = artist.mainColor,
                     onClick = { onArtistClick(artist.name) },
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
@@ -265,10 +259,11 @@ private fun ArtistSpotlightCard(
     artistName: String,
     trackCount: String,
     photoUrl: String?,
+    mainColor: Int?,
     onClick: () -> Unit,
     onPlay: () -> Unit
 ) {
-    var dominantColor by remember(photoUrl) { mutableStateOf(photoUrl?.let { AlbumArtColorCache.get(it) }) }
+    val dominantColor = remember(mainColor) { mainColor?.let(::Color) }
     val gradientColor = dominantColor ?: MaterialTheme.colorScheme.primary
     val onGradientColor = dominantColor?.let { color ->
         val r = (color.red * 255).toInt()
@@ -277,38 +272,6 @@ private fun ArtistSpotlightCard(
         val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
         if (luminance > 0.5) Color.Black else Color.White
     } ?: MaterialTheme.colorScheme.onPrimary
-
-    val context = LocalContext.current
-    LaunchedEffect(photoUrl) {
-        if (photoUrl != null) {
-            AlbumArtColorCache.get(photoUrl)?.let {
-                dominantColor = it
-                return@LaunchedEffect
-            }
-            try {
-                withContext(Dispatchers.IO) {
-                    val request = ImageRequest.Builder(context)
-                        .data(photoUrl)
-                        .allowHardware(false)
-                        .build()
-                    val result = context.imageLoader.execute(request)
-                    if (result is SuccessResult) {
-                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
-                        bitmap?.let {
-                            val palette = Palette.from(it).generate()
-                            palette.dominantSwatch?.let { swatch ->
-                                val extracted = Color(swatch.rgb)
-                                dominantColor = extracted
-                                AlbumArtColorCache.put(photoUrl, extracted)
-                            }
-                        }
-                    }
-                }
-            } catch (_: Exception) {
-            }
-        }
-    }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()

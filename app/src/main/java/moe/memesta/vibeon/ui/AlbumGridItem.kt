@@ -25,13 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.shapes.*
-import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
-import moe.memesta.vibeon.ui.utils.PaletteUtils
 
 private data class AlbumCardColors(
     val primary: Color,
@@ -54,13 +49,13 @@ fun AlbumGridItem(
     albumName: String,
     artistName: String,
     coverUrl: String?,
+    albumMainColor: Int?,
     songCount: Int = 0,
     onClick: () -> Unit,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     val fallbackPrimary = MaterialTheme.colorScheme.primary
     val fallbackPrimaryContainer = MaterialTheme.colorScheme.primaryContainer
@@ -69,20 +64,18 @@ fun AlbumGridItem(
 
     var cardColors by remember(coverUrl) {
         mutableStateOf(
-            coverUrl?.let { url ->
-                AlbumArtColorCache.get(url)?.let { cachedPrimary ->
-                    val cachedSecondary = deriveSecondaryColor(cachedPrimary)
-                    AlbumCardColors(
-                        primary = cachedPrimary,
-                        secondary = cachedSecondary,
-                        onPrimary = contentColorFor(cachedPrimary),
-                        onSecondary = contentColorFor(cachedSecondary)
-                    )
-                }
+            albumMainColor?.let { mainColor ->
+                val primary = Color(mainColor)
+                val secondary = deriveSecondaryColor(primary)
+                AlbumCardColors(
+                    primary = primary,
+                    secondary = secondary,
+                    onPrimary = contentColorFor(primary),
+                    onSecondary = contentColorFor(secondary)
+                )
             }
         )
     }
-    var isPaletteExtractionInFlight by remember(coverUrl) { mutableStateOf(false) }
 
     val imageModel = remember(coverUrl, context) {
         ImageRequest.Builder(context)
@@ -147,39 +140,7 @@ fun AlbumGridItem(
                     model = imageModel,
                     contentDescription = albumName,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    onSuccess = { success ->
-                        if (cardColors == null && !isPaletteExtractionInFlight) {
-                            isPaletteExtractionInFlight = true
-                            scope.launch(Dispatchers.Default) {
-                                val extractedColors = PaletteUtils.extractColors(success.result.drawable)
-                                val extractedPrimary = when {
-                                    extractedColors.vibrant.alpha > 0f -> extractedColors.vibrant
-                                    extractedColors.muted.alpha > 0f -> extractedColors.muted
-                                    else -> fallbackPrimary
-                                }
-                                val extractedSecondary = when {
-                                    extractedColors.muted.alpha > 0f -> extractedColors.muted
-                                    extractedColors.vibrant.alpha > 0f -> deriveSecondaryColor(extractedPrimary)
-                                    else -> fallbackPrimaryContainer
-                                }
-                                val extractedCardColors = AlbumCardColors(
-                                    primary = extractedPrimary,
-                                    secondary = extractedSecondary,
-                                    onPrimary = if (extractedColors.onVibrant.alpha > 0f) extractedColors.onVibrant else contentColorFor(extractedPrimary),
-                                    onSecondary = if (extractedColors.onMuted.alpha > 0f) extractedColors.onMuted else contentColorFor(extractedSecondary)
-                                )
-
-                                withContext(Dispatchers.Main.immediate) {
-                                    if (cardColors == null) {
-                                        cardColors = extractedCardColors
-                                        coverUrl?.let { url -> AlbumArtColorCache.put(url, extractedPrimary) }
-                                    }
-                                    isPaletteExtractionInFlight = false
-                                }
-                            }
-                        }
-                    }
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Box(

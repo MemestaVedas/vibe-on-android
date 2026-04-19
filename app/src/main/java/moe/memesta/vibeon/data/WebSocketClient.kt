@@ -22,6 +22,7 @@ data class MediaSessionData(
     val album: String = "",
     val duration: Double = 0.0,
     val coverUrl: String? = null,
+    val albumMainColor: Int? = null,
     val lyrics: String = "",
     val titleRomaji: String? = null,
     val titleEn: String? = null,
@@ -43,6 +44,7 @@ data class QueueItem(
     val album: String,
     val duration: Double,
     val coverUrl: String? = null,
+    val albumMainColor: Int? = null,
     val titleRomaji: String? = null,
     val titleEn: String? = null,
     val artistRomaji: String? = null,
@@ -589,6 +591,13 @@ class WebSocketClient {
                 ?.substringAfterLast('/')
                 ?.uppercase()
                 ?: trackId.substringAfterLast('.', "").takeIf { it.isNotBlank() }?.uppercase()
+            val incomingMainColor = json.optColorIntOrNull("albumMainColor", "album_main_color")
+            val resolvedMainColor = incomingMainColor
+                ?: _queue.value.firstOrNull { it.path == trackId }?.albumMainColor
+                ?: _queue.value.firstOrNull { it.album == album && it.artist == artist }?.albumMainColor
+                ?: _library.value.firstOrNull { it.path == trackId }?.albumMainColor
+                ?: _library.value.firstOrNull { it.album == album && it.artist == artist }?.albumMainColor
+                ?: _currentTrack.value.takeIf { it.album == album && it.artist == artist }?.albumMainColor
 
             // Preserve existing lyrics if this message doesn't carry new ones
             val existing = _currentTrack.value.lyrics
@@ -599,6 +608,7 @@ class WebSocketClient {
             _currentTrack.value = MediaSessionData(
                 title = title, artist = artist, album = album,
                 duration = duration, coverUrl = coverUrl, lyrics = newLyrics,
+                albumMainColor = resolvedMainColor,
                 titleRomaji  = json.optStringOrNull("titleRomaji"),
                 titleEn      = json.optStringOrNull("titleEn"),
                 artistRomaji = json.optStringOrNull("artistRomaji"),
@@ -649,6 +659,15 @@ class WebSocketClient {
             val arr = json.optJSONArray("queue") ?: return
             _queue.value = (0 until arr.length()).map { arr.getJSONObject(it).toQueueItem(baseUrl) }
             _currentIndex.value = json.optInt("currentIndex", 0)
+
+            val current = _currentTrack.value
+            if (current.path.isNotBlank() && current.albumMainColor == null) {
+                val queueColor = _queue.value.firstOrNull { it.path == current.path }?.albumMainColor
+                    ?: _queue.value.firstOrNull { it.album == current.album && it.artist == current.artist }?.albumMainColor
+                if (queueColor != null) {
+                    _currentTrack.value = current.copy(albumMainColor = queueColor)
+                }
+            }
         }
 
         private fun onHandoffPrepare(json: JSONObject) {
@@ -770,6 +789,26 @@ private fun JSONObject.optIntOrNull(vararg keys: String): Int? {
         if (value > 0) return value
         val fromString = optString(key, "").toIntOrNull()
         if (fromString != null && fromString > 0) return fromString
+    }
+    return null
+}
+
+private fun JSONObject.optColorIntOrNull(vararg keys: String): Int? {
+    for (key in keys) {
+        if (!has(key)) continue
+        val value = opt(key)
+        when (value) {
+            is Number -> return value.toInt()
+            is String -> {
+                val normalized = value.trim().removePrefix("#")
+                val parsed = when (normalized.length) {
+                    6 -> normalized.toLongOrNull(16)?.let { (0xFF000000 or it).toInt() }
+                    8 -> normalized.toLongOrNull(16)?.toInt()
+                    else -> null
+                }
+                if (parsed != null) return parsed
+            }
+        }
     }
     return null
 }

@@ -26,6 +26,7 @@ fun JSONObject.toTrackInfo(baseUrl: String): TrackInfo {
         album = getString("album"),
         duration = optDouble("durationSecs", 0.0),
         coverUrl = resolveCoverUrl(rawCover, baseUrl),
+        albumMainColor = optColorIntOrNull("albumMainColor", "album_main_color"),
         year = extractYearFromJson(this),
         discNumber = optInt("discNumber", -1).takeIf { it != -1 },
         trackNumber = optInt("trackNumber", -1).takeIf { it != -1 },
@@ -89,6 +90,7 @@ fun JSONObject.toQueueItem(baseUrl: String): QueueItem {
         album = getString("album"),
         duration = optDouble("durationSecs", 0.0),
         coverUrl = resolveCoverUrl(rawCover, baseUrl),
+        albumMainColor = optColorIntOrNull("albumMainColor", "album_main_color"),
         titleRomaji = optString("titleRomaji", null).takeIf { it != "null" },
         titleEn = optString("titleEn", null).takeIf { it != "null" },
         artistRomaji = optString("artistRomaji", null).takeIf { it != "null" },
@@ -96,4 +98,24 @@ fun JSONObject.toQueueItem(baseUrl: String): QueueItem {
         albumRomaji = optString("albumRomaji", null).takeIf { it != "null" },
         albumEn = optString("albumEn", null).takeIf { it != "null" }
     )
+}
+
+private fun JSONObject.optColorIntOrNull(vararg keys: String): Int? {
+    for (key in keys) {
+        if (!has(key)) continue
+        val value = opt(key)
+        when (value) {
+            is Number -> return value.toInt()
+            is String -> {
+                val normalized = value.trim().removePrefix("#")
+                val parsed = when (normalized.length) {
+                    6 -> normalized.toLongOrNull(16)?.let { (0xFF000000 or it).toInt() }
+                    8 -> normalized.toLongOrNull(16)?.toInt()
+                    else -> null
+                }
+                if (parsed != null) return parsed
+            }
+        }
+    }
+    return null
 }

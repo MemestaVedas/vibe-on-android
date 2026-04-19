@@ -19,6 +19,7 @@ data class TrackEntity(
     val album: String,
     val duration: Double,
     val albumArtUrl: String?,
+    val albumMainColor: Int? = null,
     val year: Int?,
     val genre: String?,
     val trackNumber: Int?,

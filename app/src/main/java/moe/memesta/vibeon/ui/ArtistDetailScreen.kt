@@ -96,6 +96,7 @@ fun ArtistDetailScreen(
                     albumId = albumName,
                     displayAlbum = first?.getDisplayAlbum(displayLanguage) ?: albumName,
                     coverUrl = first?.coverUrl,
+                    albumMainColor = first?.albumMainColor,
                     year = groupedTracks.mapNotNull { it.year }.maxOrNull()
                         ?: inferYearFromAlbumOrPath(albumName, groupedTracks.firstOrNull()?.path),
                     tracks = groupedTracks.sortedWith(
@@ -411,20 +412,9 @@ private fun YearAlbumLane(
                 if (cachedTheme != null) {
                     albumTheme = cachedTheme
                 } else {
-                    albumTheme = ThemeColors()
-                    if (album.coverUrl != null) {
-                        val loader = AppImageLoader.get(context)
-                        val request = ImageRequest.Builder(context)
-                            .data(album.coverUrl)
-                            .allowHardware(false)
-                            .build()
-                        val result = withContext(Dispatchers.IO) { loader.execute(request) }
-                        if (result is SuccessResult) {
-                            val extractedTheme = PaletteUtils.extractColors(result.drawable)
-                            albumThemeCache[themeCacheKey] = extractedTheme
-                            albumTheme = extractedTheme
-                        }
-                    }
+                    val extractedTheme = PaletteUtils.colorsFromMainColor(album.albumMainColor)
+                    albumThemeCache[themeCacheKey] = extractedTheme
+                    albumTheme = extractedTheme
                 }
             }
 
@@ -558,6 +548,7 @@ private data class ArtistAlbumGroup(
     val albumId: String,
     val displayAlbum: String,
     val coverUrl: String?,
+    val albumMainColor: Int?,
     val year: Int?,
     val tracks: List<TrackInfo>
 )

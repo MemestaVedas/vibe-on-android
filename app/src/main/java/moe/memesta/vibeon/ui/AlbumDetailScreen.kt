@@ -35,14 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.data.TrackInfo
-import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.MotionTokens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
@@ -109,11 +103,9 @@ fun AlbumDetailScreen(
     val firstTrack = albumTracks.firstOrNull()
     val displayAlbumName = firstTrack?.getDisplayAlbum(displayLanguage) ?: decodedAlbumName
     val coverUrl = firstTrack?.coverUrl
+    val albumMainColor = firstTrack?.albumMainColor
     val artistName = firstTrack?.artist ?: "Unknown Artist"
     val displayArtistName = firstTrack?.getDisplayArtist(displayLanguage) ?: artistName
-    
-    // Get context at composable level
-    val context = LocalContext.current
     
     // Dynamic Theming
     var themeColors by remember { mutableStateOf(ThemeColors()) }
@@ -159,20 +151,8 @@ fun AlbumDetailScreen(
                         .height(520.dp) // Large immersive header
                         .clip(RoundedCornerShape(bottomStart = 56.dp, bottomEnd = 56.dp))
                 ) {
-                    // Extract colors on the fly
-                    LaunchedEffect(coverUrl) {
-                        themeColors = ThemeColors()
-                        if (coverUrl != null) {
-                            val loader = AppImageLoader.get(context)
-                            val request = ImageRequest.Builder(context)
-                                .data(coverUrl)
-                                .allowHardware(false)
-                                .build()
-                            val result = withContext(Dispatchers.IO) { loader.execute(request) }
-                            if (result is SuccessResult) {
-                                themeColors = PaletteUtils.extractColors(result.drawable)
-                            }
-                        }
+                    LaunchedEffect(albumMainColor) {
+                        themeColors = PaletteUtils.colorsFromMainColor(albumMainColor)
                     }
 
                     // Background Album Art - Fullscreen

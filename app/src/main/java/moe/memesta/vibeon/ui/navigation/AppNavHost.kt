@@ -92,6 +92,7 @@ fun AppNavHost(
     // Album art URL + bitmap for PairingScreen morph + dynamic palette
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val albumArtUrl = currentTrack.coverUrl
+    val albumMainColor = currentTrack.albumMainColor
     val albumArtBitmap = rememberBitmapFromUrl(albumArtUrl)
     var cachedAlbumArtUrl by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(albumArtUrl) {
@@ -155,7 +156,7 @@ fun AppNavHost(
         // Enclose everything in a Box so the PairingScreen can overlay the entire Scaffold
         Box(modifier = Modifier.fillMaxSize()) {
             AppCornerBleedBackground(
-                albumArtBitmap = albumArtBitmap,
+                albumMainColor = albumMainColor,
                 modifier = Modifier.matchParentSize()
             )
             Scaffold(
@@ -293,6 +294,7 @@ fun AppNavHost(
                         connectedDevice = connectedDevice,
                         albumArtUrl = albumArtUrl,
                         albumArtBitmap = albumArtBitmap,
+                        albumMainColor = albumMainColor,
                         fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                         onConnect = { ip, port ->
                             val device = DiscoveredDevice(
@@ -366,6 +368,7 @@ fun AppNavHost(
                         connectedDevice = connectedDevice,
                         albumArtUrl = albumArtUrl,
                         albumArtBitmap = albumArtBitmap,
+                        albumMainColor = albumMainColor,
                         fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                         onConnect = { ip, port ->
                             connectionViewModel.connectToDevice(
@@ -714,6 +717,7 @@ fun AppNavHost(
                 connectedDevice = connectedDevice,
                 albumArtUrl = albumArtUrl,
                 albumArtBitmap = albumArtBitmap,
+                albumMainColor = albumMainColor,
                 fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                 onConnect = { ip, port ->
                     val device = DiscoveredDevice(name = "Manual: $ip", host = ip, port = port)

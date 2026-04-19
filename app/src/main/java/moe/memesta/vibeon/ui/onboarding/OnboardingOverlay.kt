@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.memesta.vibeon.ui.theme.MPlusRoundedFont
+import moe.memesta.vibeon.ui.utils.noiseTexture
 
 /**
  * One-time walkthrough overlay that explains the home screen layout.
@@ -57,6 +58,7 @@ fun OnboardingOverlay(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.85f))
+                .noiseTexture(alpha = 40)
                 .clickable {
                     if (currentStep < totalSteps - 1) {
                         currentStep++

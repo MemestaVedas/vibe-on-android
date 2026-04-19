@@ -7,6 +7,7 @@ data class AlbumInfo(
     val name: String,
     val artist: String,
     val coverUrl: String?,
+    val albumMainColor: Int? = null,
     val songCount: Int = 0,
     val nameRomaji: String? = null,
     val nameEn: String? = null,

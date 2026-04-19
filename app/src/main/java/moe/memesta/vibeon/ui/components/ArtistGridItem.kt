@@ -1,49 +1,37 @@
 package moe.memesta.vibeon.ui.components
 
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.bouncyClickable
-import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
 fun ArtistGridItem(
     artistName: String,
     photoUrl: String?,
+    mainColor: Int?,
     onClick: () -> Unit,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
-    var dominantColor by remember(photoUrl) { mutableStateOf(photoUrl?.let { AlbumArtColorCache.get(it) }) }
+    val dominantColor = remember(mainColor) { mainColor?.let(::Color) }
     val defaultColor = MaterialTheme.colorScheme.primary
     val primaryColor = dominantColor ?: defaultColor
     val onPrimaryColor = dominantColor?.let { color ->
@@ -53,39 +41,6 @@ fun ArtistGridItem(
         val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
         if (luminance > 0.5) Color.Black else Color.White
     } ?: MaterialTheme.colorScheme.onPrimary
-    
-    val context = LocalContext.current
-    LaunchedEffect(photoUrl) {
-        if (photoUrl != null) {
-            AlbumArtColorCache.get(photoUrl)?.let {
-                dominantColor = it
-                return@LaunchedEffect
-            }
-            try {
-                withContext(Dispatchers.IO) {
-                    val loader = context.imageLoader
-                    val request = ImageRequest.Builder(context)
-                        .data(photoUrl)
-                        .allowHardware(false)
-                        .build()
-                    val result = loader.execute(request)
-                    if (result is SuccessResult) {
-                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
-                        bitmap?.let {
-                            val palette = Palette.from(it).generate()
-                            palette.dominantSwatch?.let { swatch ->
-                                val extracted = Color(swatch.rgb)
-                                dominantColor = extracted
-                                AlbumArtColorCache.put(photoUrl, extracted)
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Fallback to default color on error
-            }
-        }
-    }
     
     Box(
         modifier = Modifier

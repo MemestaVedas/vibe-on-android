@@ -1,7 +1,5 @@
 package moe.memesta.vibeon.ui
 
-import android.graphics.drawable.BitmapDrawable
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -42,7 +40,6 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,21 +51,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.SortOption
-import moe.memesta.vibeon.ui.utils.AlbumArtColorCache
 import moe.memesta.vibeon.data.local.LibraryViewStyle
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -146,6 +135,7 @@ fun AlbumsGridScreen(
                         artistName = spotlightAlbum.getDisplayArtist(displayLanguage),
                         songCount = spotlightAlbum.songCount,
                         coverUrl = spotlightAlbum.coverUrl,
+                        albumMainColor = spotlightAlbum.albumMainColor,
                         onClick = { onAlbumClick(spotlightAlbum.name) },
                         onPlay = { onPlayAlbum(spotlightAlbum.name) }
                     )
@@ -164,6 +154,7 @@ fun AlbumsGridScreen(
                     albumName = album.getDisplayName(displayLanguage),
                     artistName = album.getDisplayArtist(displayLanguage),
                     coverUrl = album.coverUrl,
+                    albumMainColor = album.albumMainColor,
                     songCount = album.songCount,
                     onClick = { onAlbumClick(album.name) },
                     sharedTransitionScope = sharedTransitionScope,
@@ -280,10 +271,11 @@ private fun AlbumSpotlightCard(
     artistName: String,
     songCount: Int,
     coverUrl: String?,
+    albumMainColor: Int?,
     onClick: () -> Unit,
     onPlay: () -> Unit
 ) {
-    var dominantColor by remember(coverUrl) { mutableStateOf(coverUrl?.let { AlbumArtColorCache.get(it) }) }
+    val dominantColor = albumMainColor?.let(::Color)
     val gradientColor = dominantColor ?: MaterialTheme.colorScheme.primary
     val onGradientColor = dominantColor?.let { color ->
         val r = (color.red * 255).toInt()
@@ -292,38 +284,6 @@ private fun AlbumSpotlightCard(
         val luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
         if (luminance > 0.5) Color.Black else Color.White
     } ?: MaterialTheme.colorScheme.onPrimary
-
-    val context = LocalContext.current
-    LaunchedEffect(coverUrl) {
-        if (coverUrl != null) {
-            AlbumArtColorCache.get(coverUrl)?.let {
-                dominantColor = it
-                return@LaunchedEffect
-            }
-            try {
-                withContext(Dispatchers.IO) {
-                    val request = ImageRequest.Builder(context)
-                        .data(coverUrl)
-                        .allowHardware(false)
-                        .build()
-                    val result = context.imageLoader.execute(request)
-                    if (result is SuccessResult) {
-                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
-                        bitmap?.let {
-                            val palette = Palette.from(it).generate()
-                            palette.dominantSwatch?.let { swatch ->
-                                val extracted = Color(swatch.rgb)
-                                dominantColor = extracted
-                                AlbumArtColorCache.put(coverUrl, extracted)
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w("AlbumsGridScreen", "Failed to extract dominant color for album card", e)
-            }
-        }
-    }
 
     Card(
         modifier = Modifier

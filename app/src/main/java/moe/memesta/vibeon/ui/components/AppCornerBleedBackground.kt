@@ -1,6 +1,5 @@
 package moe.memesta.vibeon.ui.components
 
-import android.graphics.Bitmap
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
@@ -24,7 +23,7 @@ import androidx.compose.ui.graphics.Color
  */
 @Composable
 fun AppCornerBleedBackground(
-    albumArtBitmap: Bitmap?,
+    albumMainColor: Int?,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -39,9 +38,9 @@ fun AppCornerBleedBackground(
 
     var palette by remember { mutableStateOf(fallbackPalette) }
 
-    LaunchedEffect(albumArtBitmap) {
-        palette = if (albumArtBitmap != null) {
-            extractAlbumPalette(albumArtBitmap)
+    LaunchedEffect(albumMainColor) {
+        palette = if (albumMainColor != null) {
+            extractAlbumPalette(albumMainColor)
         } else {
             fallbackPalette
         }

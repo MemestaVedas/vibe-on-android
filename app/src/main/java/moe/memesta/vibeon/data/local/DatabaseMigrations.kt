@@ -31,3 +31,12 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         database.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_canonicalId ON tracks(canonicalId)")
     }
 }
+
+/**
+ * Migration from v4 to v5: Persist album primary color per track.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE tracks ADD COLUMN albumMainColor INTEGER")
+    }
+}

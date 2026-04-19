@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwipeRight
+import moe.memesta.vibeon.ui.utils.noiseTexture
 
 /**
  * Welcome to VIBE-ON! — first-launch tutorial.
@@ -102,6 +103,7 @@ fun WelcomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
+            .noiseTexture(alpha = 40)
             .navigationBarsPadding()
     ) {
         // --- BOTTOM CONTAINER ---
