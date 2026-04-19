@@ -386,6 +386,10 @@ class WebSocketClient {
         put("playlist_id", playlistId)
     })
 
+    fun sendGenerateMissingAlbumColors() = send(JSONObject().apply {
+        put("type", "generateMissingAlbumColors")
+    })
+
     fun sendAddToPlaylist(playlistId: String, trackPath: String) = send(JSONObject().apply {
         put("type", "addToPlaylist")
         put("playlist_id", playlistId)

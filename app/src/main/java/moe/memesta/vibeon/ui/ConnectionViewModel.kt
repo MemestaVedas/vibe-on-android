@@ -226,6 +226,10 @@ class ConnectionViewModel @Inject constructor(
     fun getPlaylistTracks(playlistId: String) {
         wsClient.sendGetPlaylistTracks(playlistId)
     }
+
+    fun generateMissingAlbumColors() {
+        wsClient.sendGenerateMissingAlbumColors()
+    }
     
     fun addToPlaylist(playlistId: String, trackPath: String) {
         wsClient.sendAddToPlaylist(playlistId, trackPath)

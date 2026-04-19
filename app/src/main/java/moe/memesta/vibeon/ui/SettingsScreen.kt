@@ -89,6 +89,7 @@ fun SettingsScreen(
     var favorites by remember { mutableStateOf(favoritesManager.getFavorites()) }
     var showRenameDialog by remember { mutableStateOf<FavoriteDevice?>(null) }
     var expandedDevice by remember { mutableStateOf<String?>(null) }
+    var albumColorBackfillStatus by remember { mutableStateOf<String?>(null) }
     
     val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
     val isConnected by connectionViewModel.wsIsConnected.collectAsState()
@@ -614,6 +615,64 @@ fun SettingsScreen(
                                 .clip(RoundedCornerShape(50)),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Generate Missing Album Colors",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Backfills only albums without a saved color. Existing album colors stay unchanged.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = {
+                            connectionViewModel.generateMissingAlbumColors()
+                            albumColorBackfillStatus = "Backfill request sent to PC."
+                        },
+                        enabled = isConnected,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (isConnected) "Generate Missing Colors" else "Connect to PC to Run")
+                    }
+
+                    albumColorBackfillStatus?.let { status ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = status,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
