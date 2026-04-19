@@ -176,6 +176,11 @@ class LibraryRepository(
         _syncStatus.value = SyncStatus()
     }
 
+    suspend fun updateAlbumMainColor(albumName: String, artistName: String, mainColor: Int) =
+        withContext(Dispatchers.IO) {
+            trackDao.updateAlbumMainColor(albumName, artistName, mainColor)
+        }
+
     private suspend fun persistTrackChunk(tracks: List<TrackInfo>) {
         val entities = tracks.map { track ->
             // Store relative cover paths to survive host/ip changes.

@@ -311,6 +311,12 @@ class LibraryViewModel(
             wsClient.sendStartMobilePlayback()
         }
     }
+
+    fun persistAlbumMainColor(albumName: String, artistName: String, mainColor: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateAlbumMainColor(albumName, artistName, mainColor)
+        }
+    }
     
     // Pagination NO OP as we load full DB now, but kept for compatibility if needed
     fun loadNextPage() { }

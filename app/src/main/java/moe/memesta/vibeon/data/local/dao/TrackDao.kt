@@ -33,6 +33,9 @@ interface TrackDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTrack(track: TrackEntity)
 
+    @Query("UPDATE tracks SET albumMainColor = :mainColor WHERE album = :albumName AND artist = :artistName")
+    suspend fun updateAlbumMainColor(albumName: String, artistName: String, mainColor: Int)
+
     @Query("DELETE FROM tracks")
     suspend fun clearAll()
 

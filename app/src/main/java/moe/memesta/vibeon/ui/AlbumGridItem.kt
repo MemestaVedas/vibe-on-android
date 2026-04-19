@@ -27,6 +27,7 @@ import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.shapes.*
+import moe.memesta.vibeon.ui.utils.rememberResolvedAlbumMainColor
 
 private data class AlbumCardColors(
     val primary: Color,
@@ -52,6 +53,7 @@ fun AlbumGridItem(
     albumMainColor: Int?,
     songCount: Int = 0,
     onClick: () -> Unit,
+    onAlbumMainColorResolved: (Int) -> Unit,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
 ) {
@@ -62,19 +64,26 @@ fun AlbumGridItem(
     val fallbackOnPrimary = MaterialTheme.colorScheme.onPrimary
     val fallbackOnPrimaryContainer = MaterialTheme.colorScheme.onPrimaryContainer
 
-    var cardColors by remember(coverUrl) {
-        mutableStateOf(
-            albumMainColor?.let { mainColor ->
-                val primary = Color(mainColor)
-                val secondary = deriveSecondaryColor(primary)
-                AlbumCardColors(
-                    primary = primary,
-                    secondary = secondary,
-                    onPrimary = contentColorFor(primary),
-                    onSecondary = contentColorFor(secondary)
-                )
-            }
-        )
+    val resolvedMainColor = rememberResolvedAlbumMainColor(
+        context = context,
+        albumName = albumName,
+        artistName = artistName,
+        coverUrl = coverUrl,
+        storedColor = albumMainColor,
+        onPersistColor = onAlbumMainColorResolved
+    )
+
+    val cardColors = remember(resolvedMainColor) {
+        resolvedMainColor?.let { mainColor ->
+            val primary = Color(mainColor)
+            val secondary = deriveSecondaryColor(primary)
+            AlbumCardColors(
+                primary = primary,
+                secondary = secondary,
+                onPrimary = contentColorFor(primary),
+                onSecondary = contentColorFor(secondary)
+            )
+        }
     }
 
     val imageModel = remember(coverUrl, context) {

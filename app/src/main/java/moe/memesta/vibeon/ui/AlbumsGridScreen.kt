@@ -136,6 +136,9 @@ fun AlbumsGridScreen(
                         songCount = spotlightAlbum.songCount,
                         coverUrl = spotlightAlbum.coverUrl,
                         albumMainColor = spotlightAlbum.albumMainColor,
+                        onAlbumMainColorResolved = { color ->
+                            viewModel.persistAlbumMainColor(spotlightAlbum.name, spotlightAlbum.artist, color)
+                        },
                         onClick = { onAlbumClick(spotlightAlbum.name) },
                         onPlay = { onPlayAlbum(spotlightAlbum.name) }
                     )
@@ -157,6 +160,9 @@ fun AlbumsGridScreen(
                     albumMainColor = album.albumMainColor,
                     songCount = album.songCount,
                     onClick = { onAlbumClick(album.name) },
+                    onAlbumMainColorResolved = { color ->
+                        viewModel.persistAlbumMainColor(album.name, album.artist, color)
+                    },
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
                 )
@@ -272,10 +278,20 @@ private fun AlbumSpotlightCard(
     songCount: Int,
     coverUrl: String?,
     albumMainColor: Int?,
+    onAlbumMainColorResolved: (Int) -> Unit,
     onClick: () -> Unit,
     onPlay: () -> Unit
 ) {
-    val dominantColor = albumMainColor?.let(::Color)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val resolvedMainColor = moe.memesta.vibeon.ui.utils.rememberResolvedAlbumMainColor(
+        context = context,
+        albumName = albumName,
+        artistName = artistName,
+        coverUrl = coverUrl,
+        storedColor = albumMainColor,
+        onPersistColor = onAlbumMainColorResolved
+    )
+    val dominantColor = resolvedMainColor?.let(::Color)
     val gradientColor = dominantColor ?: MaterialTheme.colorScheme.primary
     val onGradientColor = dominantColor?.let { color ->
         val r = (color.red * 255).toInt()
