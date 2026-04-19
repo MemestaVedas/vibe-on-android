@@ -410,7 +410,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                 Text(
                     text = buildString {
                         append(playerInfo.artist.ifEmpty { "Unknown Artist" })
-                        if (playerInfo.album.isNotEmpty()) {
+                        if (!playerInfo.album.isNullOrEmpty()) {
                             append(" ")
                             append(playerInfo.album)
                         }

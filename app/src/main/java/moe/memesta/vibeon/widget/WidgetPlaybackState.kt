@@ -1,80 +1,45 @@
 package moe.memesta.vibeon.widget
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializer
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
-import android.util.Base64
 
-/** Custom serializer for ByteArray using Base64 encoding. */
-@Serializer(forClass = ByteArray::class)
-object ByteArrayAsBase64Serializer : KSerializer<ByteArray> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("ByteArrayAsBase64", PrimitiveKind.STRING)
-
-    override fun serialize(encoder: Encoder, value: ByteArray) {
-        val base64 = Base64.encodeToString(value, Base64.NO_WRAP)
-        encoder.encodeString(base64)
-    }
-
-    override fun deserialize(decoder: Decoder): ByteArray {
-        val base64 = decoder.decodeString()
-        return Base64.decode(base64, Base64.NO_WRAP)
-    }
-}
-
-/** Slim playlist metadata carried in the widget state (up to 4 entries). */
 @Serializable
 data class PlaylistWidgetInfo(
-    val id: String = "",
-    val name: String = ""
+    val id: String,
+    val name: String
 )
 
-/**
- * Serializable snapshot of the current playback state, stored in the Glance DataStore
- * so the widget can render without a live connection to the app process.
- */
 @Serializable
 data class WidgetPlaybackState(
-    val title: String = "No Track",
-    val artist: String = "Unknown Artist",
-    val album: String = "",
+    val title: String = "",
+    val artist: String = "",
+    val album: String? = null,
     val isPlaying: Boolean = false,
     val isLiked: Boolean = false,
     val isShuffled: Boolean = false,
     val isMobilePlayback: Boolean = false,
-    /** Compressed album art as a ByteArray, or null when there's no art. */
-    @Serializable(with = ByteArrayAsBase64Serializer::class)
     val albumArtBitmapData: ByteArray? = null,
-    // Palette colours (ARGB Int) extracted from the album art
-    val colorPrimary:     Int = 0xFF1C1B1F.toInt(),  // scrim + card bg
-    val colorOnPrimary:   Int = 0xFFFFFFFF.toInt(),  // title, artist, app logo
-    val colorSecondary:   Int = 0xFF49454F.toInt(),  // source-toggle circle + unliked heart bg
-    val colorOnSecondary: Int = 0xFFFFFFFF.toInt(),  // source-toggle icon, unliked heart icon
-    val colorError:       Int = 0xFFE53935.toInt(),  // liked heart
-    // Extended M3-style container colours derived at palette-extraction time
-    val colorPrimaryContainer:     Int = 0xFF1F3140.toInt(),
-    val colorOnPrimaryContainer:   Int = 0xFFD3E4F7.toInt(),
-    val colorSecondaryContainer:   Int = 0xFF2B2535.toInt(),
-    val colorOnSecondaryContainer: Int = 0xFFEADDFF.toInt(),
-    val colorErrorContainer:       Int = 0xFF8C1D18.toInt(),
-    val colorOnErrorContainer:     Int = 0xFFF9DEDC.toInt(),
-    // More-options panel state
+    val colorPrimary: Int = 0xFFD0BCFF.toInt(),
+    val colorOnPrimary: Int = 0xFF381E72.toInt(),
+    val colorSecondary: Int = 0xFFCCC2DC.toInt(),
+    val colorOnSecondary: Int = 0xFF332D41.toInt(),
+    val colorError: Int = 0xFFE53935.toInt(),
+    val colorPrimaryContainer: Int = 0xFF4F378B.toInt(),
+    val colorOnPrimaryContainer: Int = 0xFFEADDFF.toInt(),
+    val colorSecondaryContainer: Int = 0xFF4A4458.toInt(),
+    val colorOnSecondaryContainer: Int = 0xFFE8DEF8.toInt(),
+    val colorErrorContainer: Int = 0xFF8C1D18.toInt(),
+    val colorOnErrorContainer: Int = 0xFFF9DEDC.toInt(),
     val showingMoreOptions: Boolean = false,
-    /** "off" | "one" | "all" — mirrors WebSocketClient.repeatMode */
     val repeatMode: String = "off",
-    /** 0 = muted, 1 = 50 %, 2 = 100 % */
     val volumeLevel: Int = 2,
-    /** Up to 4 playlists shown as save-to targets in the more-options panel. */
     val widgetPlaylists: List<PlaylistWidgetInfo> = emptyList()
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is WidgetPlaybackState) return false
+        if (javaClass != other?.javaClass) return false
+
+        other as WidgetPlaybackState
+
         if (title != other.title) return false
         if (artist != other.artist) return false
         if (album != other.album) return false
@@ -82,30 +47,33 @@ data class WidgetPlaybackState(
         if (isLiked != other.isLiked) return false
         if (isShuffled != other.isShuffled) return false
         if (isMobilePlayback != other.isMobilePlayback) return false
-        if (albumArtBitmapData != null && other.albumArtBitmapData != null && !albumArtBitmapData.contentEquals(other.albumArtBitmapData)) return false
-        if ((albumArtBitmapData == null) != (other.albumArtBitmapData == null)) return false
-        if (colorPrimary     != other.colorPrimary)     return false
-        if (colorOnPrimary   != other.colorOnPrimary)   return false
-        if (colorSecondary   != other.colorSecondary)   return false
+        if (albumArtBitmapData != null) {
+            if (other.albumArtBitmapData == null) return false
+            if (!albumArtBitmapData.contentEquals(other.albumArtBitmapData)) return false
+        } else if (other.albumArtBitmapData != null) return false
+        if (colorPrimary != other.colorPrimary) return false
+        if (colorOnPrimary != other.colorOnPrimary) return false
+        if (colorSecondary != other.colorSecondary) return false
         if (colorOnSecondary != other.colorOnSecondary) return false
-        if (colorError       != other.colorError)       return false
-        if (colorPrimaryContainer     != other.colorPrimaryContainer)     return false
-        if (colorOnPrimaryContainer   != other.colorOnPrimaryContainer)   return false
-        if (colorSecondaryContainer   != other.colorSecondaryContainer)   return false
+        if (colorError != other.colorError) return false
+        if (colorPrimaryContainer != other.colorPrimaryContainer) return false
+        if (colorOnPrimaryContainer != other.colorOnPrimaryContainer) return false
+        if (colorSecondaryContainer != other.colorSecondaryContainer) return false
         if (colorOnSecondaryContainer != other.colorOnSecondaryContainer) return false
-        if (colorErrorContainer       != other.colorErrorContainer)       return false
-        if (colorOnErrorContainer     != other.colorOnErrorContainer)     return false
+        if (colorErrorContainer != other.colorErrorContainer) return false
+        if (colorOnErrorContainer != other.colorOnErrorContainer) return false
         if (showingMoreOptions != other.showingMoreOptions) return false
         if (repeatMode != other.repeatMode) return false
         if (volumeLevel != other.volumeLevel) return false
         if (widgetPlaylists != other.widgetPlaylists) return false
+
         return true
     }
 
     override fun hashCode(): Int {
         var result = title.hashCode()
         result = 31 * result + artist.hashCode()
-        result = 31 * result + album.hashCode()
+        result = 31 * result + (album?.hashCode() ?: 0)
         result = 31 * result + isPlaying.hashCode()
         result = 31 * result + isLiked.hashCode()
         result = 31 * result + isShuffled.hashCode()

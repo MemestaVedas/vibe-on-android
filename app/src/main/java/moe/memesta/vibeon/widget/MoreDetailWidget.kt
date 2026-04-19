@@ -32,7 +32,6 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -107,8 +106,6 @@ private fun MoreDetailWidgetContent(state: WidgetPlaybackState) {
     val colorOnPrimary            = Color(state.colorOnPrimary)
     val colorSecondary            = Color(state.colorSecondary)
     val colorOnSecondary          = Color(state.colorOnSecondary)
-    val colorTertiary             = Color(0xFF7D5260) // Default tertiary
-    val colorOnTertiary           = Color(0xFFFFFFFF) // Default onTertiary
     val colorSecondaryContainer   = Color(state.colorSecondaryContainer)
     val colorOnSecondaryContainer = Color(state.colorOnSecondaryContainer)
     val colorErrorContainer       = Color(state.colorErrorContainer)
@@ -268,11 +265,11 @@ private fun MoreDetailWidgetContent(state: WidgetPlaybackState) {
                 Spacer(modifier = GlanceModifier.height(2.dp))
 
                 // Album name - M PLUS Rounded 1c Regular, lighter than secondary
-                if (state.album.isNotEmpty()) {
+                if (!state.album.isNullOrEmpty()) {
                     Text(
                         text = state.album,
                         style = TextStyle(
-                            color = ColorProvider(colorSecondary.copy(alpha = 0.7f)),
+                            color = ColorProvider(colorSecondary),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Normal
                         ),
