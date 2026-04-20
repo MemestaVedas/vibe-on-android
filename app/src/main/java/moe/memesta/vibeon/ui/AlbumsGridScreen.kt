@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,7 +28,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledIconButton
@@ -60,6 +61,7 @@ import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.data.local.LibraryViewStyle
 import moe.memesta.vibeon.ui.components.SortBottomSheet
+import moe.memesta.vibeon.ui.components.ExpressiveScrollBar
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
@@ -85,6 +87,7 @@ fun AlbumsGridScreen(
     val displayLanguage = LocalDisplayLanguage.current
     var searchQuery by remember { mutableStateOf("") }
     var showSortSheet by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
 
     val visibleAlbums = remember(albums, searchQuery, displayLanguage) {
         if (searchQuery.isBlank()) {
@@ -103,6 +106,14 @@ fun AlbumsGridScreen(
         visibleAlbums.maxByOrNull { it.songCount }
     }
 
+    val displayedAlbums = remember(visibleAlbums, spotlightAlbum, albumViewStyle) {
+        if (albumViewStyle == LibraryViewStyle.MODERN) {
+            visibleAlbums.filter { it.name != spotlightAlbum?.name }
+        } else {
+            visibleAlbums
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -115,59 +126,71 @@ fun AlbumsGridScreen(
             )
         }
     ) { innerPadding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(
-                start = Dimens.ScreenPadding,
-                end = Dimens.ScreenPadding,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                bottom = innerPadding.calculateBottomPadding() + contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
-            ),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            if (albumViewStyle == LibraryViewStyle.MODERN && spotlightAlbum != null) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    AlbumSpotlightCard(
-                        albumName = spotlightAlbum.getDisplayName(displayLanguage),
-                        artistName = spotlightAlbum.getDisplayArtist(displayLanguage),
-                        songCount = spotlightAlbum.songCount,
-                        coverUrl = spotlightAlbum.coverUrl,
-                        albumMainColor = spotlightAlbum.albumMainColor,
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = Dimens.ScreenPadding,
+                    end = Dimens.ScreenPadding + 28.dp,
+                    top = innerPadding.calculateTopPadding() + 8.dp,
+                    bottom = innerPadding.calculateBottomPadding() + contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
+                ),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (albumViewStyle == LibraryViewStyle.MODERN && spotlightAlbum != null) {
+                    item(
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = "spotlight"
+                    ) {
+                        AlbumSpotlightCard(
+                            albumName = spotlightAlbum.getDisplayName(displayLanguage),
+                            artistName = spotlightAlbum.getDisplayArtist(displayLanguage),
+                            songCount = spotlightAlbum.songCount,
+                            coverUrl = spotlightAlbum.coverUrl,
+                            albumMainColor = spotlightAlbum.albumMainColor,
+                            onAlbumMainColorResolved = { color ->
+                                viewModel.persistAlbumMainColor(spotlightAlbum.name, spotlightAlbum.artist, color)
+                            },
+                            onClick = { onAlbumClick(spotlightAlbum.name) },
+                            onPlay = { onPlayAlbum(spotlightAlbum.name) }
+                        )
+                    }
+                }
+
+                items(
+                    items = displayedAlbums,
+                    key = { it.name },
+                    contentType = { "album_item" }
+                ) { album ->
+                    AlbumGridItem(
+                        albumName = album.getDisplayName(displayLanguage),
+                        artistName = album.getDisplayArtist(displayLanguage),
+                        coverUrl = album.coverUrl,
+                        albumMainColor = album.albumMainColor,
+                        songCount = album.songCount,
+                        onClick = { onAlbumClick(album.name) },
                         onAlbumMainColorResolved = { color ->
-                            viewModel.persistAlbumMainColor(spotlightAlbum.name, spotlightAlbum.artist, color)
+                            viewModel.persistAlbumMainColor(album.name, album.artist, color)
                         },
-                        onClick = { onAlbumClick(spotlightAlbum.name) },
-                        onPlay = { onPlayAlbum(spotlightAlbum.name) }
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope
                     )
                 }
             }
 
-            items(
-                items = if (albumViewStyle == LibraryViewStyle.MODERN) {
-                    visibleAlbums.filter { it.name != spotlightAlbum?.name }
-                } else {
-                    visibleAlbums
-                },
-                key = { it.name }
-            ) { album ->
-                AlbumGridItem(
-                    albumName = album.getDisplayName(displayLanguage),
-                    artistName = album.getDisplayArtist(displayLanguage),
-                    coverUrl = album.coverUrl,
-                    albumMainColor = album.albumMainColor,
-                    songCount = album.songCount,
-                    onClick = { onAlbumClick(album.name) },
-                    onAlbumMainColorResolved = { color ->
-                        viewModel.persistAlbumMainColor(album.name, album.artist, color)
-                    },
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
-                )
-            }
+            ExpressiveScrollBar(
+                gridState = gridState,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp, top = innerPadding.calculateTopPadding() + 12.dp, bottom = innerPadding.calculateBottomPadding() + 12.dp)
+            )
         }
     }
 
@@ -251,7 +274,7 @@ private fun AlbumsSearchTopBar(
 
             AnimatedVisibility(visible = !isSearchExpanded) {
                 IconButton(onClick = onSortClick, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Rounded.Sort, contentDescription = "Sort")
+                    Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = "Sort")
                 }
             }
         }

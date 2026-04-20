@@ -90,7 +90,6 @@ fun AlbumGridItem(
     val imageModel = remember(coverUrl, context) {
         ImageRequest.Builder(context)
             .data(coverUrl)
-            .crossfade(true)
             .build()
     }
 

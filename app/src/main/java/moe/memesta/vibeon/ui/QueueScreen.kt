@@ -1,6 +1,9 @@
 package moe.memesta.vibeon.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -58,7 +61,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -86,6 +91,7 @@ fun QueueScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffled by viewModel.isShuffled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
+    val haptic = LocalHapticFeedback.current
 
     var localQueue by remember { mutableStateOf(queue) }
     var isReordering by remember { mutableStateOf(false) }
@@ -131,6 +137,7 @@ fun QueueScreen(
         draggingIndex = index
         dragOffsetY = 0f
         isReordering = true
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
     fun updateDrag(deltaY: Float) {
@@ -149,6 +156,7 @@ fun QueueScreen(
         localQueue = updatedQueue
         draggingIndex = toIndex
         dragOffsetY -= (toIndex - fromIndex) * itemHeightPx
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
     fun endDrag() {
@@ -261,7 +269,7 @@ fun QueueScreen(
                 ) {
                     itemsIndexed(
                         localQueue,
-                        key = { index, item -> "${item.path}-$index" }
+                        key = { _, item -> queueItemStableKey(item) }
                     ) { index, item ->
                         val isCurrent = index == currentIndex
                         val canReorder = index > currentIndex
@@ -281,7 +289,14 @@ fun QueueScreen(
                             onDrag = { updateDrag(it) },
                             onDragEnd = { endDrag() },
                             onItemMeasured = { height -> if (itemHeightPx == 0f) itemHeightPx = height },
-                            modifier = Modifier.animateItem()
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(durationMillis = 120),
+                                fadeOutSpec = tween(durationMillis = 100),
+                                placementSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
                         )
                     }
                 }
@@ -350,6 +365,11 @@ private fun QueueActionButton(
     }
 }
 
+private fun queueItemStableKey(item: QueueItem): String {
+    val pathKey = item.path.takeIf { it.isNotBlank() }
+    return pathKey ?: "${item.title}|${item.artist}|${item.album}|${item.coverUrl.orEmpty()}"
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QueueRow(
@@ -381,6 +401,22 @@ private fun QueueRow(
         targetValue = if (isCurrent) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
         animationSpec = tween(180),
         label = "queueRowBackground"
+    )
+    val dragTranslationY by animateFloatAsState(
+        targetValue = if (isDragging) dragOffsetY else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "queueRowDragTranslation"
+    )
+    val dragScale by animateFloatAsState(
+        targetValue = if (isDragging) 1.015f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "queueRowDragScale"
     )
     val contentColor = if (isCurrent) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurface
     val subTextColor = if (isCurrent) MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -414,11 +450,9 @@ private fun QueueRow(
             modifier = Modifier
                 .graphicsLayer {
                     translationX = swipeOffset
-                    if (isDragging) {
-                        translationY = dragOffsetY
-                        scaleX = 1.02f
-                        scaleY = 1.02f
-                    }
+                    translationY = dragTranslationY
+                    scaleX = dragScale
+                    scaleY = dragScale
                 }
                 .clip(RoundedCornerShape(if (isCurrent) 28.dp else 20.dp))
                 .clickable(enabled = swipeOffset == 0f) { onPlay() }

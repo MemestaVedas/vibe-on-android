@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,6 +34,7 @@ import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.ArtistItemData
 import moe.memesta.vibeon.data.SortOption
 import moe.memesta.vibeon.ui.components.ArtistGridItem
+import moe.memesta.vibeon.ui.components.ExpressiveScrollBar
 import moe.memesta.vibeon.ui.components.SortBottomSheet
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.utils.LocalArtistViewStyle
@@ -58,6 +60,7 @@ fun ArtistsListScreen(
     val displayLanguage = LocalDisplayLanguage.current
     var showSortSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    val gridState = rememberLazyGridState()
 
     val artists = remember(tracks, searchQuery, currentSortOption, displayLanguage) {
         tracks.groupBy { it.artist }
@@ -95,6 +98,14 @@ fun ArtistsListScreen(
         artists.maxByOrNull { it.followerCount.substringBefore(' ').toIntOrNull() ?: 0 }
     }
 
+    val displayedArtists = remember(artists, spotlightArtist, artistViewStyle) {
+        if (artistViewStyle == LibraryViewStyle.MODERN) {
+            artists.filter { it.name != spotlightArtist?.name }
+        } else {
+            artists
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -107,49 +118,55 @@ fun ArtistsListScreen(
             )
         }
     ) { innerPadding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                bottom = innerPadding.calculateBottomPadding() + contentPadding.calculateBottomPadding() + 24.dp
-            ),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            if (artistViewStyle == LibraryViewStyle.MODERN && spotlightArtist != null) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    ArtistSpotlightCard(
-                        artistName = spotlightArtist.getDisplayName(displayLanguage),
-                        trackCount = spotlightArtist.followerCount,
-                        photoUrl = spotlightArtist.photoUrl,
-                        mainColor = spotlightArtist.mainColor,
-                        onClick = { onArtistClick(spotlightArtist.name) },
-                        onPlay = { onPlayArtist(spotlightArtist.name) }
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 44.dp,
+                    top = innerPadding.calculateTopPadding() + 8.dp,
+                    bottom = innerPadding.calculateBottomPadding() + contentPadding.calculateBottomPadding() + 24.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                if (artistViewStyle == LibraryViewStyle.MODERN && spotlightArtist != null) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        ArtistSpotlightCard(
+                            artistName = spotlightArtist.getDisplayName(displayLanguage),
+                            trackCount = spotlightArtist.followerCount,
+                            photoUrl = spotlightArtist.photoUrl,
+                            mainColor = spotlightArtist.mainColor,
+                            onClick = { onArtistClick(spotlightArtist.name) },
+                            onPlay = { onPlayArtist(spotlightArtist.name) }
+                        )
+                    }
+                }
+
+                items(displayedArtists) { artist ->
+                    ArtistGridItem(
+                        artistName = artist.getDisplayName(displayLanguage),
+                        photoUrl = artist.photoUrl,
+                        mainColor = artist.mainColor,
+                        onClick = { onArtistClick(artist.name) },
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope
                     )
                 }
             }
 
-            items(
-                if (artistViewStyle == LibraryViewStyle.MODERN) {
-                    artists.filter { it.name != spotlightArtist?.name }
-                } else {
-                    artists
-                }
-            ) { artist ->
-                ArtistGridItem(
-                    artistName = artist.getDisplayName(displayLanguage),
-                    photoUrl = artist.photoUrl,
-                    mainColor = artist.mainColor,
-                    onClick = { onArtistClick(artist.name) },
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
-                )
-            }
+            ExpressiveScrollBar(
+                gridState = gridState,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp, top = innerPadding.calculateTopPadding() + 12.dp, bottom = innerPadding.calculateBottomPadding() + 12.dp)
+            )
         }
     }
 

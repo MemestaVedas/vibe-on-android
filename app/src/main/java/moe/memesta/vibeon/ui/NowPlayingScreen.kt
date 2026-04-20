@@ -298,6 +298,7 @@ fun NowPlayingScreen(
 
     // Modal sheet for Queue
     var showQueueSheet by remember { mutableStateOf(false) }
+    val queueSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val listState = rememberLazyListState()
 
@@ -370,7 +371,7 @@ fun NowPlayingScreen(
                             onLyricsClick = {
                                 scope.launch { listState.animateScrollToItem(1) }
                             },
-                            onQueueClick = { showQueueSheet = !showQueueSheet },
+                            onQueueClick = { showQueueSheet = true },
                             isQueueSheetVisible = showQueueSheet,
                             onNavigateToAlbum = { onNavigateToAlbum(currentTrack.album.ifEmpty { currentTrack.artist }) },
                             lyricsSurfaceColor = lyricsSurfaceColor,
@@ -442,11 +443,16 @@ fun NowPlayingScreen(
     if (showQueueSheet) {
         ModalBottomSheet(
             onDismissRequest = { showQueueSheet = false },
+            sheetState = queueSheetState,
+            sheetGesturesEnabled = false,
             containerColor = VibeBackground,
-            modifier = Modifier.fillMaxHeight(0.85f)
+            dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             QueueScreen(
                 viewModel = connectionViewModel,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
                 showCloseButton = true,
                 onClose = { showQueueSheet = false }
             )

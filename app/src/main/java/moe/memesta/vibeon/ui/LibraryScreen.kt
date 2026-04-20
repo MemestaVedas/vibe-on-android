@@ -39,6 +39,7 @@ import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import moe.memesta.vibeon.ui.utils.parseAlbum
 import moe.memesta.vibeon.ui.components.WavySeparator
 import moe.memesta.vibeon.ui.components.SectionHeader
+import moe.memesta.vibeon.ui.components.ExpressiveScrollBar
 
 @Composable
 fun LibraryScreen(
@@ -148,78 +149,91 @@ fun LibraryScreen(
                         Text("No tracks found", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
                     }
                 } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        contentPadding = PaddingValues(
-                            start = Dimens.ScreenPadding, 
-                            end = Dimens.ScreenPadding, 
-                            top = 8.dp, 
-                            bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
                     ) {
-                        items(
-                            count = pagedTracks.itemCount,
-                            key = { index -> pagedTracks[index]?.path ?: "track_$index" }
-                        ) { index ->
-                            val track = pagedTracks[index] ?: return@items
-                            val prevTrack = if (index > 0) pagedTracks.peek(index - 1) else null
-                            val currentAlbum = remember(track.album, track.discNumber) { 
-                                parseAlbum(track.album, track.discNumber) 
-                            }
-                            val prevAlbum = remember(prevTrack?.album, prevTrack?.discNumber) { 
-                                prevTrack?.let { parseAlbum(it.album, it.discNumber) } 
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = Dimens.ScreenPadding,
+                                end = Dimens.ScreenPadding + 28.dp,
+                                top = 8.dp,
+                                bottom = contentPadding.calculateBottomPadding() + Dimens.SectionSpacing
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                count = pagedTracks.itemCount,
+                                key = { index -> pagedTracks[index]?.path ?: "track_$index" }
+                            ) { index ->
+                                val track = pagedTracks[index] ?: return@items
+                                val prevTrack = if (index > 0) pagedTracks.peek(index - 1) else null
+                                val currentAlbum = remember(track.album, track.discNumber) {
+                                    parseAlbum(track.album, track.discNumber)
+                                }
+                                val prevAlbum = remember(prevTrack?.album, prevTrack?.discNumber) {
+                                    prevTrack?.let { parseAlbum(it.album, it.discNumber) }
+                                }
+
+                                val showAlbumSeparator = prevAlbum == null || currentAlbum.baseName != prevAlbum.baseName
+                                val showDiscSeparator = !showAlbumSeparator && currentAlbum.discNumber != prevAlbum?.discNumber
+
+                                if (showAlbumSeparator) {
+                                    WavySeparator(
+                                        colorTop = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                        colorBottom = Color.Transparent,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                    SectionHeader(
+                                        title = currentAlbum.baseName,
+                                        modifier = Modifier.padding(bottom = 8.dp, start = 0.dp)
+                                    )
+                                }
+
+                                if (showDiscSeparator) {
+                                    Text(
+                                        text = "Disc ${currentAlbum.discNumber}",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp)
+                                    )
+                                }
+
+                                val onTrackClick = remember(track) {
+                                    {
+                                        viewModel.playTrack(track)
+                                        onTrackSelected(track)
+                                    }
+                                }
+                                TrackListItem(
+                                    track = track,
+                                    onTrackClick = onTrackClick
+                                )
                             }
 
-                            val showAlbumSeparator = prevAlbum == null || currentAlbum.baseName != prevAlbum.baseName
-                            val showDiscSeparator = !showAlbumSeparator && currentAlbum.discNumber != prevAlbum?.discNumber
-
-                            if (showAlbumSeparator) {
-                                WavySeparator(
-                                    colorTop = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                                    colorBottom = Color.Transparent,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                                SectionHeader(
-                                    title = currentAlbum.baseName,
-                                    modifier = Modifier.padding(bottom = 8.dp, start = 0.dp)
-                                )
-                            }
-                            
-                            if (showDiscSeparator) {
-                                Text(
-                                    text = "Disc ${currentAlbum.discNumber}",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp)
-                                )
-                            }
-
-                            val onTrackClick = remember(track) {
-                                {
-                                    viewModel.playTrack(track)
-                                    onTrackSelected(track)
+                            if (pagedTracks.loadState.append is LoadState.Loading) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(strokeWidth = 2.dp)
+                                    }
                                 }
                             }
-                            TrackListItem(
-                                track = track,
-                                onTrackClick = onTrackClick
-                            )
                         }
 
-                        if (pagedTracks.loadState.append is LoadState.Loading) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(strokeWidth = 2.dp)
-                                }
-                            }
-                        }
+                        ExpressiveScrollBar(
+                            listState = listState,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 4.dp, top = 12.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp)
+                        )
                     }
                 }
             }
