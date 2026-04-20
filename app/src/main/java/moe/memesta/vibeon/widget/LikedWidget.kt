@@ -26,16 +26,7 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
-import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
-import androidx.glance.layout.Column
-import androidx.glance.layout.ContentScale
-import androidx.glance.layout.Row
-import androidx.glance.layout.fillMaxHeight
-import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.fillMaxWidth
-import androidx.glance.layout.padding
-import androidx.glance.layout.size
+import androidx.glance.layout.*
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -43,6 +34,7 @@ import androidx.glance.unit.ColorProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlin.random.Random
 import moe.memesta.vibeon.MainActivity
 import moe.memesta.vibeon.R
 
@@ -51,7 +43,6 @@ private const val ACT_PLAY_PAUSE = "play_pause"
 private const val ACT_PREV       = "prev"
 private const val ACT_NEXT       = "next"
 private const val ACT_TOGGLE_OUT = "toggle_output"
-private const val ACT_LIKE       = "like"
 
 /** LRU cache for decoded album art bitmaps to avoid repeated decoding. */
 private object AlbumArtBitmapCache {
@@ -69,6 +60,37 @@ private object AlbumArtBitmapCache {
             lruCache.put(key, bitmap)
         }
     }
+}
+
+private object WidgetNoiseBitmapCache {
+    private const val CACHE_SIZE_BYTES = 512 * 1024
+    private val lruCache = object : LruCache<Int, Bitmap>(CACHE_SIZE_BYTES) {
+        override fun sizeOf(key: Int, value: Bitmap): Int {
+            return value.byteCount
+        }
+    }
+
+    fun getBitmap(alpha: Int): Bitmap? = lruCache.get(alpha)
+
+    fun putBitmap(alpha: Int, bitmap: Bitmap) {
+        if (getBitmap(alpha) == null) {
+            lruCache.put(alpha, bitmap)
+        }
+    }
+}
+
+private fun generateNoiseBitmap(width: Int = 256, height: Int = 256, alpha: Int = 35): Bitmap {
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val pixels = IntArray(width * height)
+    val random = Random(42)
+
+    for (index in pixels.indices) {
+        val gray = random.nextInt(256)
+        pixels[index] = android.graphics.Color.argb(alpha, gray, gray, gray)
+    }
+
+    bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+    return bitmap
 }
 
 class LikedWidget : GlanceAppWidget() {
@@ -107,6 +129,11 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
     val colorOnErrorContainer     = Color(state.colorOnErrorContainer)
     val colorPrimaryContainer     = Color(state.colorPrimaryContainer)
     val colorOnPrimaryContainer   = Color(state.colorOnPrimaryContainer)
+    val widgetNoiseBitmap = WidgetNoiseBitmapCache.getBitmap(35) ?: generateNoiseBitmap(alpha = 35).also {
+        WidgetNoiseBitmapCache.putBitmap(35, it)
+    }
+    val toggleBackgroundColor = if (state.isMobilePlayback) colorPrimary else colorOnPrimary
+    val toggleIconColor = if (state.isMobilePlayback) colorOnPrimary else colorPrimary
 
     Box(
         modifier = GlanceModifier
@@ -135,8 +162,15 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-            .background(ColorProvider(colorPrimaryContainer.copy(alpha = 0.72f)))
+                .background(ColorProvider(colorPrimaryContainer.copy(alpha = 0.84f)))
         ) {}
+
+        Image(
+            provider = ImageProvider(widgetNoiseBitmap),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = GlanceModifier.fillMaxSize()
+        )
 
         // ── Layer 3: UI ────────────────────────────────────────────────
         Column(modifier = GlanceModifier.fillMaxSize()) {
@@ -179,9 +213,9 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                 ) {
                     Box(
                         modifier = GlanceModifier
-                            .size(36.dp)
-                            .cornerRadius(18.dp)
-                            .background(ColorProvider(colorOnPrimary.copy(alpha = 0.76f))),
+                            .size(42.dp)
+                            .cornerRadius(21.dp)
+                            .background(ColorProvider(toggleBackgroundColor)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
@@ -190,8 +224,8 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                             else
                                 ImageProvider(R.drawable.ic_widget_computer),
                             contentDescription = if (state.isMobilePlayback) "Mobile" else "PC",
-                            colorFilter = ColorFilter.tint(ColorProvider(colorPrimary.copy(alpha = 0.86f))),
-                            modifier = GlanceModifier.size(18.dp)
+                            colorFilter = ColorFilter.tint(ColorProvider(toggleIconColor)),
+                            modifier = GlanceModifier.size(19.dp)
                         )
                     }
                 }
@@ -240,7 +274,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .defaultWeight()
-                    .background(ColorProvider(colorPrimaryContainer.copy(alpha = 0.88f))),
+                    .background(ColorProvider(colorPrimaryContainer.copy(alpha = 0.94f))),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Tap Zone 4 — Title (bold) + Artist (regular), opens app
@@ -249,7 +283,7 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                         .defaultWeight()
                         .fillMaxHeight()
                         .clickable(actionStartActivity<MainActivity>())
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -269,35 +303,6 @@ private fun LikedWidgetContent(state: WidgetPlaybackState) {
                             fontWeight = FontWeight.Normal
                         ),
                         maxLines = 1
-                    )
-                }
-
-                // Like / heart icon
-                // outline → onSecondary, filled → errorContainer
-                Box(
-                    modifier = GlanceModifier
-                        .fillMaxHeight()
-                        .padding(12.dp)
-                        .size(36.dp)
-                        .clickable(
-                            actionRunCallback<LikedWidgetActionCallback>(
-                                actionParametersOf(keyAction to ACT_LIKE)
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        provider = if (state.isLiked)
-                            ImageProvider(R.drawable.ic_widget_heart_filled)
-                        else
-                            ImageProvider(R.drawable.ic_widget_heart_outline),
-                        contentDescription = if (state.isLiked) "Unlike" else "Like",
-                        colorFilter = ColorFilter.tint(
-                            ColorProvider(
-                                if (state.isLiked) colorErrorContainer else colorOnPrimaryContainer
-                            )
-                        ),
-                        modifier = GlanceModifier.size(32.dp)
                     )
                 }
             }
@@ -327,10 +332,6 @@ class LikedWidgetActionCallback : ActionCallback {
                 val isMobile = moe.memesta.vibeon.MediaNotificationManager.isMobilePlayback
                 if (isMobile) client.sendStopMobilePlayback()
                 else client.sendStartMobilePlayback()
-            }
-            ACT_LIKE -> {
-                val path = moe.memesta.vibeon.MediaNotificationManager.currentTrackPath ?: return
-                client.sendToggleFavorite(path)
             }
         }
     }

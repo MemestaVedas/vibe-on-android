@@ -223,9 +223,9 @@ fun AlbumGridItem(
                             brush = Brush.verticalGradient(
                                 colorStops = arrayOf(
                                     0.0f to Color.Transparent,
-                                    0.18f to Color.Transparent,
-                                    0.40f to sampledSecondary.copy(alpha = 0.18f),
-                                    0.68f to primaryColor.copy(alpha = 0.78f),
+                                    0.60f to Color.Transparent,
+                                    0.72f to sampledSecondary.copy(alpha = 0.18f),
+                                    0.85f to primaryColor.copy(alpha = 0.78f),
                                     1.0f to primaryColor.copy(alpha = 0.98f)
                                 )
                             )
