@@ -131,6 +131,7 @@ import moe.memesta.vibeon.ui.utils.ThemeColors
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
+import moe.memesta.vibeon.ui.utils.noiseTexture
 import moe.memesta.vibeon.ui.shapes.*
 
 data class PlayerControlsState(
@@ -685,6 +686,7 @@ fun NowPlayingContent(
                             startY = with(LocalDensity.current) { configuration.screenHeightDp.dp.toPx() * 0.35f }
                         )
                     )
+                    .noiseTexture(alpha = 35)
             )
         }
 

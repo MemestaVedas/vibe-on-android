@@ -27,6 +27,7 @@ import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.shapes.*
+import moe.memesta.vibeon.ui.utils.noiseTexture
 import moe.memesta.vibeon.ui.utils.rememberResolvedAlbumMainColor
 
 private data class AlbumCardColors(
@@ -230,6 +231,7 @@ fun AlbumGridItem(
                                 )
                             )
                         )
+                        .noiseTexture(alpha = 35)
                 )
                 
                 // Album Info

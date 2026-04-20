@@ -65,6 +65,7 @@ import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayName
 import moe.memesta.vibeon.ui.utils.LocalAlbumViewStyle
+import moe.memesta.vibeon.ui.utils.noiseTexture
 
 @androidx.compose.animation.ExperimentalSharedTransitionApi
 @Composable
@@ -336,6 +337,7 @@ private fun AlbumSpotlightCard(
                             )
                         )
                     )
+                    .noiseTexture(alpha = 35)
             )
 
             Column(
