@@ -57,12 +57,11 @@ import moe.memesta.vibeon.ui.ConnectionState
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.components.AlbumPalette
 import moe.memesta.vibeon.ui.components.extractAlbumPalette
+import moe.memesta.vibeon.ui.theme.GoogleSansFlexFamily
 import moe.memesta.vibeon.ui.utils.ContrastGuard
 import moe.memesta.vibeon.ui.utils.noiseTexture
 
-val NorlineFontFamily = FontFamily(
-    Font(R.font.norline_rounded, FontWeight.Normal)
-)
+val NorlineFontFamily = GoogleSansFlexFamily
 
 @Composable
 fun ExpressiveStar(modifier: Modifier = Modifier, color: Color) {
@@ -460,7 +459,7 @@ fun PairingScreen(
                         },
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 16.sp,
-                            fontFamily = FontFamily.SansSerif,
+                            fontFamily = GoogleSansFlexFamily,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center
                         ),

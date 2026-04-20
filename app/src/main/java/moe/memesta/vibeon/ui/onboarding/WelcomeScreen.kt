@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
+import moe.memesta.vibeon.ui.theme.GoogleSansFlexFamily
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.Smartphone
@@ -325,7 +326,7 @@ private fun WelcomePage(
             text = "Your music, everywhere",
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = 16.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center
             ),
@@ -393,7 +394,7 @@ private fun ConnectServerPage(contentColor: Color) {
             text = "Keep the desktop app running",
             style = MaterialTheme.typography.bodyMedium.copy(
                 textAlign = TextAlign.Center,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif
+                fontFamily = GoogleSansFlexFamily
             ),
             color = contentColor.copy(alpha = 0.6f)
         )

@@ -108,7 +108,7 @@ private fun titleRoundnessForLength(charCount: Int): Int = when {
     else -> 120
 }
 
-private fun createRoundedRobotoFlexBitmap(
+private fun createRoundedGoogleSansFlexBitmap(
     context: Context,
     text: String,
     colorInt: Int,
@@ -132,7 +132,7 @@ private fun createRoundedRobotoFlexBitmap(
     val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = textSizePx
         color = colorInt
-        typeface = ResourcesCompat.getFont(context, R.font.roboto_flex_variable)
+        typeface = ResourcesCompat.getFont(context, R.font.google_sans_flex_regular)
         // Aggressive short-title emphasis with rounded terminals.
         fontVariationSettings = "'wght' $textWeight, 'ROND' $textRoundness"
         isFakeBoldText = textWeight >= 760
@@ -211,7 +211,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
     val primaryColor = Color(playerInfo.colorPrimary)
     val onPrimaryColor = Color(playerInfo.colorOnPrimary)
     val mainTitle = playerInfo.title.ifEmpty { "No Track Playing" }
-    val mainTitleBitmap = createRoundedRobotoFlexBitmap(
+    val mainTitleBitmap = createRoundedGoogleSansFlexBitmap(
         context = context,
         text = mainTitle,
         colorInt = onPrimaryColor.toArgb(),
@@ -389,7 +389,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                                 color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Normal,
-                                fontFamily = FontFamily("m_plus_rounded_1c_regular")
+                                fontFamily = FontFamily("google_sans_flex_regular")
                             ),
                             maxLines = 1,
                             modifier = GlanceModifier.padding(top = 2.dp)
@@ -447,7 +447,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
     // Used for the cookie-shape tile frame when center tile
     val onSecondaryColor      = Color(playerInfo.colorOnSecondary)
     val detailTitle = playerInfo.title.ifEmpty { "No Track Playing" }
-    val detailTitleBitmap = createRoundedRobotoFlexBitmap(
+    val detailTitleBitmap = createRoundedGoogleSansFlexBitmap(
         context = context,
         text = detailTitle,
         colorInt = onPrimaryColor.toArgb(),
@@ -526,7 +526,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                     style = TextStyle(
                         color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
                         fontSize = 14.sp,
-                        fontFamily = FontFamily("m_plus_rounded_1c_regular")
+                        fontFamily = FontFamily("google_sans_flex_regular")
                     ),
                     maxLines = 1,
                     modifier = GlanceModifier.padding(top = 4.dp)

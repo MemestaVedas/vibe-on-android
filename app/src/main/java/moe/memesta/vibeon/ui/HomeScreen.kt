@@ -3,6 +3,7 @@ package moe.memesta.vibeon.ui
 import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -46,15 +47,16 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
@@ -80,6 +82,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.abs
+import kotlin.math.PI
+import kotlin.math.sin
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.data.AlbumInfo
 import moe.memesta.vibeon.data.ArtistItemData
@@ -97,9 +101,7 @@ import moe.memesta.vibeon.ui.utils.parseAlbum
 
 // Accent color — now uses MaterialTheme.colorScheme.primary for dynamic theming
 
-private val MPlusRoundedBold = FontFamily(
-    Font(R.font.m_plus_rounded_1c_bold, FontWeight.Bold)
-)
+private val MPlusRoundedBold = moe.memesta.vibeon.ui.theme.GoogleSansFlexFamily
 
 @OptIn(ExperimentalMaterial3Api::class)
 @androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -658,17 +660,28 @@ fun HomeScreen(
                             onSeeAllClick = onViewAllSongs,
                             modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
+                        AnimatedSquigglyLine(
+                            modifier = Modifier
+                                .padding(horizontal = Dimens.ScreenPadding)
+                                .fillMaxWidth()
+                                .height(22.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                        )
                         FadeEdgeLazyRow(
-                            contentPadding = PaddingValues(horizontal = 0.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             items(
                                 items = recentChunks,
                                 key = { chunk -> chunk.joinToString("-") { it.path } }
                             ) { columnTracks ->
                                 Column(
-                                    modifier = Modifier.width(280.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier
+                                        .width(286.dp)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.45f))
+                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     columnTracks.forEach { track ->
                                         GridTrackCard(
@@ -759,6 +772,55 @@ fun FadeEdgeLazyRow(
             content = content,
             modifier = Modifier
                 .fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun AnimatedSquigglyLine(
+    modifier: Modifier = Modifier,
+    color: Color,
+    alpha: Float = 0.92f,
+    strokeWidth: androidx.compose.ui.unit.Dp = 3.dp,
+    amplitude: androidx.compose.ui.unit.Dp = 3.dp,
+    waves: Float = 7.6f,
+    animationDurationMillis: Int = 2000,
+    samples: Int = 360
+) {
+    val density = LocalDensity.current
+    val infiniteTransition = rememberInfiniteTransition(label = "HomeSongsWave")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = animationDurationMillis, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "homeSongsWavePhase"
+    )
+
+    Canvas(modifier = modifier) {
+        if (samples < 2 || size.width <= 0f) return@Canvas
+        val centerY = size.height / 2f
+        val strokePx = with(density) { strokeWidth.toPx() }
+        val amplitudePx = with(density) { amplitude.toPx() }
+
+        val path = Path().apply {
+            val step = size.width / (samples - 1)
+            moveTo(0f, centerY + (amplitudePx * sin(phase)))
+            for (i in 1 until samples) {
+                val x = i * step
+                val theta = (x / size.width) * ((2f * PI).toFloat() * waves) + phase
+                val y = centerY + amplitudePx * sin(theta)
+                lineTo(x, y)
+            }
+        }
+
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            alpha = alpha
         )
     }
 }
