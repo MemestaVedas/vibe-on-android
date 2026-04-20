@@ -631,8 +631,8 @@ fun AppNavHost(
                         )
                     }
                 
-                    composable("server_details") {
-                        ServerDetailsScreen(
+                    composable(ServerDetailsRoute.path) {
+                        ServerDetailsRoot(
                             connectionViewModel = connectionViewModel,
                             onBackPressed = { navController.popBackStack() },
                             onDisconnect = {

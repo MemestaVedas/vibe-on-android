@@ -45,6 +45,11 @@ data object SearchRoute {
 }
 
 @Serializable
+data object ServerDetailsRoute {
+    const val path: String = "server_details"
+}
+
+@Serializable
 data class AlbumRoute(val albumName: String) {
     fun toPath(): String = "album/${albumName.urlEncode()}"
 }

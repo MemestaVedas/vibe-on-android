@@ -1,5 +1,13 @@
 <resources>
     <string name="app_name">Vibe-on</string>
+    <string name="cd_back">Back</string>
+    <string name="server_details_title">Server Details</string>
+    <string name="server_details_connected_to">Connected to</string>
+    <string name="server_details_unknown_server">Unknown Server</string>
+    <string name="server_details_favorited">Favorited</string>
+    <string name="server_details_add_to_favorites">Add to Favorites</string>
+    <string name="server_details_disconnect">Disconnect</string>
+    <string name="server_details_footer">This feature will be available shortly</string>
     <string name="widget_description">Vibe-on playback widget with album art and controls</string>
     <string name="widget_albumart_desc">Clean album art — tap to pause, edges to skip</string>
     <string name="widget_albumart_solid_desc">Solid album art — tap to pause, edges to skip</string>

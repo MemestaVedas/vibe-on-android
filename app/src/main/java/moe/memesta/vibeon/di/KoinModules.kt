@@ -3,6 +3,8 @@ package moe.memesta.vibeon.di
 import moe.memesta.vibeon.AppContainer
 import moe.memesta.vibeon.core.domain.ServerFavoritesRepository
 import moe.memesta.vibeon.data.local.SharedPrefsServerFavoritesRepository
+import moe.memesta.vibeon.ui.ServerDetailsViewModel
+import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 fun appContainerModule(container: AppContainer) = module {
@@ -18,4 +20,5 @@ fun appContainerModule(container: AppContainer) = module {
     single { container.streamRepository }
     single { container.torrentSessionSettingsRepository }
     single { container.torrentStoragePreferences }
+    viewModel { ServerDetailsViewModel(get()) }
 }
