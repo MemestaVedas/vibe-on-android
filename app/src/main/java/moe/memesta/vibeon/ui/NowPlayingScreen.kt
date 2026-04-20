@@ -663,7 +663,12 @@ fun NowPlayingContent(
         // Immersive Blurred Background
         if (!coverUrl.isNullOrEmpty()) {
             AsyncImage(
-                model = coverUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(coverUrl)
+                    .size(128)  // Blur hides detail — no need for full-res decode
+                    .crossfade(true)
+                    .memoryCacheKey("blur_bg_$coverUrl")
+                    .build(),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()

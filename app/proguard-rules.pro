@@ -1,3 +1,8 @@
+# ============================================================================
+# Vibe-On ProGuard / R8 Rules — Tightened for APK size
+# ============================================================================
+
+# --- Native Libraries ---
 # Preserve libtorrent4j native library bindings
 -keep class org.libtorrent4j.swig.** { *; }
 -keep class org.libtorrent4j.** { *; }
@@ -12,8 +17,12 @@
     native <methods>;
 }
 
-# Keep serialization classes
--keep class * implements java.io.Serializable { *; }
+# --- Serialization ---
+# Keep kotlinx.serialization (used by widget state)
+-keepclassmembers @kotlinx.serialization.Serializable class ** {
+    *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
 # Keep enum values for serialization
 -keepclassmembers enum * {
@@ -21,47 +30,44 @@
     public static ** valueOf(java.lang.String);
 }
 
-# Keep Kotlin metadata
+# --- Data Layer (JSON/WebSocket parsing uses reflection) ---
+-keep class moe.memesta.vibeon.data.model.** { *; }
+-keep class moe.memesta.vibeon.data.MediaSessionData { *; }
+-keep class moe.memesta.vibeon.data.TrackInfo { *; }
+-keep class moe.memesta.vibeon.data.QueueItem { *; }
+-keep class moe.memesta.vibeon.data.PlaylistInfo { *; }
+-keep class moe.memesta.vibeon.data.AlbumInfo { *; }
+-keep class moe.memesta.vibeon.data.ArtistItemData { *; }
+-keep class moe.memesta.vibeon.data.local.entity.** { *; }
+
+# --- Widget (Glance serialization) ---
+-keep class moe.memesta.vibeon.widget.** { *; }
+
+# --- Kotlin Metadata ---
 -keepattributes *Annotation*
 -keep class kotlin.Metadata { *; }
 
-# Keep BuildConfig
+# --- App Identity ---
 -keep class moe.memesta.vibeon.BuildConfig { *; }
 
-# Keep R8 compatibility
+# --- R8 Debug Info ---
 -keepattributes LineNumberTable,SourceFile
 -renamesourcefileattribute SourceFile
 
-# Don't warn about missing classes from optional dependencies
+# --- Hilt / Dagger ---
+# ViewModel constructors injected by Hilt
+-keepclassmembers class * extends androidx.lifecycle.ViewModel {
+    public <init>(...);
+}
 
-# Don't warn about AWT classes (not available on Android but used by JNA)
+# --- Suppress Warnings ---
+# AWT classes referenced by JNA but not available on Android
 -dontwarn java.awt.Component
 -dontwarn java.awt.GraphicsEnvironment
 -dontwarn java.awt.HeadlessException
 -dontwarn java.awt.Window
 
-# Keep application classes
--keepclassmembers class moe.memesta.vibeon.** {
-    *** *(...);
-}
-
-# Preserve Jetpack Compose
--keep class androidx.compose.** { *; }
--keepclassmembers class androidx.compose.** { *; }
-
-# Keep data classes
--keep class moe.memesta.vibeon.data.** { *; }
--keepclassmembers class moe.memesta.vibeon.data.** {
-    *** *(...);
-}
-
-# Preserve ViewModel and related classes
--keep class androidx.lifecycle.** { *; }
--keepclassmembers class * extends androidx.lifecycle.ViewModel {
-    public <init>(...);
-}
-
-# Keep Android resources
+# --- Resources ---
 -keepclassmembers class **.R$* {
     public static <fields>;
 }
