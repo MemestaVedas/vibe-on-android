@@ -201,6 +201,10 @@ dependencies {
     implementation 'com.google.dagger:hilt-android:2.53.1'
     ksp 'com.google.dagger:hilt-android-compiler:2.53.1'
 
+    // Koin (phased migration target)
+    implementation 'io.insert-koin:koin-android:3.5.6'
+    implementation 'io.insert-koin:koin-androidx-compose:3.5.6'
+
     // libtorrent4j — torrent engine (ARM only, x86 dropped for APK size)
     implementation 'org.libtorrent4j:libtorrent4j:2.1.0-31'
     implementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-31'
