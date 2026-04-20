@@ -8,3 +8,5 @@ pluginManagement {
 rootProject.name = "Vibe-on"
 include ':app'
 include ':baselineprofile'
+include ':core:domain'
+include ':core:presentation'

@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "moe.memesta.vibeon.core.presentation-mergeReleaseResources-29:/values-v16/values-v16.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\kusha\\.gradle\\caches\\8.13\\transforms\\3daaad160c798f082a5c3416205b80f8\\transformed\\core-1.12.0\\res\\values-v16\\values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "moe.memesta.vibeon.core.presentation-release-31:/values-v16/values-v16.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\kusha\\.gradle\\caches\\8.13\\transforms\\3daaad160c798f082a5c3416205b80f8\\transformed\\core-1.12.0\\res\\values-v16\\values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "65",
+                        "endOffsets": "116"
+                    }
+                }
+            ]
+        }
+    ]
+}
