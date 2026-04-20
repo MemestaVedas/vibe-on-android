@@ -33,6 +33,7 @@ import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
@@ -86,11 +87,11 @@ fun AppNavHost(
     var suppressPairingOverlay by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     
     // Handle optimistic navigation when auto-connecting to favorites
-    val connectionState by connectionViewModel.connectionState.collectAsState()
-    val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
+    val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
+    val connectedDevice by connectionViewModel.connectedDevice.collectAsStateWithLifecycle()
     
     // Album art URL + bitmap for PairingScreen morph + dynamic palette
-    val currentTrack by connectionViewModel.currentTrack.collectAsState()
+    val currentTrack by connectionViewModel.currentTrack.collectAsStateWithLifecycle()
     val albumArtUrl = currentTrack.coverUrl
     val albumMainColor = currentTrack.albumMainColor
     val albumArtBitmap = rememberBitmapFromUrl(albumArtUrl)
@@ -188,7 +189,7 @@ fun AppNavHost(
             },
             containerColor = Color.Transparent
         ) { innerPadding ->
-            val syncStatus by libraryViewModel?.syncStatus?.collectAsState() ?: remember { mutableStateOf(SyncStatus()) }
+            val syncStatus by libraryViewModel?.syncStatus?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(SyncStatus()) }
             
             Box(modifier = Modifier.fillMaxSize()) {
                 NavHost(
@@ -268,8 +269,8 @@ fun AppNavHost(
 
                 composable(DiscoveryRoute.path) {
                     // Observe connection state for optimistic navigation
-                    val connectionState by connectionViewModel.connectionState.collectAsState()
-                    val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
+                    val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
+                    val connectedDevice by connectionViewModel.connectedDevice.collectAsStateWithLifecycle()
                     
                     // Optimistically navigate to library when connecting
                     LaunchedEffect(connectionState) {
@@ -288,7 +289,7 @@ fun AppNavHost(
                         }
                     }
                     
-                    val devices by connectionViewModel.discoveredDevices.collectAsState()
+                    val devices by connectionViewModel.discoveredDevices.collectAsStateWithLifecycle()
 
                     moe.memesta.vibeon.ui.pairing.PairingScreen(
                         devices = devices,
@@ -352,9 +353,9 @@ fun AppNavHost(
                         onDispose { connectionViewModel.stopScanning() }
                     }
 
-                    val devices by connectionViewModel.discoveredDevices.collectAsState()
-                    val connectionState by connectionViewModel.connectionState.collectAsState()
-                    val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
+                    val devices by connectionViewModel.discoveredDevices.collectAsStateWithLifecycle()
+                    val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
+                    val connectedDevice by connectionViewModel.connectedDevice.collectAsStateWithLifecycle()
 
                     LaunchedEffect(connectionState, connectedDevice) {
                         if (connectionState == ConnectionState.CONNECTING && connectedDevice != null) {

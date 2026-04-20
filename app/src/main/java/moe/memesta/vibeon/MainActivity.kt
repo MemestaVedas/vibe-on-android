@@ -19,7 +19,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +32,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.common.Player
@@ -197,10 +197,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             // Observe current track cover for dynamic theming
-            val currentTrack by connectionViewModel.currentTrack.collectAsState()
-            val displayLanguage by playerSettingsRepository.displayLanguage.collectAsState()
-            val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsState()
-            val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsState()
+            val currentTrack by connectionViewModel.currentTrack.collectAsStateWithLifecycle()
+            val displayLanguage by playerSettingsRepository.displayLanguage.collectAsStateWithLifecycle()
+            val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsStateWithLifecycle()
+            val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsStateWithLifecycle()
 
             CompositionLocalProvider(
                 moe.memesta.vibeon.ui.utils.LocalDisplayLanguage provides displayLanguage,
