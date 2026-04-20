@@ -3,12 +3,19 @@ package moe.memesta.vibeon.widget
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.text.TextPaint
+import android.text.TextUtils
+import android.util.TypedValue
 import android.util.Log
 import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.res.ResourcesCompat
 import androidx.glance.*
 import androidx.glance.layout.*
 import androidx.glance.appwidget.*
@@ -19,13 +26,13 @@ import androidx.glance.text.*
 import androidx.glance.unit.ColorProvider
 import moe.memesta.vibeon.MainActivity
 import moe.memesta.vibeon.R
+import kotlin.math.roundToInt
 
 private val keyAction = ActionParameters.Key<String>("action")
 private const val ACT_PLAY_PAUSE = "play_pause"
 private const val ACT_PREV       = "prev"
 private const val ACT_NEXT       = "next"
 private const val ACT_TOGGLE_OUT = "toggle_output"
-private const val ACT_LIKE       = "like"
 private const val ACT_TOGGLE_MORE = "toggle_more_options"
 private const val ACT_CLOSE_MORE  = "close_more_options"
 private const val ACT_SHUFFLE     = "toggle_shuffle"
@@ -69,17 +76,105 @@ private object AlbumArtCache {
     }
 }
 
+/**
+ * LRU cache for rendered title bitmaps to avoid re-rasterizing identical text.
+ */
+private object TitleBitmapCache {
+    private const val CACHE_SIZE_BYTES = 2 * 1024 * 1024 // 2 MiB
+
+    private val lruCache = object : LruCache<String, Bitmap>(CACHE_SIZE_BYTES) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
+    }
+
+    fun get(key: String): Bitmap? = lruCache.get(key)
+
+    fun put(key: String, bitmap: Bitmap) {
+        if (get(key) == null) {
+            lruCache.put(key, bitmap)
+        }
+    }
+}
+
+private fun titleWeightForLength(charCount: Int): Int = when {
+    charCount <= 10 -> 920
+    charCount <= 20 -> ((920f + (420f - 920f) * ((charCount - 10) / 10f))).toInt()
+    charCount <= 34 -> ((420f + (320f - 420f) * ((charCount - 20) / 14f))).toInt()
+    else -> 300
+}
+
+private fun titleRoundnessForLength(charCount: Int): Int = when {
+    charCount <= 10 -> 160
+    charCount <= 24 -> 140
+    else -> 120
+}
+
+private fun createRoundedRobotoFlexBitmap(
+    context: Context,
+    text: String,
+    colorInt: Int,
+    textSizeSp: Float,
+    maxWidthDp: Float
+): Bitmap {
+    val safeText = text.ifEmpty { "No Track Playing" }
+    val textWeight = titleWeightForLength(safeText.length)
+    val textRoundness = titleRoundnessForLength(safeText.length)
+    val density = context.resources.displayMetrics.density
+    val textSizePx = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_SP,
+        textSizeSp,
+        context.resources.displayMetrics
+    )
+    val maxWidthPx = (maxWidthDp * density).roundToInt().coerceAtLeast(1)
+    val cacheKey = "$safeText|$colorInt|$textWeight|$textRoundness|$textSizePx|$maxWidthPx"
+
+    TitleBitmapCache.get(cacheKey)?.let { return it }
+
+    val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = textSizePx
+        color = colorInt
+        typeface = ResourcesCompat.getFont(context, R.font.roboto_flex_variable)
+        // Aggressive short-title emphasis with rounded terminals.
+        fontVariationSettings = "'wght' $textWeight, 'ROND' $textRoundness"
+        isFakeBoldText = textWeight >= 760
+        isSubpixelText = true
+    }
+
+    val displayText = TextUtils.ellipsize(
+        safeText,
+        paint,
+        maxWidthPx.toFloat(),
+        TextUtils.TruncateAt.END
+    ).toString()
+
+    val textWidth = paint.measureText(displayText).roundToInt().coerceAtLeast(1)
+    val fontMetrics = paint.fontMetricsInt
+    val textHeight = (fontMetrics.descent - fontMetrics.ascent).coerceAtLeast(1)
+    val bitmap = Bitmap.createBitmap(textWidth, textHeight, Bitmap.Config.ARGB_8888)
+    bitmap.density = context.resources.displayMetrics.densityDpi
+    val canvas = Canvas(bitmap)
+    canvas.drawText(displayText, 0f, -fontMetrics.ascent.toFloat(), paint)
+
+    TitleBitmapCache.put(cacheKey, bitmap)
+    return bitmap
+}
+
 private fun createBottomGradientBitmap(colorInt: Int): Bitmap {
     val bitmap = Bitmap.createBitmap(1, 100, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
     val paint = android.graphics.Paint()
     
-    val transparent = colorInt and 0x00FFFFFF
-    // Gradient starts visible from ~30% from top, fully opaque at bottom
+    val rgb = colorInt and 0x00FFFFFF
+    val transparent = rgb
+    val alpha30 = ((0.30f * 255f).roundToInt().coerceIn(0, 255) shl 24) or rgb
+    val alpha70 = ((0.70f * 255f).roundToInt().coerceIn(0, 255) shl 24) or rgb
+    val opaque = (0xFF shl 24) or rgb
+
+    // Requested transparency curve:
+    // 50% -> 0% opacity, 60% -> 30% opacity, 70% -> 70% opacity.
     paint.shader = android.graphics.LinearGradient(
         0f, 0f, 0f, 100f,
-        intArrayOf(transparent, transparent, colorInt),
-        floatArrayOf(0f, 0.30f, 1f),
+        intArrayOf(transparent, transparent, alpha30, alpha70, opaque),
+        floatArrayOf(0f, 0.50f, 0.60f, 0.70f, 1f),
         android.graphics.Shader.TileMode.CLAMP
     )
     canvas.drawRect(0f, 0f, 1f, 100f, paint)
@@ -97,6 +192,7 @@ private fun WidgetContent(playerInfo: WidgetPlaybackState) {
 
 @Composable
 private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
+    val context = LocalContext.current
     val albumBitmap = playerInfo.albumArtBitmapData?.let { data ->
         try {
             val cacheKey = data.contentHashCode().toString()
@@ -114,10 +210,14 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
 
     val primaryColor = Color(playerInfo.colorPrimary)
     val onPrimaryColor = Color(playerInfo.colorOnPrimary)
-    val secondaryContainer = Color(playerInfo.colorSecondaryContainer)
-    val onSecondaryContainer = Color(playerInfo.colorOnSecondaryContainer)
-    val errorContainer = Color(playerInfo.colorErrorContainer)
-    val onErrorContainer = Color(playerInfo.colorOnErrorContainer)
+    val mainTitle = playerInfo.title.ifEmpty { "No Track Playing" }
+    val mainTitleBitmap = createRoundedRobotoFlexBitmap(
+        context = context,
+        text = mainTitle,
+        colorInt = onPrimaryColor.toArgb(),
+        textSizeSp = 20f,
+        maxWidthDp = 236f
+    )
 
     Box(
         modifier = GlanceModifier
@@ -141,6 +241,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 contentScale = ContentScale.FillBounds,
                 modifier = GlanceModifier.fillMaxSize()
             )
+
         } else {
             // Default background if no album art
             Box(
@@ -192,9 +293,9 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             .background(
                                 ColorProvider(
                                     if (playerInfo.isMobilePlayback)
-                                        onPrimaryColor.copy(alpha = 0.88f)  // light circle when using phone
+                                        onPrimaryColor.copy(alpha = 1.0f)  // light circle when using phone
                                     else
-                                        secondaryContainer.copy(alpha = 0.88f) // muted circle when using PC
+                                        primaryColor.copy(alpha = 1.0f) // invert phone colors when using PC
                                 )
                             )
                             .clickable(
@@ -216,7 +317,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                                     if (playerInfo.isMobilePlayback)
                                         primaryColor  // dark icon on light bg
                                     else
-                                        onSecondaryContainer // light icon on muted bg
+                                        onPrimaryColor // invert phone colors when using PC
                                 )
                             )
                         )
@@ -263,12 +364,12 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 ) {}
             }
 
-            // ROW 3: Bottom (Text + Like anchored to bottom of section)
+            // ROW 3: Bottom (Text anchored to bottom of section)
             Box(
                 modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                 contentAlignment = Alignment.BottomStart
             ) {
-                // Visual: single Row, both text and heart share the same bottom baseline
+                // Visual: title and artist locked to bottom baseline
                 Row(
                     modifier = GlanceModifier
                         .fillMaxWidth()
@@ -277,15 +378,10 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                 ) {
                     // Title + Artist
                     Column(modifier = GlanceModifier.defaultWeight()) {
-                        Text(
-                            text = playerInfo.title.ifEmpty { "No Track Playing" },
-                            style = TextStyle(
-                                color = ColorProvider(onPrimaryColor),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily("m_plus_rounded_1c_bold")
-                            ),
-                            maxLines = 1
+                        Image(
+                            provider = ImageProvider(mainTitleBitmap),
+                            contentDescription = mainTitle,
+                            modifier = GlanceModifier.height(26.dp)
                         )
                         Text(
                             text = playerInfo.artist.ifEmpty { "Unknown Artist" },
@@ -299,25 +395,6 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                             modifier = GlanceModifier.padding(top = 2.dp)
                         )
                     }
-
-                    // Like — direct child of Row, no Box wrapper, same bottom baseline as text
-                    Image(
-                        provider = if (playerInfo.isLiked)
-                            ImageProvider(R.drawable.ic_widget_heart_filled)
-                        else
-                            ImageProvider(R.drawable.ic_widget_heart_outline),
-                        contentDescription = if (playerInfo.isLiked) "Unlike" else "Like",
-                        modifier = GlanceModifier
-                            .size(34.dp)
-                            .clickable(
-                                actionRunCallback<WidgetActionCallback>(
-                                    actionParametersOf(keyAction to ACT_LIKE)
-                                )
-                            ),
-                        colorFilter = ColorFilter.tint(
-                            ColorProvider(if (playerInfo.isLiked) errorContainer else onPrimaryColor)
-                        )
-                    )
                 }
 
                 // Invisible tap zones overlay (fullsize, covers the section)
@@ -342,6 +419,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
 
 @Composable
 private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
+    val context = LocalContext.current
     val albumBitmap = playerInfo.albumArtBitmapData?.let { data ->
         try {
             val cacheKey = data.contentHashCode().toString()
@@ -368,6 +446,14 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
     val onErrorContainer      = Color(playerInfo.colorOnErrorContainer)
     // Used for the cookie-shape tile frame when center tile
     val onSecondaryColor      = Color(playerInfo.colorOnSecondary)
+    val detailTitle = playerInfo.title.ifEmpty { "No Track Playing" }
+    val detailTitleBitmap = createRoundedRobotoFlexBitmap(
+        context = context,
+        text = detailTitle,
+        colorInt = onPrimaryColor.toArgb(),
+        textSizeSp = 30f,
+        maxWidthDp = 320f
+    )
 
     Box(modifier = GlanceModifier.fillMaxSize().cornerRadius(28.dp)) {
 
@@ -401,7 +487,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                                 if (playerInfo.isMobilePlayback)
                                     onPrimaryColor.copy(alpha = 0.88f)
                                 else
-                                    secondaryContainer.copy(alpha = 0.88f)
+                                    primaryColor.copy(alpha = 0.88f)
                             )
                         )
                         .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_TOGGLE_OUT))),
@@ -415,7 +501,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                         colorFilter = ColorFilter.tint(
                             ColorProvider(
                                 if (playerInfo.isMobilePlayback) primaryColor
-                                else onSecondaryContainer
+                                else onPrimaryColor
                             )
                         )
                     )
@@ -424,15 +510,10 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
 
             // ROW 2 ─ Title + Artist/Album
             Column(modifier = GlanceModifier.fillMaxWidth().padding(top = 8.dp)) {
-                Text(
-                    text = playerInfo.title.ifEmpty { "No Track Playing" },
-                    style = TextStyle(
-                        color = ColorProvider(onPrimaryColor),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily("m_plus_rounded_1c_bold")
-                    ),
-                    maxLines = 1
+                Image(
+                    provider = ImageProvider(detailTitleBitmap),
+                    contentDescription = detailTitle,
+                    modifier = GlanceModifier.height(36.dp)
                 )
                 Text(
                     text = buildString {
@@ -539,7 +620,6 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
             //   Shuffle  → ic_star_badge  (primaryContainer bg)         + shuffle icon (onPrimaryContainer)
             //   Repeat   → cornerRadius   (secondaryContainer bg)        + repeat icon (onSecondaryContainer)
             //   Volume   → ic_spiky_star  (errorContainer bg = red)      + volume icon (onErrorContainer)
-            //   Like     → heart icon     (errorContainer when liked)
             Row(
                 modifier = GlanceModifier.fillMaxWidth().padding(bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -616,22 +696,6 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                 }
 
                 Spacer(modifier = GlanceModifier.defaultWeight())
-
-                // Like — heart icon, errorContainer when liked
-                Box(
-                    modifier = GlanceModifier
-                        .size(54.dp)
-                        .clickable(actionRunCallback<WidgetActionCallback>(actionParametersOf(keyAction to ACT_LIKE))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        provider = if (playerInfo.isLiked) ImageProvider(R.drawable.ic_widget_heart_filled)
-                                   else ImageProvider(R.drawable.ic_widget_heart_outline),
-                        contentDescription = "Like",
-                        modifier = GlanceModifier.size(40.dp),
-                        colorFilter = ColorFilter.tint(ColorProvider(if (playerInfo.isLiked) errorContainer else onPrimaryColor))
-                    )
-                }
             }
         }
 

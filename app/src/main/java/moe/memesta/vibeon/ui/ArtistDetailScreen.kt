@@ -2,6 +2,12 @@ package moe.memesta.vibeon.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -27,6 +33,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -55,7 +62,9 @@ import androidx.compose.foundation.gestures.scrollBy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
@@ -235,6 +244,11 @@ fun ArtistDetailScreen(
 
             item(key = "split-anchor") {
                 Spacer(modifier = Modifier.height(24.dp))
+                SquigglyLineSeparator(
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenPadding),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Songs",
                     style = MaterialTheme.typography.titleMedium,
@@ -502,44 +516,62 @@ private fun YearAlbumLane(
 private fun SquigglyLineSeparator(
     color: Color,
     modifier: Modifier = Modifier,
-    waveHeight: Float = 4.5f,
-    strokeWidth: Float = 2f
+    waveHeight: Dp = 3.dp,
+    strokeWidth: Dp = 3.dp,
+    waves: Float = 7.6f,
+    animate: Boolean = true,
+    phase: Float = 0f,
+    animationDurationMillis: Int = 2000,
+    alpha: Float = 0.92f,
+    samples: Int = 400
 ) {
+    val density = LocalDensity.current
+    val currentPhase = if (animate) {
+        val infiniteTransition = rememberInfiniteTransition(label = "ArtistSplitWave")
+        val animatedPhase by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 2f * PI.toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = animationDurationMillis, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "artistSplitPhase"
+        )
+        animatedPhase
+    } else {
+        phase
+    }
+
     Canvas(
         modifier = modifier
             .fillMaxWidth()
             .height(18.dp)
     ) {
+        if (samples < 2 || size.width <= 0f) return@Canvas
+
         val centerY = size.height / 2f
-        val path = Path().apply { moveTo(0f, centerY) }
-        val segmentWidth = 16f
-        var x = 0f
-        var waveUp = true
-
-        while (x < size.width) {
-            val nextX = (x + segmentWidth).coerceAtMost(size.width)
-            val controlX1 = x + segmentWidth * 0.3f
-            val controlX2 = x + segmentWidth * 0.7f
-            val controlY = if (waveUp) centerY - waveHeight else centerY + waveHeight
-
-            path.cubicTo(
-                controlX1, centerY,
-                controlX2, controlY,
-                nextX, centerY
-            )
-
-            x = nextX
-            waveUp = !waveUp
+        val strokePx = with(density) { strokeWidth.toPx() }
+        val amplitudePx = with(density) { waveHeight.toPx() }
+        val path = Path().apply {
+            val step = size.width / (samples - 1)
+            moveTo(0f, centerY + (amplitudePx * sin(currentPhase)))
+            for (i in 1 until samples) {
+                val x = i * step
+                val theta = (x / size.width) * (2f * PI.toFloat() * waves) + currentPhase
+                val y = centerY + amplitudePx * sin(theta)
+                lineTo(x, y)
+            }
         }
 
         drawPath(
             path = path,
             color = color,
             style = Stroke(
-                width = strokeWidth,
+                width = strokePx,
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round
-            )
+            ),
+            alpha = alpha
         )
     }
 }
