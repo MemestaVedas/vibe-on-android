@@ -33,3 +33,4 @@ AGENT_GUIDELINES.md
 # My custom additions based on directory listing
 java_pid*.hprof
 app/build/
+**/bin/
