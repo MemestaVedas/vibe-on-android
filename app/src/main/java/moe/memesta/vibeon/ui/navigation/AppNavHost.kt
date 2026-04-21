@@ -622,7 +622,7 @@ fun AppNavHost(
                     }
                 
                     composable("server_details") {
-                        ServerDetailsScreen(
+                        ServerDetailsRoot(
                             connectionViewModel = connectionViewModel,
                             onBackPressed = { navController.popBackStack() },
                             onDisconnect = {
