@@ -13,6 +13,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import moe.memesta.vibeon.core.domain.DataError
 import java.util.concurrent.TimeUnit
 import moe.memesta.vibeon.data.stats.PlaybackEvent
 
@@ -89,7 +90,9 @@ class MusicStreamClient(
     
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
-    
+
+    private val _networkError = MutableStateFlow<DataError.Network?>(null)
+    val networkError: StateFlow<DataError.Network?> = _networkError.asStateFlow()    
     /**
      * Get server information
      */
@@ -129,7 +132,7 @@ class MusicStreamClient(
         try {
             _isLoading.value = true
             _error.value = null
-            
+            _networkError.value = null
             val url = "$baseUrl/api/library?offset=$offset&limit=$limit"
             Log.i("MusicStreamClient", "URL: $url")
             
@@ -158,6 +161,7 @@ class MusicStreamClient(
                 LibraryResponse(tracks, total)
             } else {
                 val errorMsg = "HTTP Error ${response.code}: ${response.message}"
+                _networkError.value = ErrorMapper.mapHttpCode(response.code)
                 _error.value = errorMsg
                 Log.e("MusicStreamClient", "❌ $errorMsg\nURL: $url")
                 null
@@ -165,21 +169,25 @@ class MusicStreamClient(
         } catch (e: java.net.ConnectException) {
             val errorMsg = "Cannot connect to $host:$port\n\n• Is the desktop app running?\n• Are you on the same WiFi?\n• Is the IP address correct?"
             _error.value = errorMsg
+            _networkError.value = ErrorMapper.mapException(e)
             Log.e("MusicStreamClient", "❌ Connection refused: ${e.message}")
             null
         } catch (e: java.net.UnknownHostException) {
             val errorMsg = "Cannot resolve host: $host\n\nCheck if the IP address is correct."
             _error.value = errorMsg
+            _networkError.value = ErrorMapper.mapException(e)
             Log.e("MusicStreamClient", "❌ Unknown host: ${e.message}")
             null
         } catch (e: java.net.SocketTimeoutException) {
             val errorMsg = "Connection timeout\n\nThe server is not responding. Check your network connection."
             _error.value = errorMsg
+            _networkError.value = ErrorMapper.mapException(e)
             Log.e("MusicStreamClient", "❌ Timeout: ${e.message}")
             null
         } catch (e: Exception) {
             val errorMsg = "Network error: ${e.javaClass.simpleName}\n${e.message}"
             _error.value = errorMsg
+            _networkError.value = ErrorMapper.mapException(e)
             Log.e("MusicStreamClient", "❌ Error: ${e.message}", e)
             null
         } finally {
@@ -194,7 +202,7 @@ class MusicStreamClient(
         try {
             _isLoading.value = true
             _error.value = null
-            
+            _networkError.value = null
             val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
             val url = "$baseUrl/api/library/search?q=$encodedQuery&offset=$offset&limit=$limit"
             val request = Request.Builder()
@@ -215,13 +223,16 @@ class MusicStreamClient(
                 tracks
             } else {
                 val errorMsg = "Failed to search library: ${response.code}"
+                _networkError.value = ErrorMapper.mapHttpCode(response.code)
                 _error.value = errorMsg
                 Log.e("MusicStreamClient", "❌ $errorMsg")
                 null
             }
         } catch (e: Exception) {
             val errorMsg = "Error searching library: ${e.message}"
+            _networkError.value = ErrorMapper.mapException(e)
             _error.value = errorMsg
+            _networkError.value = ErrorMapper.mapException(e)
             Log.e("MusicStreamClient", errorMsg, e)
             null
         } finally {
