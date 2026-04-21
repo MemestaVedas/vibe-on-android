@@ -102,6 +102,9 @@ fun SettingsScreen(
     val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsState()
     val scrubberMode by playerSettingsRepository.scrubberMode.collectAsState()
     val nowPlayingFontMode by playerSettingsRepository.nowPlayingFontMode.collectAsState()
+    val nowPlayingManualWidth by playerSettingsRepository.nowPlayingManualWidth.collectAsState()
+    val nowPlayingManualWeight by playerSettingsRepository.nowPlayingManualWeight.collectAsState()
+    val nowPlayingManualRoundness by playerSettingsRepository.nowPlayingManualRoundness.collectAsState()
     val widgetFontMode by playerSettingsRepository.widgetFontMode.collectAsState()
     val widgetManualWidth by playerSettingsRepository.widgetManualWidth.collectAsState()
     val widgetManualWeight by playerSettingsRepository.widgetManualWeight.collectAsState()
@@ -566,7 +569,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Dynamic makes short titles heavier and long titles lighter. Automatic keeps a stable title weight.",
+                        text = "Dynamic adapts title weight to length. Manual gives direct control over width, weight, and roundness.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -576,9 +579,9 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf(NowPlayingFontMode.DYNAMIC, NowPlayingFontMode.AUTOMATIC).forEach { mode ->
+                        listOf(NowPlayingFontMode.DYNAMIC, NowPlayingFontMode.MANUAL).forEach { mode ->
                             val isSelected = nowPlayingFontMode == mode
-                            val label = if (mode == NowPlayingFontMode.DYNAMIC) "Dynamic" else "Automatic"
+                            val label = if (mode == NowPlayingFontMode.DYNAMIC) "Dynamic" else "Manual"
                             FilterChip(
                                 selected = isSelected,
                                 onClick = { playerSettingsRepository.setNowPlayingFontMode(mode) },
@@ -594,6 +597,29 @@ fun SettingsScreen(
                                 )
                             )
                         }
+                    }
+                    if (nowPlayingFontMode == NowPlayingFontMode.MANUAL) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        FontAxisSlider(
+                            label = "Width",
+                            value = nowPlayingManualWidth,
+                            valueRange = 75..125,
+                            onValueChanged = playerSettingsRepository::setNowPlayingManualWidth
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FontAxisSlider(
+                            label = "Weight",
+                            value = nowPlayingManualWeight,
+                            valueRange = 300..900,
+                            onValueChanged = playerSettingsRepository::setNowPlayingManualWeight
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FontAxisSlider(
+                            label = "Roundness",
+                            value = nowPlayingManualRoundness,
+                            valueRange = 0..200,
+                            onValueChanged = playerSettingsRepository::setNowPlayingManualRoundness
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))

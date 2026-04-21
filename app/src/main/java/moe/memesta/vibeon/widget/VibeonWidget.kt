@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.TypedValue
@@ -124,6 +125,11 @@ private fun createRoundedGoogleSansFlexBitmap(
     val textWeight = if (isManual) manualWeight.coerceIn(300, 900) else titleWeightForLength(safeText.length)
     val textRoundness = if (isManual) manualRoundness.coerceIn(0, 200) else titleRoundnessForLength(safeText.length)
     val textWidthAxis = if (isManual) manualWidth.coerceIn(75, 125) else 100
+    val roundnessFontRes = when {
+        textRoundness >= 140 -> R.font.norline_rounded
+        textRoundness >= 80 -> R.font.m_plus_rounded_1c_regular
+        else -> R.font.google_sans_flex
+    }
     val density = context.resources.displayMetrics.density
     val textSizePx = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_SP,
@@ -131,16 +137,17 @@ private fun createRoundedGoogleSansFlexBitmap(
         context.resources.displayMetrics
     )
     val maxWidthPx = (maxWidthDp * density).roundToInt().coerceAtLeast(1)
-    val cacheKey = "$safeText|$colorInt|$textWeight|$textRoundness|$textWidthAxis|$textSizePx|$maxWidthPx"
+    val cacheKey = "$safeText|$colorInt|$textWeight|$textRoundness|$textWidthAxis|$roundnessFontRes|$textSizePx|$maxWidthPx"
 
     TitleBitmapCache.get(cacheKey)?.let { return it }
+
+    val baseTypeface = ResourcesCompat.getFont(context, roundnessFontRes)
 
     val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = textSizePx
         color = colorInt
-        typeface = ResourcesCompat.getFont(context, R.font.google_sans_flex)
-        // Aggressive short-title emphasis with rounded terminals.
-        fontVariationSettings = "'wght' $textWeight, 'wdth' $textWidthAxis, 'ROND' $textRoundness"
+        typeface = baseTypeface ?: Typeface.DEFAULT
+        textScaleX = textWidthAxis / 100f
         isFakeBoldText = textWeight >= 760
         isSubpixelText = true
     }

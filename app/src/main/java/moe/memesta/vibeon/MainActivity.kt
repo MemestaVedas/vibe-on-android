@@ -202,12 +202,18 @@ class MainActivity : ComponentActivity() {
             val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsStateWithLifecycle()
             val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsStateWithLifecycle()
             val nowPlayingFontMode by playerSettingsRepository.nowPlayingFontMode.collectAsStateWithLifecycle()
+            val nowPlayingManualWidth by playerSettingsRepository.nowPlayingManualWidth.collectAsStateWithLifecycle()
+            val nowPlayingManualWeight by playerSettingsRepository.nowPlayingManualWeight.collectAsStateWithLifecycle()
+            val nowPlayingManualRoundness by playerSettingsRepository.nowPlayingManualRoundness.collectAsStateWithLifecycle()
 
             CompositionLocalProvider(
                 moe.memesta.vibeon.ui.utils.LocalDisplayLanguage provides displayLanguage,
                 moe.memesta.vibeon.ui.utils.LocalAlbumViewStyle provides albumViewStyle,
                 moe.memesta.vibeon.ui.utils.LocalArtistViewStyle provides artistViewStyle,
-                moe.memesta.vibeon.ui.utils.LocalNowPlayingFontMode provides nowPlayingFontMode
+                moe.memesta.vibeon.ui.utils.LocalNowPlayingFontMode provides nowPlayingFontMode,
+                moe.memesta.vibeon.ui.utils.LocalNowPlayingManualWidth provides nowPlayingManualWidth,
+                moe.memesta.vibeon.ui.utils.LocalNowPlayingManualWeight provides nowPlayingManualWeight,
+                moe.memesta.vibeon.ui.utils.LocalNowPlayingManualRoundness provides nowPlayingManualRoundness
             ) {
                 moe.memesta.vibeon.ui.theme.DynamicTheme(albumMainColor = currentTrack.albumMainColor) {
                     // Initialize ViewModels or generic state if needed for global context

@@ -56,12 +56,16 @@ enum class ScrubberMode(val value: String) {
 }
 
 enum class NowPlayingFontMode(val value: String) {
-    AUTOMATIC("automatic"),
-    DYNAMIC("dynamic");
+    DYNAMIC("dynamic"),
+    MANUAL("manual");
 
     companion object {
         fun fromString(value: String): NowPlayingFontMode {
-            return entries.find { it.value == value } ?: AUTOMATIC
+            return when (value.lowercase()) {
+                DYNAMIC.value -> DYNAMIC
+                MANUAL.value, "automatic" -> MANUAL
+                else -> MANUAL
+            }
         }
     }
 }
@@ -148,13 +152,37 @@ class PlayerSettingsRepository(context: Context) {
     val nowPlayingFontMode: StateFlow<NowPlayingFontMode> = dataStore.data
         .map { preferences ->
             NowPlayingFontMode.fromString(
-                preferences[KEY_NOW_PLAYING_FONT_MODE] ?: NowPlayingFontMode.AUTOMATIC.value
+                preferences[KEY_NOW_PLAYING_FONT_MODE] ?: NowPlayingFontMode.MANUAL.value
             )
         }
         .stateIn(
             scope = repositoryScope,
             started = SharingStarted.Eagerly,
-            initialValue = NowPlayingFontMode.AUTOMATIC
+            initialValue = NowPlayingFontMode.MANUAL
+        )
+
+    val nowPlayingManualWidth: StateFlow<Int> = dataStore.data
+        .map { preferences -> preferences[KEY_NOW_PLAYING_MANUAL_WIDTH] ?: 100 }
+        .stateIn(
+            scope = repositoryScope,
+            started = SharingStarted.Eagerly,
+            initialValue = 100
+        )
+
+    val nowPlayingManualWeight: StateFlow<Int> = dataStore.data
+        .map { preferences -> preferences[KEY_NOW_PLAYING_MANUAL_WEIGHT] ?: 640 }
+        .stateIn(
+            scope = repositoryScope,
+            started = SharingStarted.Eagerly,
+            initialValue = 640
+        )
+
+    val nowPlayingManualRoundness: StateFlow<Int> = dataStore.data
+        .map { preferences -> preferences[KEY_NOW_PLAYING_MANUAL_ROUNDNESS] ?: 140 }
+        .stateIn(
+            scope = repositoryScope,
+            started = SharingStarted.Eagerly,
+            initialValue = 140
         )
 
     val widgetFontMode: StateFlow<WidgetFontMode> = dataStore.data
@@ -267,6 +295,30 @@ class PlayerSettingsRepository(context: Context) {
         }
     }
 
+    fun setNowPlayingManualWidth(width: Int) {
+        repositoryScope.launch {
+            dataStore.edit { preferences ->
+                preferences[KEY_NOW_PLAYING_MANUAL_WIDTH] = width.coerceIn(75, 125)
+            }
+        }
+    }
+
+    fun setNowPlayingManualWeight(weight: Int) {
+        repositoryScope.launch {
+            dataStore.edit { preferences ->
+                preferences[KEY_NOW_PLAYING_MANUAL_WEIGHT] = weight.coerceIn(300, 900)
+            }
+        }
+    }
+
+    fun setNowPlayingManualRoundness(roundness: Int) {
+        repositoryScope.launch {
+            dataStore.edit { preferences ->
+                preferences[KEY_NOW_PLAYING_MANUAL_ROUNDNESS] = roundness.coerceIn(0, 200)
+            }
+        }
+    }
+
     fun setWidgetFontMode(mode: WidgetFontMode) {
         repositoryScope.launch {
             dataStore.edit { preferences ->
@@ -309,6 +361,9 @@ class PlayerSettingsRepository(context: Context) {
         private val KEY_TRANSITION_MODE = stringPreferencesKey("transition_mode")
         private val KEY_TRANSITION_DURATION_MS = intPreferencesKey("transition_duration_ms")
         private val KEY_NOW_PLAYING_FONT_MODE = stringPreferencesKey("now_playing_font_mode")
+        private val KEY_NOW_PLAYING_MANUAL_WIDTH = intPreferencesKey("now_playing_manual_width")
+        private val KEY_NOW_PLAYING_MANUAL_WEIGHT = intPreferencesKey("now_playing_manual_weight")
+        private val KEY_NOW_PLAYING_MANUAL_ROUNDNESS = intPreferencesKey("now_playing_manual_roundness")
         private val KEY_WIDGET_FONT_MODE = stringPreferencesKey("widget_font_mode")
         private val KEY_WIDGET_MANUAL_WIDTH = intPreferencesKey("widget_manual_width")
         private val KEY_WIDGET_MANUAL_WEIGHT = intPreferencesKey("widget_manual_weight")
