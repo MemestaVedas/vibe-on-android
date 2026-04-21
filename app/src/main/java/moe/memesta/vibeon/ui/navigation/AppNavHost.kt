@@ -546,7 +546,7 @@ fun AppNavHost(
                         popEnterTransition = { verticalEnterTransition() },
                         popExitTransition  = { verticalExitTransition() }
                     ) { backStackEntry ->
-                    val albumName = backStackEntry.arguments?.getString("albumName") ?: return@composable
+                    val albumName = backStackEntry.requireStringArg("albumName")
                     // Use shared LibraryViewModel
 
                     if (libraryViewModel != null) {
@@ -570,7 +570,7 @@ fun AppNavHost(
                         popEnterTransition = { verticalEnterTransition() },
                         popExitTransition  = { verticalExitTransition() }
                     ) { backStackEntry ->
-                    val artistName = backStackEntry.arguments?.getString("artistName") ?: return@composable
+                    val artistName = backStackEntry.requireStringArg("artistName")
                         // Use shared LibraryViewModel
 
                     if (libraryViewModel != null) {
@@ -589,7 +589,7 @@ fun AppNavHost(
                     route = "playlist/{playlistId}",
                     arguments = listOf(androidx.navigation.navArgument("playlistId") { type = androidx.navigation.NavType.StringType })
                 ) { backStackEntry ->
-                    val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
+                    val playlistId = backStackEntry.requireStringArg("playlistId")
 
                     if (libraryViewModel != null) {
                         PlaylistDetailScreen(
