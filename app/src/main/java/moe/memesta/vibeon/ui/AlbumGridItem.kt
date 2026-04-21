@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -16,9 +15,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -117,12 +118,6 @@ fun AlbumGridItem(
         animationSpec = tween(durationMillis = 220),
         label = "album_on_primary"
     )
-    val pillContainerColor = remember(primaryColor) {
-        val target = if (primaryColor.luminance() > 0.5f) Color.Black else Color.White
-        lerp(primaryColor, target, 0.26f)
-    }
-    val onPillContainerColor = contentColorFor(pillContainerColor)
-    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -171,45 +166,14 @@ fun AlbumGridItem(
             }
 
             if (songCount > 0) {
-                Surface(
+                CornerPeelBadge(
+                    songCount = songCount,
+                    containerColor = primaryColor,
+                    contentColor = onPrimaryColor,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 8.dp),
-                    shape = RoundedCornerShape(999.dp),
-                    color = pillContainerColor.copy(alpha = 0.94f),
-                    tonalElevation = 1.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(start = 4.dp, end = 6.dp, top = 3.dp, bottom = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.MusicNote,
-                            contentDescription = null,
-                            tint = onPillContainerColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Surface(
-                            shape = CircleShape,
-                            color = primaryColor,
-                            tonalElevation = 0.dp
-                        ) {
-                            Box(
-                                modifier = Modifier.size(26.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = songCount.toString(),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.W700,
-                                    color = onPrimaryColor,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
+                        .padding(top = 8.dp, end = 8.dp)
+                )
             }
             
             // Gradient overlay and text at bottom
@@ -270,6 +234,92 @@ fun AlbumGridItem(
                     
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CornerPeelBadge(
+    songCount: Int,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val foldAccent = remember(containerColor) {
+        val target = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
+        lerp(containerColor, target, 0.22f)
+    }
+    val foldShadow = Color.Black.copy(alpha = 0.24f)
+    val creaseColor = contentColor.copy(alpha = 0.34f)
+
+    Box(
+        modifier = modifier
+            .width(60.dp)
+            .height(46.dp)
+            .drawWithCache {
+                val peelWidth = size.width * 0.34f
+                val peelDrop = size.height * 0.36f
+                val foldInset = size.width * 0.18f
+                val foldPath = Path().apply {
+                    moveTo(size.width - peelWidth, 0f)
+                    lineTo(size.width, peelDrop)
+                    lineTo(size.width - foldInset, peelDrop * 1.1f)
+                    lineTo(size.width - peelWidth * 1.12f, peelDrop * 0.52f)
+                    close()
+                }
+                val shadowPath = Path().apply {
+                    moveTo(size.width - peelWidth, 0f)
+                    lineTo(size.width, peelDrop)
+                    lineTo(size.width - peelWidth * 0.78f, peelDrop * 1.08f)
+                    close()
+                }
+                val bodyPath = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(size.width - peelWidth, 0f)
+                    lineTo(size.width, peelDrop)
+                    lineTo(size.width, size.height)
+                    lineTo(0f, size.height)
+                    close()
+                }
+
+                onDrawBehind {
+                    drawPath(bodyPath, color = containerColor.copy(alpha = 0.96f))
+                    drawPath(shadowPath, color = foldShadow)
+                    drawPath(foldPath, color = foldAccent.copy(alpha = 0.97f))
+                    drawLine(
+                        color = creaseColor,
+                        start = androidx.compose.ui.geometry.Offset(size.width - peelWidth * 0.92f, peelDrop * 0.62f),
+                        end = androidx.compose.ui.geometry.Offset(size.width - peelWidth * 0.08f, peelDrop * 0.04f),
+                        strokeWidth = 1.4f
+                    )
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.12f),
+                        start = androidx.compose.ui.geometry.Offset(3f, size.height - 1.5f),
+                        end = androidx.compose.ui.geometry.Offset(size.width - peelWidth * 0.55f, size.height - 1.5f),
+                        strokeWidth = 1f
+                    )
+                }
+            },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 7.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.MusicNote,
+                contentDescription = null,
+                tint = contentColor.copy(alpha = 0.96f),
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = songCount.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.W800,
+                color = contentColor,
+                maxLines = 1
+            )
         }
     }
 }

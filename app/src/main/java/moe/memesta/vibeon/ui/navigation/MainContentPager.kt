@@ -51,7 +51,7 @@ fun MainContentPager(
                 onViewStats = { scope.launch { pagerState.animateScrollToPage(2) } },
                 onViewOfflineSongs = { navController.navigate("offline_songs") },
                     onViewTorrents = { navController.navigate("torrents") },
-                    onViewServerDetails = { navController.navigate(ServerDetailsRoute.path) },
+                    onViewServerDetails = { navController.navigate("server_details") },
                 onViewAllAlbums = { 
                     scope.launch {
                         pagerState.animateScrollToPage(1)

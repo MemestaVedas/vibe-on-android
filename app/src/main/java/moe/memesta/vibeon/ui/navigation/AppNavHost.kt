@@ -33,7 +33,6 @@ import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
@@ -46,7 +45,6 @@ import moe.memesta.vibeon.ui.pairing.PairingScreen
 import moe.memesta.vibeon.ui.onboarding.WelcomeScreen
 import moe.memesta.vibeon.ui.onboarding.OnboardingOverlay
 import moe.memesta.vibeon.data.local.OnboardingManager
-import moe.memesta.vibeon.ui.components.AppCornerBleedBackground
 import moe.memesta.vibeon.ui.theme.rememberBitmapFromUrl
 import moe.memesta.vibeon.ui.utils.rememberIsLandscape
 
@@ -74,7 +72,7 @@ fun AppNavHost(
     val scope = rememberCoroutineScope()
     
     // Start at main. Pairing is an overlay.
-    val startDestination = MainRoute.path
+    val startDestination = "main"
     val favorites = remember { favoritesManager.getFavorites() }
     var userDismissedPairing by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(favorites.isNotEmpty()) }
     
@@ -87,13 +85,12 @@ fun AppNavHost(
     var suppressPairingOverlay by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     
     // Handle optimistic navigation when auto-connecting to favorites
-    val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
-    val connectedDevice by connectionViewModel.connectedDevice.collectAsStateWithLifecycle()
+    val connectionState by connectionViewModel.connectionState.collectAsState()
+    val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
     
     // Album art URL + bitmap for PairingScreen morph + dynamic palette
-    val currentTrack by connectionViewModel.currentTrack.collectAsStateWithLifecycle()
+    val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val albumArtUrl = currentTrack.coverUrl
-    val albumMainColor = currentTrack.albumMainColor
     val albumArtBitmap = rememberBitmapFromUrl(albumArtUrl)
     var cachedAlbumArtUrl by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(albumArtUrl) {
@@ -148,9 +145,7 @@ fun AppNavHost(
     // Determine if bottom bar should be transparent
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute != null &&
-        currentRoute != NowPlayingRoute.path &&
-        currentRoute != PairingRoute.path
+    val showBottomBar = currentRoute != null && currentRoute != "now_playing" && currentRoute != "pairing"
 
     val isLandscape = rememberIsLandscape()
 
@@ -158,10 +153,6 @@ fun AppNavHost(
     SharedTransitionLayout {
         // Enclose everything in a Box so the PairingScreen can overlay the entire Scaffold
         Box(modifier = Modifier.fillMaxSize()) {
-            AppCornerBleedBackground(
-                albumMainColor = albumMainColor,
-                modifier = Modifier.matchParentSize()
-            )
             Scaffold(
             modifier = Modifier.fillMaxSize(),
             bottomBar = {
@@ -175,12 +166,12 @@ fun AppNavHost(
                         navController = navController,
                         connectionViewModel = connectionViewModel,
                         playbackViewModel = playbackViewModel,
-                        onNavigateToPlayer = {
-                            navController.navigate(NowPlayingRoute.path) {
+                        onNavigateToPlayer = { 
+                            navController.navigate("now_playing") {
                                 launchSingleTop = true
                             }
                         },
-                        onNavigateToSearch = { navController.navigate(SearchRoute.path) },
+                        onNavigateToSearch = { navController.navigate("search") },
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this,
                         pagerState = pagerState
@@ -189,7 +180,7 @@ fun AppNavHost(
             },
             containerColor = Color.Transparent
         ) { innerPadding ->
-            val syncStatus by libraryViewModel?.syncStatus?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(SyncStatus()) }
+            val syncStatus by libraryViewModel?.syncStatus?.collectAsState() ?: remember { mutableStateOf(SyncStatus()) }
             
             Box(modifier = Modifier.fillMaxSize()) {
                 NavHost(
@@ -199,10 +190,10 @@ fun AppNavHost(
                 // Standard enter (forward push)
                 enterTransition = {
                     when {
-                        targetState.destination.route == NowPlayingRoute.path ->
+                        targetState.destination.route == "now_playing" ->
                             // Now Playing slides up from the bottom like a sheet
                             sheetEnterTransition()
-                        initialState.destination.route == NowPlayingRoute.path ->
+                        initialState.destination.route == "now_playing" ->
                             // Underlying screen re-appears without sliding (it was always there)
                             EnterTransition.None
                         else -> enterTransition()
@@ -211,10 +202,10 @@ fun AppNavHost(
                 // Standard exit (forward push)
                 exitTransition = {
                     when {
-                        targetState.destination.route == NowPlayingRoute.path ->
+                        targetState.destination.route == "now_playing" ->
                             // Keep the underlying screen visible while Now Playing slides up over it
                             ExitTransition.None
-                        initialState.destination.route == NowPlayingRoute.path ->
+                        initialState.destination.route == "now_playing" ->
                             ExitTransition.None
                         else -> exitTransition()
                     }
@@ -222,7 +213,7 @@ fun AppNavHost(
                 // Pop enter (going back) - previous page slides in from left with parallax & zoom
                 popEnterTransition = {
                     when {
-                        initialState.destination.route == NowPlayingRoute.path ->
+                        initialState.destination.route == "now_playing" ->
                             // The underlying screen was always visible — no enter animation needed
                             EnterTransition.None
                         else -> popEnterTransition()
@@ -231,10 +222,10 @@ fun AppNavHost(
                 // Pop exit (going back) - current page slides out to right with scale down
                 popExitTransition = {
                     when {
-                        initialState.destination.route == NowPlayingRoute.path ->
+                        initialState.destination.route == "now_playing" ->
                             // Now Playing slides back down to bottom when dismissed
                             sheetExitTransition()
-                        targetState.destination.route == NowPlayingRoute.path ->
+                        targetState.destination.route == "now_playing" ->
                             ExitTransition.None
                         else -> popExitTransition()
                     }
@@ -244,7 +235,7 @@ fun AppNavHost(
                 
                 // --- Now Playing ---
                 composable(
-                    route = NowPlayingRoute.path,
+                    route = "now_playing",
                     enterTransition = {
                         // Slide up from bottom — sheet-like entrance
                         sheetEnterTransition()
@@ -260,23 +251,23 @@ fun AppNavHost(
                         onBackPressed = { navController.popBackStack() },
                         onNavigateToAlbum = { albumName ->
                             navController.popBackStack()
-                            navController.navigate(AlbumRoute(albumName).toPath())
+                            navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
                         },
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this
                     )
                 }
 
-                composable(DiscoveryRoute.path) {
+                composable("discovery") {
                     // Observe connection state for optimistic navigation
-                    val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
-                    val connectedDevice by connectionViewModel.connectedDevice.collectAsStateWithLifecycle()
+                    val connectionState by connectionViewModel.connectionState.collectAsState()
+                    val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
                     
                     // Optimistically navigate to library when connecting
                     LaunchedEffect(connectionState) {
                         if (connectionState == ConnectionState.CONNECTING && connectedDevice != null) {
-                            navController.navigate(LibraryRoute.path) {
-                                popUpTo(DiscoveryRoute.path) { inclusive = true }
+                            navController.navigate("library") {
+                                popUpTo("discovery") { inclusive = true }
                             }
                         }
                     }
@@ -289,7 +280,7 @@ fun AppNavHost(
                         }
                     }
                     
-                    val devices by connectionViewModel.discoveredDevices.collectAsStateWithLifecycle()
+                    val devices by connectionViewModel.discoveredDevices.collectAsState()
 
                     moe.memesta.vibeon.ui.pairing.PairingScreen(
                         devices = devices,
@@ -297,7 +288,6 @@ fun AppNavHost(
                         connectedDevice = connectedDevice,
                         albumArtUrl = albumArtUrl,
                         albumArtBitmap = albumArtBitmap,
-                        albumMainColor = albumMainColor,
                         fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                         onConnect = { ip, port ->
                             val device = DiscoveredDevice(
@@ -317,13 +307,13 @@ fun AppNavHost(
                             Toast.makeText(context, "QR pairing will be available soon", Toast.LENGTH_SHORT).show()
                         },
                         onNavigateToOffline = {
-                            navController.navigate(OfflineSongsRoute.path) { launchSingleTop = true }
+                            navController.navigate("offline_songs") { launchSingleTop = true }
                         }
                     )
                 }
 
                 composable(
-                    route = PairingRoute.path,
+                    route = "pairing",
                     enterTransition = {
                         fadeIn(animationSpec = tween(VibeAnimations.HeroDuration)) +
                             slideInVertically(
@@ -353,14 +343,14 @@ fun AppNavHost(
                         onDispose { connectionViewModel.stopScanning() }
                     }
 
-                    val devices by connectionViewModel.discoveredDevices.collectAsStateWithLifecycle()
-                    val connectionState by connectionViewModel.connectionState.collectAsStateWithLifecycle()
-                    val connectedDevice by connectionViewModel.connectedDevice.collectAsStateWithLifecycle()
+                    val devices by connectionViewModel.discoveredDevices.collectAsState()
+                    val connectionState by connectionViewModel.connectionState.collectAsState()
+                    val connectedDevice by connectionViewModel.connectedDevice.collectAsState()
 
                     LaunchedEffect(connectionState, connectedDevice) {
                         if (connectionState == ConnectionState.CONNECTING && connectedDevice != null) {
-                            navController.navigate(LibraryRoute.path) {
-                                popUpTo(PairingRoute.path) { inclusive = true }
+                            navController.navigate("library") {
+                                popUpTo("pairing") { inclusive = true }
                             }
                         }
                     }
@@ -371,7 +361,6 @@ fun AppNavHost(
                         connectedDevice = connectedDevice,
                         albumArtUrl = albumArtUrl,
                         albumArtBitmap = albumArtBitmap,
-                        albumMainColor = albumMainColor,
                         fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                         onConnect = { ip, port ->
                             connectionViewModel.connectToDevice(
@@ -391,12 +380,12 @@ fun AppNavHost(
                             Toast.makeText(context, "QR pairing will be available soon", Toast.LENGTH_SHORT).show()
                         },
                         onNavigateToOffline = {
-                            navController.navigate(OfflineSongsRoute.path) { launchSingleTop = true }
+                            navController.navigate("offline_songs") { launchSingleTop = true }
                         }
                     )
                 }
                 
-                composable(MainRoute.path) {
+                composable("main") {
                     BackHandler(enabled = pagerState.currentPage != 0) {
                         scope.launch { pagerState.animateScrollToPage(0) }
                     }
@@ -416,8 +405,8 @@ fun AppNavHost(
                             playerSettingsRepository = playerSettingsRepository,
                             navController = navController,
                             contentPadding = innerPadding,
-                            onNavigateToPlayer = { navController.navigate(NowPlayingRoute.path) { launchSingleTop = true } },
-                            onSearchClick = { navController.navigate(SearchRoute.path) },
+                            onNavigateToPlayer = { navController.navigate("now_playing") { launchSingleTop = true } },
+                            onSearchClick = { navController.navigate("search") },
                             onReplayOnboarding = {
                                 replayOnboarding = true
                                 suppressPairingOverlay = true
@@ -433,10 +422,10 @@ fun AppNavHost(
                     }
                 }
 
-                composable(LibraryRoute.path) {
+                composable("library") {
                     LaunchedEffect(Unit) {
-                        navController.navigate(MainRoute.path) {
-                            popUpTo(LibraryRoute.path) { inclusive = true }
+                        navController.navigate("main") {
+                            popUpTo("library") { inclusive = true }
                         }
                     }
                 }
@@ -453,7 +442,7 @@ fun AppNavHost(
                             viewModel = libraryViewModel,
                             onBackClick = { navController.popBackStack() },
                             onTrackSelected = { /* Update pill only, no navigation */ },
-                            onNavigateToPlayer = { navController.navigate(NowPlayingRoute.path) },
+                            onNavigateToPlayer = { navController.navigate("now_playing") },
                             contentPadding = innerPadding
                         )
                     } else {
@@ -461,7 +450,7 @@ fun AppNavHost(
                     }
                 }
 
-                composable(OfflineSongsRoute.path) {
+                composable("offline_songs") {
                     OfflineSongsScreen(
                         contentPadding = innerPadding,
                         playbackViewModel = playbackViewModel,
@@ -469,14 +458,15 @@ fun AppNavHost(
                     )
                 }
 
-                composable(PlaylistsRoute.path) {
+                composable("playlists") {
                     if (libraryViewModel != null) {
                         PlaylistsScreen(
                             viewModel = connectionViewModel,
                             libraryViewModel = libraryViewModel,
                             contentPadding = innerPadding,
                             onPlaylistSelected = { playlistId ->
-                                navController.navigate(PlaylistRoute(playlistId).toPath())
+                                val encodedPlaylistId = java.net.URLEncoder.encode(playlistId, "UTF-8")
+                                navController.navigate("playlist/$encodedPlaylistId")
                             }
                         )
                     } else {
@@ -495,7 +485,7 @@ fun AppNavHost(
                 }
                 // Search Screen - Global Overlay Dialog
                 dialog(
-                    route = SearchRoute.path,
+                    route = "search",
                     dialogProperties = androidx.compose.ui.window.DialogProperties(
                         usePlatformDefaultWidth = false,
                         dismissOnBackPress = true,
@@ -512,11 +502,11 @@ fun AppNavHost(
                             },
                             onAlbumSelected = { albumName ->
                                 navController.popBackStack()
-                                navController.navigate(AlbumRoute(albumName).toPath())
+                                navController.navigate("album/${java.net.URLEncoder.encode(albumName, "UTF-8")}")
                             },
                             onArtistSelected = { artistName ->
                                 navController.popBackStack()
-                                navController.navigate(ArtistRoute(artistName).toPath())
+                                navController.navigate("artist/${java.net.URLEncoder.encode(artistName, "UTF-8")}")
                             },
                             onClose = { navController.popBackStack() },
                             contentPadding = innerPadding
@@ -546,7 +536,7 @@ fun AppNavHost(
                         popEnterTransition = { verticalEnterTransition() },
                         popExitTransition  = { verticalExitTransition() }
                     ) { backStackEntry ->
-                    val albumName = backStackEntry.requireStringArg("albumName")
+                    val albumName = backStackEntry.arguments?.getString("albumName") ?: return@composable
                     // Use shared LibraryViewModel
 
                     if (libraryViewModel != null) {
@@ -570,7 +560,7 @@ fun AppNavHost(
                         popEnterTransition = { verticalEnterTransition() },
                         popExitTransition  = { verticalExitTransition() }
                     ) { backStackEntry ->
-                    val artistName = backStackEntry.requireStringArg("artistName")
+                    val artistName = backStackEntry.arguments?.getString("artistName") ?: return@composable
                         // Use shared LibraryViewModel
 
                     if (libraryViewModel != null) {
@@ -589,7 +579,7 @@ fun AppNavHost(
                     route = "playlist/{playlistId}",
                     arguments = listOf(androidx.navigation.navArgument("playlistId") { type = androidx.navigation.NavType.StringType })
                 ) { backStackEntry ->
-                    val playlistId = backStackEntry.requireStringArg("playlistId")
+                    val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
 
                     if (libraryViewModel != null) {
                         PlaylistDetailScreen(
@@ -631,8 +621,8 @@ fun AppNavHost(
                         )
                     }
                 
-                    composable(ServerDetailsRoute.path) {
-                        ServerDetailsRoot(
+                    composable("server_details") {
+                        ServerDetailsScreen(
                             connectionViewModel = connectionViewModel,
                             onBackPressed = { navController.popBackStack() },
                             onDisconnect = {
@@ -719,7 +709,6 @@ fun AppNavHost(
                 connectedDevice = connectedDevice,
                 albumArtUrl = albumArtUrl,
                 albumArtBitmap = albumArtBitmap,
-                albumMainColor = albumMainColor,
                 fallbackAlbumArtUrl = fallbackAlbumArtUrl,
                 onConnect = { ip, port ->
                     val device = DiscoveredDevice(name = "Manual: $ip", host = ip, port = port)
