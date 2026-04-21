@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.pairing
 
 import android.graphics.Bitmap
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.toShape
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
@@ -60,8 +63,6 @@ import moe.memesta.vibeon.ui.components.extractAlbumPalette
 import moe.memesta.vibeon.ui.theme.GoogleSansFlexFamily
 import moe.memesta.vibeon.ui.utils.ContrastGuard
 import moe.memesta.vibeon.ui.utils.noiseTexture
-
-val NorlineFontFamily = GoogleSansFlexFamily
 
 @Composable
 fun ExpressiveStar(modifier: Modifier = Modifier, color: Color) {
@@ -269,7 +270,7 @@ fun PairingScreen(
                     }
                 }
                 
-                // CTA text
+                // Large display text uses Google Sans Flex directly for the app's expressive headings.
                 Text(
                     text = when {
                         isFailed -> "RETRY"
@@ -279,7 +280,7 @@ fun PairingScreen(
                     },
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontSize = 52.sp,
-                        fontFamily = NorlineFontFamily,
+                        fontFamily = GoogleSansFlexFamily,
                         fontWeight = FontWeight.Normal,
                         letterSpacing = 1.sp,
                         lineHeight = 56.sp,
@@ -427,7 +428,7 @@ fun PairingScreen(
                 ) {
                     Spacer(modifier = Modifier.weight(0.7f))
 
-                    // Title
+                    // Large display text uses Google Sans Flex directly for the app's expressive headings.
                     Text(
                         text = when {
                             isFailed -> "CONNECTION LOST"
@@ -437,7 +438,7 @@ fun PairingScreen(
                         },
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontSize = if (isConnected || devices.isNotEmpty() || isFailed) 62.sp else 84.sp,
-                            fontFamily = NorlineFontFamily,
+                            fontFamily = GoogleSansFlexFamily,
                             fontWeight = FontWeight.Normal,
                             letterSpacing = 2.sp,
                             lineHeight = if (isConnected || devices.isNotEmpty() || isFailed) 66.sp else 88.sp,
@@ -493,7 +494,7 @@ fun PairingScreen(
                                         contentDescription = if (albumArtUrl != null) "Now Playing" else "First Song",
                                         modifier = Modifier
                                             .size(200.dp)
-                                            .clip(AlbumArtStarShape)
+                                            .clip(AlbumArtStarShape.toShape())
                                             .graphicsLayer {
                                                 alpha = 1f
                                                 scaleX = 0.85f + (if (albumArtUrl != null) morphProgress else 1f) * 0.15f
@@ -517,7 +518,7 @@ fun PairingScreen(
                                         contentDescription = "First Song",
                                         modifier = Modifier
                                             .size(200.dp)
-                                            .clip(AlbumArtStarShape),
+                                            .clip(AlbumArtStarShape.toShape()),
                                         contentScale = ContentScale.Crop
                                     )
                                 }
@@ -551,7 +552,7 @@ fun PairingScreen(
                                             contentDescription = "First Song",
                                             modifier = Modifier
                                                 .size(200.dp)
-                                                .clip(AlbumArtStarShape),
+                                                .clip(AlbumArtStarShape.toShape()),
                                             contentScale = ContentScale.Crop
                                         )
                                     }

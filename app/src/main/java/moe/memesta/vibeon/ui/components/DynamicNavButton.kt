@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -18,21 +20,23 @@ import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.graphics.shapes.RoundedPolygon
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.memesta.vibeon.ui.theme.rememberPrefersReducedMotion
@@ -43,7 +47,7 @@ import moe.memesta.vibeon.ui.shapes.*
 data class NavPage(
     val route: String,
     val label: String,
-    val shape: Shape,
+    val shape: RoundedPolygon,
     val pageIndex: Int,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
@@ -53,7 +57,7 @@ val NavPages = listOf(
     NavPage("artists", "Artists", ArtistsShape, 3, Icons.Rounded.Person),
     NavPage("stats", "Stats", PlaylistsShape, 2, Icons.Rounded.BarChart),
     NavPage("albums", "Albums", AlbumsShape, 1, Icons.Rounded.Album),
-    NavPage("library", "Home", CircleShape, 0, Icons.Rounded.Home)
+    NavPage("library", "Home", MaterialShapes.Circle, 0, Icons.Rounded.Home)
 )
 
 @Composable
@@ -118,7 +122,7 @@ fun DynamicNavButton(
                                 modifier = Modifier
                                     .size(48.dp)
                                     .scale(scale)
-                                    .clip(page.shape)
+                                    .clip(page.shape.toShape())
                                     .background(if (isHovered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                     .clickable {
                                         isMenuOpen = false
@@ -189,7 +193,7 @@ fun DynamicNavButton(
             modifier = Modifier
                 .size(56.dp)
                 .scale(mainScale)
-                .clip(currentPage.shape)
+                .clip(currentPage.shape.toShape())
                 .background(MaterialTheme.colorScheme.primary)
                 .pointerInput(Unit) {
                     awaitEachGesture {

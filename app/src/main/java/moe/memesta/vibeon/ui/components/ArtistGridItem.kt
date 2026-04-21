@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.components
 
 import androidx.compose.foundation.background
@@ -17,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.toShape
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.bouncyClickable
@@ -56,7 +59,7 @@ fun ArtistGridItem(
                     }
                 } else Modifier
             )
-                .clip(ArtistsShape)
+                .clip(ArtistsShape.toShape())
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .bouncyClickable(onClick = onClick)
     ) {

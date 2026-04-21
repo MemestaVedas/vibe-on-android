@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.components
 
 import androidx.compose.foundation.background
@@ -15,6 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.toShape
 import coil.compose.AsyncImage
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.Dimens
@@ -40,7 +43,7 @@ fun ArtistListItem(
             contentDescription = artistName,
             modifier = Modifier
                 .size(64.dp)
-                .clip(ArtistCoverShape),
+                .clip(ArtistCoverShape.toShape()),
             contentScale = ContentScale.Crop
         )
         

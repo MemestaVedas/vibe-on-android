@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package moe.memesta.vibeon.ui
 
 import android.graphics.Bitmap
@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -128,6 +129,9 @@ import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.nowplaying.HeartBurstOverlay
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.LocalNowPlayingFontMode
+import moe.memesta.vibeon.ui.utils.LocalNowPlayingManualRoundness
+import moe.memesta.vibeon.ui.utils.LocalNowPlayingManualWeight
+import moe.memesta.vibeon.ui.utils.LocalNowPlayingManualWidth
 import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
@@ -592,12 +596,30 @@ fun NowPlayingContent(
 
     val targetTitleWeight = when (nowPlayingFontMode) {
         NowPlayingFontMode.DYNAMIC -> titleWeightForLength(title.length)
-        NowPlayingFontMode.AUTOMATIC -> 560
+        NowPlayingFontMode.MANUAL -> LocalNowPlayingManualWeight.current
+    }
+    val targetTitleWidth = when (nowPlayingFontMode) {
+        NowPlayingFontMode.DYNAMIC -> 100
+        NowPlayingFontMode.MANUAL -> LocalNowPlayingManualWidth.current
+    }
+    val targetTitleRoundness = when (nowPlayingFontMode) {
+        NowPlayingFontMode.DYNAMIC -> titleRoundnessForLength(title.length)
+        NowPlayingFontMode.MANUAL -> LocalNowPlayingManualRoundness.current
     }
     val animatedTitleWeight by animateIntAsState(
         targetValue = targetTitleWeight,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "titleWeight"
+    )
+    val animatedTitleWidth by animateIntAsState(
+        targetValue = targetTitleWidth,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "titleWidth"
+    )
+    val animatedTitleRoundness by animateIntAsState(
+        targetValue = targetTitleRoundness,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "titleRoundness"
     )
     val animatedTitleSpacing by animateFloatAsState(
         targetValue = letterSpacingForWeight(animatedTitleWeight),
@@ -1400,8 +1422,8 @@ fun NowPlayingContent(
                             scaleX = -1f,
                             rotationZ = 180f
                         )
-                        .border(1.5.dp, secondaryColor, ArrowBlobShape)
-                        .clip(ArrowBlobShape)
+                        .border(1.5.dp, secondaryColor, ArrowBlobShape.toShape())
+                        .clip(ArrowBlobShape.toShape())
                         .background(tertiaryColor)
                 )
             }
@@ -1922,6 +1944,12 @@ private fun titleWeightForLength(charCount: Int): Int = when {
     else -> 300
 }
 
+
+private fun titleRoundnessForLength(charCount: Int): Int = when {
+    charCount <= 10 -> 160
+    charCount <= 24 -> 140
+    else -> 120
+}
 private fun letterSpacingForWeight(weight: Int): Float {
     val t = (weight - 300f) / 500f
     return lerp(-0.02f, 0.01f, 1f - t)

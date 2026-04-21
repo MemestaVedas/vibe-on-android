@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui
 
 import androidx.compose.animation.*
@@ -10,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.toShape
 import kotlinx.coroutines.delay
 import moe.memesta.vibeon.data.TrackInfo
 import moe.memesta.vibeon.ui.components.AlbumCard
@@ -40,6 +42,7 @@ import moe.memesta.vibeon.ui.components.SectionHeader
 import moe.memesta.vibeon.ui.components.SquareTrackCard
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.shapes.SheetShape
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayName
 
@@ -79,8 +82,6 @@ fun SearchScreen(
 
     val accentColor = MaterialTheme.colorScheme.primary
 
-    val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-
     // Request focus after a short delay to allow the enter animation to start first
     LaunchedEffect(Unit) {
         delay(120)
@@ -106,12 +107,12 @@ fun SearchScreen(
                 .fillMaxHeight(0.75f)
                 .shadow(
                     elevation = 24.dp,
-                    shape = sheetShape,
+                    shape = SheetShape.toShape(),
                     clip = false,
                     ambientColor = Color.Black.copy(alpha = 0.2f),
                     spotColor = Color.Black.copy(alpha = 0.3f)
                 )
-                .clip(sheetShape)
+                .clip(SheetShape.toShape())
                 .background(MaterialTheme.colorScheme.surface)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },

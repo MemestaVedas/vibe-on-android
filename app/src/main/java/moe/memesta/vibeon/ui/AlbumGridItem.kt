@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui
 
 import androidx.compose.foundation.background
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.toShape
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.utils.noiseTexture
@@ -135,7 +138,7 @@ fun AlbumGridItem(
                 } else Modifier
             )
             .bouncyClickable(onClick = onClick),
-        shape = AlbumSquircleShape,
+        shape = AlbumSquircleShape.toShape(),
         colors = CardDefaults.cardColors(
             containerColor = primaryColor
         )

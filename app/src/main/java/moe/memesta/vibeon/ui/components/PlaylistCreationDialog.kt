@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.components
 
 import androidx.compose.foundation.background
@@ -30,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material3.toShape
+import moe.memesta.vibeon.ui.shapes.SheetShape
 
 @Composable
 fun PlaylistCreationDialog(
@@ -39,14 +43,12 @@ fun PlaylistCreationDialog(
 ) {
     if (!visible) return
 
-    val dialogShape = RoundedCornerShape(24.dp)
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = true)
     ) {
         Surface(
-            shape = dialogShape,
+            shape = SheetShape.toShape(),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 6.dp
         ) {

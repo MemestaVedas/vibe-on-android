@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.components
 
 import androidx.compose.animation.AnimatedContent
@@ -28,6 +30,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.toShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -236,7 +239,7 @@ fun LogoToAlbumArtMorph(
                 contentDescription = "Album Art",
                 modifier = Modifier
                     .size(artSize.dp)
-                    .clip(AlbumArtStarShape)
+                    .clip(AlbumArtStarShape.toShape())
                     .graphicsLayer {
                         alpha = morphProgress.coerceIn(0f, 1f)
                         scaleX = scale

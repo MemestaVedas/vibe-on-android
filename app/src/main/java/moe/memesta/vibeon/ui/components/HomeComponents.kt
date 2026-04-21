@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.components
 
 import androidx.compose.foundation.background
@@ -18,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.toShape
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -130,9 +133,9 @@ fun SquareTrackCard(
         Box(
             modifier = Modifier
                 .size(Dimens.StandardCardWidth)
-                .clip(SongCoverShape)
+                .clip(SongCoverShape.toShape())
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                .border(1.dp, CardBorderColor, SongCoverShape)
+                .border(1.dp, CardBorderColor, SongCoverShape.toShape())
         ) {
             if (track.coverUrl != null && allowImageLoad) {
                 val context = LocalContext.current
@@ -200,9 +203,9 @@ fun AlbumCard(
                         }
                     } else Modifier
                 )
-                .clip(AlbumSquircleShape)
+                .clip(AlbumSquircleShape.toShape())
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                .border(1.dp, CardBorderColor, AlbumSquircleShape),
+                .border(1.dp, CardBorderColor, AlbumSquircleShape.toShape()),
             contentAlignment = Alignment.Center
         ) {
             if (coverUrl != null && allowImageLoad) {
@@ -282,8 +285,8 @@ fun ArtistPill(
                             }
                         } else Modifier
                     )
-                    .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), ArtistCoverShape)
-                    .clip(ArtistCoverShape)
+                    .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), ArtistCoverShape.toShape())
+                    .clip(ArtistCoverShape.toShape())
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {

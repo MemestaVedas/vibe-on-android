@@ -1,15 +1,15 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package moe.memesta.vibeon.ui.shapes
 
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
 /**
- * Expressive Material 3 shape scale.
- *
- * This keeps a soft visual language but gives each size tier a distinct
- * personality so surfaces don't collapse into one radius everywhere.
+ * Expressive Material 3 shape aliases for reusable surfaces.
  */
 val Shapes = Shapes(
     extraSmall = ShapeCache.rounded10,
@@ -21,38 +21,30 @@ val Shapes = Shapes(
 
 // --- Semantic Shapes for Content ---
 
-val SongCoverShape: Shape = CircleShape // Circle for songs
+val SongCoverShape = MaterialShapes.Circle // Circle for songs
 
-val PlaylistCoverShape: Shape = ShapeCache.rounded24 // Stadium/Pill shape for playlists
+val PlaylistCoverShape = MaterialShapes.Pill // Stadium/Pill shape for playlists
 
-val ArtistCoverShape: Shape = CircleShape // Circle shape for artists
+val ArtistCoverShape = MaterialShapes.Circle // Circle shape for artists
 
-val DomeShape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(
-    topStart = 32.dp, 
-    topEnd = 32.dp, 
-    bottomStart = 0.dp, 
-    bottomEnd = 0.dp
-) // Dome shape for areas
+val DomeShape = MaterialShapes.Arch // Dome shape for areas
 
 // ─── Futuristic Kinetic semantic aliases ─────────────────────────────────────
 
 /** Full pill for the OrbitButton and FluxPill toggle chips. */
-val PillButtonShape: Shape = ShapeCache.pill
+val PillButtonShape = MaterialShapes.Pill
 
 /**
  * Asymmetric prism shape for PrismIconButton and secondary controls.
  * Opposite corners are sized differently to convey kinetic energy.
  */
-val PrismButtonShape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(
-    topStart = 10.dp, topEnd = 18.dp,
-    bottomStart = 18.dp, bottomEnd = 10.dp
-)
+val PrismButtonShape = MaterialShapes.Slanted
 
 /** Slightly squircle card — main surface for album/track cards. */
-val ElevatedCardShape: Shape = ShapeCache.rounded20
+val ElevatedCardShape = MaterialShapes.Cookie9Sided
 
 /** Full-bleed bottom sheet top rounding. */
-val SheetShape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+val SheetShape = MaterialShapes.Cookie12Sided
 
 /** Compact chip/badge rounding. */
-val ChipShape: Shape = ShapeCache.rounded12
+val ChipShape = MaterialShapes.Pill
