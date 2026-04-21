@@ -517,7 +517,7 @@ fun PairingScreen(
                                         contentDescription = if (albumArtUrl != null) "Now Playing" else "First Song",
                                         modifier = Modifier
                                             .size(200.dp)
-                                            .clip(AlbumArtStarShape.toShape())
+                                            .clip(MaterialShapes.Cookie12Sided.toShape())
                                             .graphicsLayer {
                                                 alpha = 1f
                                                 scaleX = 0.85f + (if (albumArtUrl != null) morphProgress else 1f) * 0.15f

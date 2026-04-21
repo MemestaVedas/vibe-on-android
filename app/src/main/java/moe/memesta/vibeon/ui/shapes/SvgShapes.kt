@@ -10,13 +10,13 @@ import androidx.compose.material3.MaterialShapes
  * Keep the existing call sites stable while swapping the underlying geometry
  * to the new shape system.
  */
-val AlbumSquircleShape = MaterialShapes.Cookie9Sided
+val AlbumSquircleShape = MaterialShapes.Square
 
-val AlbumsShape = MaterialShapes.Cookie12Sided
+val AlbumsShape = MaterialShapes.Square
 
 val PlaylistsShape = MaterialShapes.Pill
 
-val ArtistsShape = MaterialShapes.Circle
+val ArtistsShape = MaterialShapes.Arch
 
 val SettingsShape = MaterialShapes.VerySunny
 

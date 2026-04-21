@@ -667,13 +667,6 @@ fun HomeScreen(
                             onSeeAllClick = onViewAllSongs,
                             modifier = Modifier.padding(top = Dimens.SectionPadding, start = Dimens.ScreenPadding, end = Dimens.ScreenPadding)
                         )
-                        AnimatedSquigglyLine(
-                            modifier = Modifier
-                                .padding(horizontal = Dimens.ScreenPadding)
-                                .fillMaxWidth()
-                                .height(22.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                        )
                         FadeEdgeLazyRow(
                             contentPadding = PaddingValues(horizontal = Dimens.ScreenPadding),
                             horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -779,55 +772,6 @@ fun FadeEdgeLazyRow(
             content = content,
             modifier = Modifier
                 .fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun AnimatedSquigglyLine(
-    modifier: Modifier = Modifier,
-    color: Color,
-    alpha: Float = 0.92f,
-    strokeWidth: androidx.compose.ui.unit.Dp = 3.dp,
-    amplitude: androidx.compose.ui.unit.Dp = 3.dp,
-    waves: Float = 7.6f,
-    animationDurationMillis: Int = 2000,
-    samples: Int = 360
-) {
-    val density = LocalDensity.current
-    val infiniteTransition = rememberInfiniteTransition(label = "HomeSongsWave")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = animationDurationMillis, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "homeSongsWavePhase"
-    )
-
-    Canvas(modifier = modifier) {
-        if (samples < 2 || size.width <= 0f) return@Canvas
-        val centerY = size.height / 2f
-        val strokePx = with(density) { strokeWidth.toPx() }
-        val amplitudePx = with(density) { amplitude.toPx() }
-
-        val path = Path().apply {
-            val step = size.width / (samples - 1)
-            moveTo(0f, centerY + (amplitudePx * sin(phase)))
-            for (i in 1 until samples) {
-                val x = i * step
-                val theta = (x / size.width) * ((2f * PI).toFloat() * waves) + phase
-                val y = centerY + amplitudePx * sin(theta)
-                lineTo(x, y)
-            }
-        }
-
-        drawPath(
-            path = path,
-            color = color,
-            style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
-            alpha = alpha
         )
     }
 }

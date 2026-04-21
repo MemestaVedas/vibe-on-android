@@ -54,9 +54,9 @@ data class NavPage(
 
 val NavPages = listOf(
     NavPage("settings", "Settings", SettingsShape, 4, Icons.Rounded.Settings),
-    NavPage("artists", "Artists", ArtistsShape, 3, Icons.Rounded.Person),
-    NavPage("stats", "Stats", PlaylistsShape, 2, Icons.Rounded.BarChart),
-    NavPage("albums", "Albums", AlbumsShape, 1, Icons.Rounded.Album),
+    NavPage("artists", "Artists", MaterialShapes.Arch, 3, Icons.Rounded.Person),
+    NavPage("stats", "Stats", MaterialShapes.Bun, 2, Icons.Rounded.BarChart),
+    NavPage("albums", "Albums", MaterialShapes.Square, 1, Icons.Rounded.Album),
     NavPage("library", "Home", MaterialShapes.Circle, 0, Icons.Rounded.Home)
 )
 

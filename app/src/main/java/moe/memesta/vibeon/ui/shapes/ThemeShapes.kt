@@ -25,7 +25,7 @@ val SongCoverShape = MaterialShapes.Circle // Circle for songs
 
 val PlaylistCoverShape = MaterialShapes.Pill // Stadium/Pill shape for playlists
 
-val ArtistCoverShape = MaterialShapes.Circle // Circle shape for artists
+val ArtistCoverShape = MaterialShapes.Arch // Arch shape for artists
 
 val DomeShape = MaterialShapes.Arch // Dome shape for areas
 
