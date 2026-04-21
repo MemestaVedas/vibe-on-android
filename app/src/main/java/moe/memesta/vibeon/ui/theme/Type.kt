@@ -6,7 +6,6 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import moe.memesta.vibeon.R
@@ -16,15 +15,7 @@ import moe.memesta.vibeon.R
  */
 
 val GoogleSansFlexFamily = FontFamily(
-    Font(
-        resId = R.font.google_sans_flex,
-        variationSettings = FontVariation.Settings(
-            FontVariation.Setting("wght", 400f),
-            FontVariation.Setting("wdth", 100f),
-            FontVariation.Setting("opsz", 14f),
-            FontVariation.Setting("GRAD", 0f)
-        )
-    )
+    Font(resId = R.font.google_sans_flex)
 )
 
 val MPlusRoundedFont = GoogleSansFlexFamily
@@ -36,13 +27,12 @@ fun googleSansFlexSettings(
     weight: Int = 400,
     width: Float = 100f,
     opticalSize: Float = 14f,
-    grade: Float = 0f
-): FontVariation.Settings = FontVariation.Settings(
-    FontVariation.Setting("wght", weight.toFloat()),
-    FontVariation.Setting("wdth", width),
-    FontVariation.Setting("opsz", opticalSize),
-    FontVariation.Setting("GRAD", grade)
-)
+    grade: Float = 0f,
+    roundness: Float = 0f
+): String = "'wght' ${weight.toFloat()}, 'wdth' $width, 'opsz' $opticalSize, 'GRAD' $grade, 'ROND' $roundness"
+
+fun TextStyle.withGoogleSansAxes(settings: String): TextStyle =
+    copy(fontFeatureSettings = settings)
 
 val Typography = Typography(
     displayLarge = TextStyle(

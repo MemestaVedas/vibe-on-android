@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.memesta.vibeon.ui.theme.MPlusRoundedFont
+import moe.memesta.vibeon.ui.theme.googleSansFlexSettings
+import moe.memesta.vibeon.ui.theme.withGoogleSansAxes
 import moe.memesta.vibeon.ui.utils.noiseTexture
 
 /**
@@ -201,6 +203,8 @@ private fun WalkthroughStep(
                     fontWeight = FontWeight.Normal,
                     letterSpacing = 3.sp,
                     textAlign = TextAlign.Center
+                ).withGoogleSansAxes(
+                    googleSansFlexSettings(weight = 520, width = 112f, grade = 15f, roundness = 145f)
                 ),
                 color = accentPink
             )
@@ -214,6 +218,8 @@ private fun WalkthroughStep(
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                     lineHeight = 24.sp
+                ).withGoogleSansAxes(
+                    googleSansFlexSettings(weight = 500, width = 100f, roundness = 115f)
                 ),
                 color = Color.White.copy(alpha = 0.7f)
             )

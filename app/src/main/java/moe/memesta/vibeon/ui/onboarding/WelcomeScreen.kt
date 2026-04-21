@@ -30,6 +30,8 @@ import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.GoogleSansFlexFamily
+import moe.memesta.vibeon.ui.theme.googleSansFlexSettings
+import moe.memesta.vibeon.ui.theme.withGoogleSansAxes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DesktopWindows
 import androidx.compose.material.icons.rounded.Smartphone
@@ -78,6 +80,8 @@ fun NextActionArea(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp,
                     fontSize = 32.sp
+                ).withGoogleSansAxes(
+                    googleSansFlexSettings(weight = 700, width = 102f, grade = 10f, roundness = 120f)
                 ),
                 color = color
             )
@@ -227,6 +231,8 @@ fun WelcomeScreen(
                                         fontFamily = GoogleSansFlexFamily,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.5.sp
+                                    ).withGoogleSansAxes(
+                                        googleSansFlexSettings(weight = 680, width = 101f, roundness = 120f)
                                     ),
                                     color = contentColors[index].copy(alpha = 0.7f)
                                 )
@@ -298,6 +304,8 @@ private fun WelcomePage(
                 fontWeight = FontWeight.Normal,
                 letterSpacing = 4.sp,
                 textAlign = TextAlign.Center
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 460, width = 108f, roundness = 130f)
             ),
             color = contentColor.copy(alpha = 0.7f)
         )
@@ -313,6 +321,8 @@ private fun WelcomePage(
                 letterSpacing = 2.sp,
                 lineHeight = 88.sp,
                 textAlign = TextAlign.Center
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 500, width = 114f, grade = 20f, roundness = 150f)
             ),
             maxLines = 1,
             softWrap = false,
@@ -328,6 +338,8 @@ private fun WelcomePage(
                 fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 520, width = 100f, roundness = 115f)
             ),
             color = contentColor.copy(alpha = 0.7f)
         )
@@ -370,6 +382,8 @@ private fun ConnectServerPage(contentColor: Color) {
                 letterSpacing = 2.sp,
                 lineHeight = 76.sp,
                 textAlign = TextAlign.Center
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 500, width = 112f, grade = 10f, roundness = 140f)
             ),
             maxLines = 1,
             softWrap = false,
@@ -393,7 +407,9 @@ private fun ConnectServerPage(contentColor: Color) {
             text = "Keep the desktop app running",
             style = MaterialTheme.typography.bodyMedium.copy(
                 textAlign = TextAlign.Center,
-                fontFamily = GoogleSansFlexFamily
+                fontFamily = GoogleSansFlexFamily,
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 460, width = 100f, roundness = 110f)
             ),
             color = contentColor.copy(alpha = 0.6f)
         )
@@ -514,6 +530,8 @@ private fun GestureIntroPage(contentColor: Color) {
                 letterSpacing = 2.sp,
                 lineHeight = 76.sp,
                 textAlign = TextAlign.Center
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 520, width = 114f, grade = 15f, roundness = 145f)
             ),
             maxLines = 1,
             softWrap = false,
@@ -528,6 +546,8 @@ private fun GestureIntroPage(contentColor: Color) {
                 fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 620, width = 102f, roundness = 120f)
             ),
             color = contentColor.copy(alpha = 0.8f)
         )
@@ -539,6 +559,8 @@ private fun GestureIntroPage(contentColor: Color) {
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontFamily = GoogleSansFlexFamily,
                 textAlign = TextAlign.Center
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 480, width = 100f, roundness = 110f)
             ),
             color = contentColor.copy(alpha = 0.6f)
         )
@@ -649,6 +671,8 @@ private fun GestureHint(
                 fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp
+            ).withGoogleSansAxes(
+                googleSansFlexSettings(weight = 520, width = 100f, roundness = 110f)
             ),
             color = contentColor.copy(alpha = 0.7f)
         )

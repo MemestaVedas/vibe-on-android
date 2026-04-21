@@ -927,6 +927,13 @@ fun NowPlayingContent(
                             fontFamily = MPlus1pRoundedFamily,
                             fontWeight = FontWeight(animatedTitleWeight),
                             letterSpacing = animatedTitleSpacing.em
+                        ).withGoogleSansAxes(
+                            googleSansFlexSettings(
+                                weight = animatedTitleWeight,
+                                width = animatedTitleWidth.toFloat(),
+                                grade = 0f,
+                                roundness = animatedTitleRoundness.toFloat()
+                            )
                         ),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -966,6 +973,13 @@ fun NowPlayingContent(
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontFamily = MPlus1pRoundedFamily,
                                     fontWeight = FontWeight.W400
+                                ).withGoogleSansAxes(
+                                    googleSansFlexSettings(
+                                        weight = 400,
+                                        width = 100f,
+                                        grade = 0f,
+                                        roundness = 120f
+                                    )
                                 ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

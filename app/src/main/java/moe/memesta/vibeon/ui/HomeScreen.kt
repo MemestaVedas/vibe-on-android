@@ -98,6 +98,8 @@ import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeAnimations
 import moe.memesta.vibeon.ui.theme.bouncyClickable
+import moe.memesta.vibeon.ui.theme.googleSansFlexSettings
+import moe.memesta.vibeon.ui.theme.withGoogleSansAxes
 import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
@@ -978,6 +980,13 @@ fun HeroHeader(
                                 fontWeight = FontWeight.Black,
                                 fontFamily = MPlusRoundedBold,
                                 lineHeight = 32.sp
+                            ).withGoogleSansAxes(
+                                googleSansFlexSettings(
+                                    weight = 760,
+                                    width = 106f,
+                                    grade = 20f,
+                                    roundness = 135f
+                                )
                             ),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,

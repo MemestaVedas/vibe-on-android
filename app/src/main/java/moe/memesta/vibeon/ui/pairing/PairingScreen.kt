@@ -61,6 +61,8 @@ import moe.memesta.vibeon.ui.shapes.*
 import moe.memesta.vibeon.ui.components.AlbumPalette
 import moe.memesta.vibeon.ui.components.extractAlbumPalette
 import moe.memesta.vibeon.ui.theme.GoogleSansFlexFamily
+import moe.memesta.vibeon.ui.theme.googleSansFlexSettings
+import moe.memesta.vibeon.ui.theme.withGoogleSansAxes
 import moe.memesta.vibeon.ui.utils.ContrastGuard
 import moe.memesta.vibeon.ui.utils.noiseTexture
 
@@ -285,6 +287,13 @@ fun PairingScreen(
                         letterSpacing = 1.sp,
                         lineHeight = 56.sp,
                         textAlign = TextAlign.Center
+                    ).withGoogleSansAxes(
+                        googleSansFlexSettings(
+                            weight = if (isFailed) 760 else if (isConnected) 620 else 540,
+                            width = if (isConnected) 112f else 100f,
+                            grade = if (isFailed) 80f else 0f,
+                            roundness = 120f
+                        )
                     ),
                     maxLines = 1,
                     softWrap = false,
@@ -443,6 +452,13 @@ fun PairingScreen(
                             letterSpacing = 2.sp,
                             lineHeight = if (isConnected || devices.isNotEmpty() || isFailed) 66.sp else 88.sp,
                             textAlign = TextAlign.Center
+                        ).withGoogleSansAxes(
+                            googleSansFlexSettings(
+                                weight = if (isFailed) 800 else if (isConnected) 560 else 460,
+                                width = if (isConnected) 115f else if (devices.isNotEmpty()) 108f else 98f,
+                                grade = if (isFailed) 100f else 0f,
+                                roundness = if (isConnected) 140f else 120f
+                            )
                         ),
                         maxLines = 1,
                         softWrap = false,
@@ -463,6 +479,13 @@ fun PairingScreen(
                             fontFamily = GoogleSansFlexFamily,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center
+                        ).withGoogleSansAxes(
+                            googleSansFlexSettings(
+                                weight = if (isConnected) 520 else 460,
+                                width = 100f,
+                                grade = 0f,
+                                roundness = 110f
+                            )
                         ),
                         color = topContentColor.copy(alpha = 0.8f)
                     )
