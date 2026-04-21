@@ -29,7 +29,6 @@ import androidx.compose.ui.zIndex
 import kotlinx.coroutines.launch
 import moe.memesta.vibeon.R
 import moe.memesta.vibeon.ui.shapes.*
-import moe.memesta.vibeon.ui.pairing.NorlineFontFamily
 import moe.memesta.vibeon.ui.theme.GoogleSansFlexFamily
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DesktopWindows
@@ -75,7 +74,7 @@ fun NextActionArea(
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleLarge.copy(
-                    fontFamily = NorlineFontFamily,
+                    fontFamily = GoogleSansFlexFamily,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp,
                     fontSize = 32.sp
@@ -225,7 +224,7 @@ fun WelcomeScreen(
                                     text = summary,
                                     modifier = Modifier.padding(horizontal = 24.dp),
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        fontFamily = NorlineFontFamily,
+                                        fontFamily = GoogleSansFlexFamily,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.5.sp
                                     ),
@@ -295,7 +294,7 @@ private fun WelcomePage(
             text = "WELCOME TO",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontSize = 36.sp,
-                fontFamily = NorlineFontFamily,
+                fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Normal,
                 letterSpacing = 4.sp,
                 textAlign = TextAlign.Center
@@ -309,7 +308,7 @@ private fun WelcomePage(
             text = "VIBE-ON!",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontSize = 84.sp,
-                fontFamily = NorlineFontFamily,
+                fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Normal,
                 letterSpacing = 2.sp,
                 lineHeight = 88.sp,
@@ -366,7 +365,7 @@ private fun ConnectServerPage(contentColor: Color) {
             text = "CONNECT",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontSize = 72.sp,
-                fontFamily = NorlineFontFamily,
+                fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Normal,
                 letterSpacing = 2.sp,
                 lineHeight = 76.sp,
@@ -510,7 +509,7 @@ private fun GestureIntroPage(contentColor: Color) {
             text = "NAVIGATE",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontSize = 72.sp,
-                fontFamily = NorlineFontFamily,
+                fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Normal,
                 letterSpacing = 2.sp,
                 lineHeight = 76.sp,
@@ -526,7 +525,7 @@ private fun GestureIntroPage(contentColor: Color) {
         Text(
             text = "Hold to navigate",
             style = MaterialTheme.typography.titleMedium.copy(
-                fontFamily = NorlineFontFamily,
+                fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             ),
@@ -538,7 +537,7 @@ private fun GestureIntroPage(contentColor: Color) {
         Text(
             text = "Press and hold the nav button\nto switch between pages",
             style = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = NorlineFontFamily,
+                fontFamily = GoogleSansFlexFamily,
                 textAlign = TextAlign.Center
             ),
             color = contentColor.copy(alpha = 0.6f)
@@ -647,7 +646,7 @@ private fun GestureHint(
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = NorlineFontFamily,
+                fontFamily = GoogleSansFlexFamily,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp
             ),
