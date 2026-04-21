@@ -18,6 +18,7 @@ import moe.memesta.vibeon.VibeonApp
 import moe.memesta.vibeon.MediaNotificationManager
 import moe.memesta.vibeon.data.MediaSessionData
 import moe.memesta.vibeon.data.local.DisplayLanguage
+import moe.memesta.vibeon.data.local.WidgetFontMode
 import moe.memesta.vibeon.ui.utils.getDisplayArtist
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
 import moe.memesta.vibeon.ui.utils.getDisplayName
@@ -52,7 +53,15 @@ object WidgetUpdater {
     /**
      * Updates widget with new track information.
      */
-    fun onTrackChanged(track: MediaSessionData, isPlaying: Boolean, displayLanguage: DisplayLanguage) {
+    fun onTrackChanged(
+        track: MediaSessionData,
+        isPlaying: Boolean,
+        displayLanguage: DisplayLanguage,
+        widgetFontMode: WidgetFontMode,
+        widgetManualWidth: Int,
+        widgetManualWeight: Int,
+        widgetManualRoundness: Int
+    ) {
         val context = VibeonApp.instance
         scope.launch {
             // Download and cache album art only when URL changes
@@ -101,7 +110,11 @@ object WidgetUpdater {
                 colorSecondaryContainer = colors?.secondaryContainer ?: 0xFF2B2535.toInt(),
                 colorOnSecondaryContainer = colors?.onSecondaryContainer ?: 0xFFEADDFF.toInt(),
                 colorErrorContainer = colors?.errorContainer ?: 0xFF8C1D18.toInt(),
-                colorOnErrorContainer = colors?.onErrorContainer ?: 0xFFF9DEDC.toInt()
+                colorOnErrorContainer = colors?.onErrorContainer ?: 0xFFF9DEDC.toInt(),
+                widgetFontMode = widgetFontMode.value,
+                widgetManualWidth = widgetManualWidth,
+                widgetManualWeight = widgetManualWeight,
+                widgetManualRoundness = widgetManualRoundness
             ))
         }
     }

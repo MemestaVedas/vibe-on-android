@@ -28,6 +28,13 @@ import moe.memesta.vibeon.widget.WidgetUpdater
  */
 object MediaNotificationManager {
 
+    private data class WidgetFontPrefs(
+        val mode: moe.memesta.vibeon.data.local.WidgetFontMode,
+        val width: Int,
+        val weight: Int,
+        val roundness: Int
+    )
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     var wsClient: WebSocketClient? = null
@@ -90,13 +97,23 @@ object MediaNotificationManager {
         }.launchIn(scope)
 
         // Track metadata + play state → update notification
+        val widgetFontPrefs = combine(
+            playerSettingsRepository.widgetFontMode,
+            playerSettingsRepository.widgetManualWidth,
+            playerSettingsRepository.widgetManualWeight,
+            playerSettingsRepository.widgetManualRoundness
+        ) { mode, width, weight, roundness ->
+            WidgetFontPrefs(mode, width, weight, roundness)
+        }
+
         combine(
             client.currentTrack,
             client.isPlaying,
-            playerSettingsRepository.displayLanguage
-        ) { track, playing, displayLanguage ->
-            Triple(track, playing, displayLanguage)
-        }.onEach { (track, playing, displayLanguage) ->
+            playerSettingsRepository.displayLanguage,
+            widgetFontPrefs
+        ) { track, playing, displayLanguage, fontPrefs ->
+            Quadruple(track, playing, displayLanguage, fontPrefs)
+        }.onEach { (track, playing, displayLanguage, fontPrefs) ->
                 val service = serviceRef ?: return@onEach
                 currentTrackPath = track.path
 
@@ -123,7 +140,15 @@ object MediaNotificationManager {
                     lastArtBitmap = artBitmap
 
                     // Update the home-screen widget
-                    WidgetUpdater.onTrackChanged(track, playing, displayLanguage)
+                    WidgetUpdater.onTrackChanged(
+                        track = track,
+                        isPlaying = playing,
+                        displayLanguage = displayLanguage,
+                        widgetFontMode = fontPrefs.mode,
+                        widgetManualWidth = fontPrefs.width,
+                        widgetManualWeight = fontPrefs.weight,
+                        widgetManualRoundness = fontPrefs.roundness
+                    )
 
                     scope.launch(Dispatchers.Main) {
                         val metadata = MediaMetadata.Builder()
@@ -207,3 +232,10 @@ object MediaNotificationManager {
         return stream.toByteArray()
     }
 }
+
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)

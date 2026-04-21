@@ -32,7 +32,11 @@ data class WidgetPlaybackState(
     val showingMoreOptions: Boolean = false,
     val repeatMode: String = "off",
     val volumeLevel: Int = 2,
-    val widgetPlaylists: List<PlaylistWidgetInfo> = emptyList()
+    val widgetPlaylists: List<PlaylistWidgetInfo> = emptyList(),
+    val widgetFontMode: String = "dynamic",
+    val widgetManualWidth: Int = 100,
+    val widgetManualWeight: Int = 640,
+    val widgetManualRoundness: Int = 140
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -66,6 +70,10 @@ data class WidgetPlaybackState(
         if (repeatMode != other.repeatMode) return false
         if (volumeLevel != other.volumeLevel) return false
         if (widgetPlaylists != other.widgetPlaylists) return false
+        if (widgetFontMode != other.widgetFontMode) return false
+        if (widgetManualWidth != other.widgetManualWidth) return false
+        if (widgetManualWeight != other.widgetManualWeight) return false
+        if (widgetManualRoundness != other.widgetManualRoundness) return false
 
         return true
     }
@@ -94,6 +102,10 @@ data class WidgetPlaybackState(
         result = 31 * result + repeatMode.hashCode()
         result = 31 * result + volumeLevel
         result = 31 * result + widgetPlaylists.hashCode()
+        result = 31 * result + widgetFontMode.hashCode()
+        result = 31 * result + widgetManualWidth
+        result = 31 * result + widgetManualWeight
+        result = 31 * result + widgetManualRoundness
         return result
     }
 }

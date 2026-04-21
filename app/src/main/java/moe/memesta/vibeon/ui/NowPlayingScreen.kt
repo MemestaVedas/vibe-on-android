@@ -116,6 +116,7 @@ import kotlin.random.Random
 import java.util.Locale
 import moe.memesta.vibeon.data.MediaSessionData
 import moe.memesta.vibeon.data.TrackInfo
+import moe.memesta.vibeon.data.local.NowPlayingFontMode
 import moe.memesta.vibeon.data.local.ScrubberMode
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.VibeBackground
@@ -126,6 +127,7 @@ import moe.memesta.vibeon.ui.theme.*
 import moe.memesta.vibeon.ui.image.AppImageLoader
 import moe.memesta.vibeon.ui.nowplaying.HeartBurstOverlay
 import moe.memesta.vibeon.ui.utils.LocalDisplayLanguage
+import moe.memesta.vibeon.ui.utils.LocalNowPlayingFontMode
 import moe.memesta.vibeon.ui.utils.PaletteUtils
 import moe.memesta.vibeon.ui.utils.ThemeColors
 import moe.memesta.vibeon.ui.utils.getDisplayAlbum
@@ -188,6 +190,7 @@ fun NowPlayingScreen(
     val artGestureHintShown by playbackViewModel.artGestureHintShown.collectAsState()
     val heartBurstEvent by playbackViewModel.heartBurstEvent.collectAsState()
     val displayLanguage = LocalDisplayLanguage.current
+    val nowPlayingFontMode = LocalNowPlayingFontMode.current
     val currentTrack by connectionViewModel.currentTrack.collectAsState()
     val isPlaying by connectionViewModel.isPlaying.collectAsState()
     val isMobilePlayback by playbackViewModel.isMobilePlayback.collectAsState()
@@ -509,6 +512,7 @@ fun NowPlayingContent(
     val onPrimaryControlColor = MaterialTheme.colorScheme.onPrimary
     val hapticFeedback = LocalHapticFeedback.current
     val displayLanguage = LocalDisplayLanguage.current
+    val nowPlayingFontMode = LocalNowPlayingFontMode.current
     
     // Context for gestures
     var showPlaylistDialog by remember { mutableStateOf(false) }
@@ -586,7 +590,10 @@ fun NowPlayingContent(
         buildQualityLabel(currentTrack)
     }
 
-    val targetTitleWeight = titleWeightForLength(title.length)
+    val targetTitleWeight = when (nowPlayingFontMode) {
+        NowPlayingFontMode.DYNAMIC -> titleWeightForLength(title.length)
+        NowPlayingFontMode.AUTOMATIC -> 560
+    }
     val animatedTitleWeight by animateIntAsState(
         targetValue = targetTitleWeight,
         animationSpec = spring(stiffness = Spring.StiffnessLow),

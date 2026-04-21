@@ -33,7 +33,9 @@ import moe.memesta.vibeon.data.SyncStatus
 import moe.memesta.vibeon.data.local.FavoriteDevice
 import moe.memesta.vibeon.data.local.FavoritesManager
 import moe.memesta.vibeon.data.local.LibraryViewStyle
+import moe.memesta.vibeon.data.local.NowPlayingFontMode
 import moe.memesta.vibeon.data.local.ScrubberMode
+import moe.memesta.vibeon.data.local.WidgetFontMode
 import moe.memesta.vibeon.ui.theme.Dimens
 import moe.memesta.vibeon.ui.theme.bouncyClickable
 
@@ -99,6 +101,11 @@ fun SettingsScreen(
     val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsState()
     val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsState()
     val scrubberMode by playerSettingsRepository.scrubberMode.collectAsState()
+    val nowPlayingFontMode by playerSettingsRepository.nowPlayingFontMode.collectAsState()
+    val widgetFontMode by playerSettingsRepository.widgetFontMode.collectAsState()
+    val widgetManualWidth by playerSettingsRepository.widgetManualWidth.collectAsState()
+    val widgetManualWeight by playerSettingsRepository.widgetManualWeight.collectAsState()
+    val widgetManualRoundness by playerSettingsRepository.widgetManualRoundness.collectAsState()
     
     LazyColumn(
         modifier = Modifier
@@ -544,6 +551,114 @@ fun SettingsScreen(
                             )
                         }
                     )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    HorizontalDivider()
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Now Playing Font Mode",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Dynamic makes short titles heavier and long titles lighter. Automatic keeps a stable title weight.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(NowPlayingFontMode.DYNAMIC, NowPlayingFontMode.AUTOMATIC).forEach { mode ->
+                            val isSelected = nowPlayingFontMode == mode
+                            val label = if (mode == NowPlayingFontMode.DYNAMIC) "Dynamic" else "Automatic"
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { playerSettingsRepository.setNowPlayingFontMode(mode) },
+                                label = { Text(label) },
+                                leadingIcon = if (isSelected) {
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                } else null,
+                                modifier = Modifier.weight(1f),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Widget Font Mode",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Dynamic adapts to title length. Manual gives direct control over width, weight, and roundness.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(WidgetFontMode.DYNAMIC, WidgetFontMode.MANUAL).forEach { mode ->
+                            val isSelected = widgetFontMode == mode
+                            val label = if (mode == WidgetFontMode.DYNAMIC) "Dynamic" else "Manual"
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { playerSettingsRepository.setWidgetFontMode(mode) },
+                                label = { Text(label) },
+                                leadingIcon = if (isSelected) {
+                                    { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                } else null,
+                                modifier = Modifier.weight(1f),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            )
+                        }
+                    }
+
+                    if (widgetFontMode == WidgetFontMode.MANUAL) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        FontAxisSlider(
+                            label = "Width",
+                            value = widgetManualWidth,
+                            valueRange = 75..125,
+                            onValueChanged = playerSettingsRepository::setWidgetManualWidth
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FontAxisSlider(
+                            label = "Weight",
+                            value = widgetManualWeight,
+                            valueRange = 300..900,
+                            onValueChanged = playerSettingsRepository::setWidgetManualWeight
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FontAxisSlider(
+                            label = "Roundness",
+                            value = widgetManualRoundness,
+                            valueRange = 0..200,
+                            onValueChanged = playerSettingsRepository::setWidgetManualRoundness
+                        )
+                    }
                 }
             }
         }
@@ -890,5 +1005,37 @@ fun RenameDeviceDialog(
             }
         }
     )
+}
+
+@Composable
+private fun FontAxisSlider(
+    label: String,
+    value: Int,
+    valueRange: IntRange,
+    onValueChanged: (Int) -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = value.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onValueChanged(it.toInt()) },
+            valueRange = valueRange.first.toFloat()..valueRange.last.toFloat()
+        )
+    }
 }
 

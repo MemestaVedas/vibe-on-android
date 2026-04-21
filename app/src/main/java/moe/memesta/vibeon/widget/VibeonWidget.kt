@@ -113,11 +113,17 @@ private fun createRoundedGoogleSansFlexBitmap(
     text: String,
     colorInt: Int,
     textSizeSp: Float,
-    maxWidthDp: Float
+    maxWidthDp: Float,
+    fontMode: String,
+    manualWidth: Int,
+    manualWeight: Int,
+    manualRoundness: Int
 ): Bitmap {
     val safeText = text.ifEmpty { "No Track Playing" }
-    val textWeight = titleWeightForLength(safeText.length)
-    val textRoundness = titleRoundnessForLength(safeText.length)
+    val isManual = fontMode.equals("manual", ignoreCase = true)
+    val textWeight = if (isManual) manualWeight.coerceIn(300, 900) else titleWeightForLength(safeText.length)
+    val textRoundness = if (isManual) manualRoundness.coerceIn(0, 200) else titleRoundnessForLength(safeText.length)
+    val textWidthAxis = if (isManual) manualWidth.coerceIn(75, 125) else 100
     val density = context.resources.displayMetrics.density
     val textSizePx = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_SP,
@@ -125,16 +131,16 @@ private fun createRoundedGoogleSansFlexBitmap(
         context.resources.displayMetrics
     )
     val maxWidthPx = (maxWidthDp * density).roundToInt().coerceAtLeast(1)
-    val cacheKey = "$safeText|$colorInt|$textWeight|$textRoundness|$textSizePx|$maxWidthPx"
+    val cacheKey = "$safeText|$colorInt|$textWeight|$textRoundness|$textWidthAxis|$textSizePx|$maxWidthPx"
 
     TitleBitmapCache.get(cacheKey)?.let { return it }
 
     val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = textSizePx
         color = colorInt
-        typeface = ResourcesCompat.getFont(context, R.font.google_sans_flex_regular)
+        typeface = ResourcesCompat.getFont(context, R.font.google_sans_flex)
         // Aggressive short-title emphasis with rounded terminals.
-        fontVariationSettings = "'wght' $textWeight, 'ROND' $textRoundness"
+        fontVariationSettings = "'wght' $textWeight, 'wdth' $textWidthAxis, 'ROND' $textRoundness"
         isFakeBoldText = textWeight >= 760
         isSubpixelText = true
     }
@@ -216,7 +222,11 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
         text = mainTitle,
         colorInt = onPrimaryColor.toArgb(),
         textSizeSp = 20f,
-        maxWidthDp = 236f
+        maxWidthDp = 236f,
+        fontMode = playerInfo.widgetFontMode,
+        manualWidth = playerInfo.widgetManualWidth,
+        manualWeight = playerInfo.widgetManualWeight,
+        manualRoundness = playerInfo.widgetManualRoundness
     )
 
     Box(
@@ -389,7 +399,7 @@ private fun MainWidgetContent(playerInfo: WidgetPlaybackState) {
                                 color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Normal,
-                                fontFamily = FontFamily("google_sans_flex_regular")
+                                fontFamily = FontFamily("google_sans_flex")
                             ),
                             maxLines = 1,
                             modifier = GlanceModifier.padding(top = 2.dp)
@@ -452,7 +462,11 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
         text = detailTitle,
         colorInt = onPrimaryColor.toArgb(),
         textSizeSp = 30f,
-        maxWidthDp = 320f
+        maxWidthDp = 320f,
+        fontMode = playerInfo.widgetFontMode,
+        manualWidth = playerInfo.widgetManualWidth,
+        manualWeight = playerInfo.widgetManualWeight,
+        manualRoundness = playerInfo.widgetManualRoundness
     )
 
     Box(modifier = GlanceModifier.fillMaxSize().cornerRadius(28.dp)) {
@@ -526,7 +540,7 @@ private fun MoreDetailsContent(playerInfo: WidgetPlaybackState) {
                     style = TextStyle(
                         color = ColorProvider(onPrimaryColor.copy(alpha = 0.8f)),
                         fontSize = 14.sp,
-                        fontFamily = FontFamily("google_sans_flex_regular")
+                        fontFamily = FontFamily("google_sans_flex")
                     ),
                     maxLines = 1,
                     modifier = GlanceModifier.padding(top = 4.dp)

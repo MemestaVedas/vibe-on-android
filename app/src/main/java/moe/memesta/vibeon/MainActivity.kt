@@ -201,11 +201,13 @@ class MainActivity : ComponentActivity() {
             val displayLanguage by playerSettingsRepository.displayLanguage.collectAsStateWithLifecycle()
             val albumViewStyle by playerSettingsRepository.albumViewStyle.collectAsStateWithLifecycle()
             val artistViewStyle by playerSettingsRepository.artistViewStyle.collectAsStateWithLifecycle()
+            val nowPlayingFontMode by playerSettingsRepository.nowPlayingFontMode.collectAsStateWithLifecycle()
 
             CompositionLocalProvider(
                 moe.memesta.vibeon.ui.utils.LocalDisplayLanguage provides displayLanguage,
                 moe.memesta.vibeon.ui.utils.LocalAlbumViewStyle provides albumViewStyle,
-                moe.memesta.vibeon.ui.utils.LocalArtistViewStyle provides artistViewStyle
+                moe.memesta.vibeon.ui.utils.LocalArtistViewStyle provides artistViewStyle,
+                moe.memesta.vibeon.ui.utils.LocalNowPlayingFontMode provides nowPlayingFontMode
             ) {
                 moe.memesta.vibeon.ui.theme.DynamicTheme(albumMainColor = currentTrack.albumMainColor) {
                     // Initialize ViewModels or generic state if needed for global context
